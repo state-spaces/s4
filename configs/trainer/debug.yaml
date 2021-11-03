@@ -1,0 +1,21 @@
+defaults:
+  - default
+
+gpus: 1
+min_epochs: 1
+max_epochs: 10
+
+# prints
+progress_bar_refresh_rate: null
+weights_summary: full
+profiler: null
+
+# debugs
+fast_dev_run: False
+num_sanity_val_steps: 2
+overfit_batches: 0
+limit_train_batches: 0.1
+limit_val_batches: 0.1
+limit_test_batches: 0.1
+track_grad_norm: -1
+terminate_on_nan: False

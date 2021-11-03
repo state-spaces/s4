@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - /pipeline: pathx
+  - /model: s4
+
+model:
+  dropout: 0.
+  n_layers: 6
+  prenorm: true
+  d_model: 256
+  norm: batch
+
+loader:
+  batch_size: 32
+
+optimizer:
+  lr: 0.0005
+
+scheduler:
+  patience: 40
+
+trainer:
+  max_epochs: 100
+
+train:
+  seed: 1112

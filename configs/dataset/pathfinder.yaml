@@ -1,0 +1,15 @@
+_name_: pathfinder
+
+# data_dir: null
+resolution: 32
+sequential: True
+tokenize: False
+pool: 1
+val_split: 0.1
+test_split: 0.1
+# batch_size: 32
+seed: 42 # Controls the train/val/test split
+# There's an empty file in the pathfinder32 dataset
+# __dataset_len: ${eval:599999 if ${.__resolution} == 32 else 600000}
+# __train_len: ${eval:int\(${__dataset_len} * \(1 - ${.val_split} - ${.test_split}\)\)}
+__l_max: ${eval:${.resolution}**2 // ${.pool}**2}

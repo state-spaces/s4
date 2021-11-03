@@ -1,0 +1,7 @@
+_target_: models.baselines.transformer.ClassificationTransformer
+d_model: 128
+nhead: 4
+num_encoder_layers: 4
+dim_feedforward: 512
+dropout: 0.1
+prenorm: false

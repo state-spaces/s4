@@ -1,0 +1,4 @@
+# _target_: utils.lamb.JITLamb
+_name_: lamb
+lr: 0.01  # Initial learning rate
+weight_decay: 0.0  # Weight decay for adam|lamb

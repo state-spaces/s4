@@ -1,0 +1,4 @@
+_name_: celeba-all
+permute: False
+augment: False
+__l_max: 40000

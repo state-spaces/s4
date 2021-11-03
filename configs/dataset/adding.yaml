@@ -1,0 +1,7 @@
+# @package _global_
+dataset:
+  _name_: adding
+  l_max: 1000
+  n_samples: 50000
+  val_split: 0.1
+  __l_max: ${.l_max}

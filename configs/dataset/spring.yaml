@@ -1,0 +1,5 @@
+_name_: spring
+train_dataset: spring-runs_train-spring-n1000-t805-n0_00001
+val_dataset: spring-runs_val-spring-n5-t805-n0_00001
+test_dataset: spring-runs_eval-spring-n30-t805-n0_tagcors1_00001
+__l_max: 805

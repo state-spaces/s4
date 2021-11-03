@@ -1,0 +1,30 @@
+# @package _global_
+defaults:
+  - /pipeline: imdb
+  - /model: s4
+
+model:
+  dropout: 0.0
+  n_layers: 4
+  d_model: 128
+  prenorm: true
+  norm: batch
+
+dataset:
+  l_max: 2048
+  level: char
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+
+scheduler:
+  patience: 10
+
+trainer:
+  max_epochs: 40
+
+train:
+  seed: 1112

@@ -1,0 +1,6 @@
+# @package _global_
+train:
+  interval: epoch
+scheduler:
+  # _target_: transformers.get_constant_schedule
+  _name_: constant

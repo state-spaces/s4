@@ -1,0 +1,4 @@
+_name_: imu
+prediction: False
+reshuffle: True
+__l_max: 128

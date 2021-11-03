@@ -1,0 +1,25 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: torch
+  - /dataset: etth
+  - /task: regression
+  - /optimizer: adamw
+  - /scheduler: plateau
+
+train:
+  monitor: val/loss # Needed for plateau scheduler
+  mode: min
+
+encoder:
+  - linear
+  - _name_: time
+    timeenc: ${dataset.timeenc}
+
+decoder:
+  _name_: sequence
+  mode: last
+
+# This dataset is super prone to overfitting so we check validation more often
+trainer:
+  val_check_interval: 0.2

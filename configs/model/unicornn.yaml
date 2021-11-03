@@ -1,0 +1,7 @@
+# _target_: models.baselines.unicornn.UnICORNN
+_name_: unicornn
+nhid: 128 #hidden size of recurrent net
+dt: 0.046 # default of HR from repo
+alpha: 10.0 # default of HR from repo
+n_layers: 3 # default of HR from repo
+drop: 0.1

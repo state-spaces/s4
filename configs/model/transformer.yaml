@@ -1,0 +1,33 @@
+# _target_: models.sequence.SequenceModel
+_name_: model
+layer:
+  - _name_: mha
+    n_heads: 8
+    causal: True
+    dropout: null
+    bias: True
+    add_bias_kv: False
+    add_zero_attn: False
+    kdim: null
+    vdim: null
+  - _name_: ff
+    expand: 4
+    dropout: null
+    transposed: False
+n_layers: 16
+d_model: 512
+residual: R
+prenorm: False
+pool:
+  _name_: sample
+  pool: 1
+  expand: 1
+norm: layer
+dropout: 0.1
+# init:
+#   init: normal  # Parameter initializer to use
+#   init_range: 0.1  # Parameters initialized by U(-init_range, init_range)
+#   init_std: 0.02  # Parameters initialized by N(0, init_std)
+encoder:
+  _name_: position
+  dropout: 0.1

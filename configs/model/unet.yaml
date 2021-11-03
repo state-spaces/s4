@@ -1,0 +1,23 @@
+# _target_: models.sequence.SequenceUNet
+defaults:
+  - layer: s4
+
+_name_: unet
+d_model: 64
+# n_blocks: 5
+n_layers: 4
+pool:
+  - 3
+  - 4
+expand: 1
+ff: 2
+# cff: 0
+# ln_scalar: True
+prenorm: False
+dropout: 0.0
+dropres: 0.0
+initializer: null
+transposed: True
+residual: R
+norm: layer
+l_max: ${dataset.__l_max}

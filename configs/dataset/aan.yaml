@@ -1,0 +1,10 @@
+# _target_: src.datamodules.aan.AAN
+_name_: aan
+
+# data_dir: ${oc.env:DATA_DIR,${data_dir}}/aan/tsv_data # data_dir is specified in config.yaml
+l_max: 4000
+max_vocab: 100 # Full size 98
+append_bos: False
+append_eos: True
+# __train_len: 147086
+__l_max: ${.l_max}

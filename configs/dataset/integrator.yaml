@@ -1,0 +1,8 @@
+_name_: integrator
+l_seq: 1024
+n_components: 10
+max_ampl: 10.0
+max_freq: 100.0
+n_samples: 10000
+val_split: 0.1
+__l_max: ${.l_seq}

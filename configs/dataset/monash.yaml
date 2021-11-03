@@ -1,0 +1,4 @@
+_name_: monash
+dataset_name: aus_elecdemand
+val_frac: 0.1
+__l_max: 756

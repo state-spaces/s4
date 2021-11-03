@@ -1,0 +1,15 @@
+# _target_: models.sequence.SequenceModel
+defaults:
+  - layer: s4
+_name_: model
+prenorm: False
+transposed: False
+n_layers: 4
+d_model: 256
+residual: R
+pool:
+  _name_: sample
+  pool: 1
+  expand: 1
+norm: layer
+dropout: 0.2

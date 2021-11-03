@@ -1,0 +1,18 @@
+batch_first: True
+batch_size: 16
+l_max: 1024
+pad_last: False # DO NOT CHANGE WITHOUT GOOD REASON
+n_context: 1
+n_epoch_double: 0 # Double the length every n epochs
+limit_tokens: 1.0
+# Eval dataloaders override settings from train
+# Either specify a single dictionary, or a list of dictionaries where each key is the name of the eval loader
+eval:
+  # batch_size: 4
+  l_max: ${..l_max}
+# - batch_first: True # ${..batch_first}
+#   batch_size: 4 # ${..batch_size}
+#   l_max: 1024 # ${..train.l_max}
+# - batch_first: null # ${..batch_first}
+#   batch_size: 4 # ${..batch_size}
+#   l_max: 2048 # ${..train.l_max}

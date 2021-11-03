@@ -1,0 +1,5 @@
+_name_: celeba
+permute: False
+augment: False
+target: Wearing_Lipstick
+__l_max: 40000

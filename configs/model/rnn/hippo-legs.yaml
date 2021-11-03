@@ -1,0 +1,21 @@
+# @package model
+# Config for the HiPPO-LegS (Scaled Legendre) cell
+# _target_: models.sequence.SequenceModel
+_name_: model
+layer:
+  _name_: rnn
+  cell:
+    _name_: legs
+    d_model: 256 # hidden size
+    memory_size: 1
+    memory_order: -1
+    discretization: bilinear
+  return_output: True
+n_layers: 1
+d_model: 256
+prenorm: False
+residual: N
+pool: null
+norm: none
+dropout: 0.0
+# decoder: state # To use the hidden state to decode, pass in decoder=state at top level. If single layer, pass model.layer.return_output=false to save memory

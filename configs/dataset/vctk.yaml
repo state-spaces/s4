@@ -1,0 +1,20 @@
+# @package _global_
+# STALE
+dataset:
+  _name_: vctk
+  train_file_list: '/dfs/scratch0/trid/audio-super-res/data/vctk/speaker1/speaker1-train-files.txt'
+  val_file_list: '/dfs/scratch0/trid/audio-super-res/data/vctk/speaker1/speaker1-val-files.txt'
+  test_file_list: '/dfs/scratch0/trid/audio-super-res/data/vctk/speaker1/speaker1-val-files.txt'
+  input_dir: '/dfs/scratch0/trid/VCTK/VCTK-Corpus-old/wav48/p225'
+  scale_factor: 8
+  test_scale_factor: 8
+  sampling_rate: 16000
+  test_sampling_rate: 16000
+  clip_length: 8192
+  test_clip_length: 8192
+  clip_stride: 4096
+  test_clip_stride: 4096
+  interpolate: True
+  low_pass: True
+train:
+  epochs: 50

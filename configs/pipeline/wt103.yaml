@@ -1,0 +1,30 @@
+# @package _global_
+defaults:
+  - /trainer: lm # Overrides ddp among other things
+  - /loader: lm # Custom LM iterator
+  - /dataset: wt103
+  - /optimizer: adamw
+  - /scheduler: cosine_warmup
+
+train:
+  monitor: val/loss
+  mode: min
+
+task:
+  # _target_: tasks.tasks.AdaptiveLMTask
+  _name_: adaptivelm
+  init_scale: 0.5 # null to get transformer-xl init
+  bias_scale: 1.0
+  div_val: 1 # Set to 4 for adaptive embeddings
+  cutoffs: [19997, 39997, 199997]
+  tie_weights: True
+  tie_projs: [True, True, True]
+  dropemb: 0.0 # Embedding dropout
+  dropsoft: 0.0 # Softmax dropout
+
+  loss: null # Defined by task already
+  metrics:
+    - ppl
+
+encoder: null # Handled by AdaptiveLM: adaptive embeddings
+decoder: sequence

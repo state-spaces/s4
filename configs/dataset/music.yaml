@@ -1,0 +1,6 @@
+_name_: music
+sample_len: 1 # in seconds
+sample_rate: 16000
+train_percentage: 0.88 # from SampleRNN paper
+discrete_input: false
+__l_max: ${eval:${.sample_rate}*${.sample_len}}

@@ -1,0 +1,28 @@
+# @package _global_
+defaults:
+  - /pipeline: sc
+  - /model: s4
+
+model:
+  dropout: 0.1
+  n_layers: 6
+  prenorm: true
+  d_model: 128
+  norm: batch
+  layer:
+    resample: true
+
+optimizer:
+  lr: 0.01
+
+loader:
+  batch_size: 20
+
+trainer:
+  max_epochs: 200
+
+scheduler:
+  patience: 20
+
+train:
+  seed: 1112

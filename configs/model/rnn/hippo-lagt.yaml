@@ -1,0 +1,24 @@
+# @package model
+# Config for the HiPPO-LagT (Translated Laguerre) cell
+# _target_: models.model.SequenceModel
+_name_: model
+layer:
+  _name_: rnn
+  cell:
+    _name_: lagt
+    d_model: 256
+    memory_size: 1
+    memory_order: -1
+    dt: 1.0 # Effective at different dt than HiPPO-LegT
+    discretization: bilinear
+    measure_args:
+      beta: 1.0
+  return_output: True
+n_layers: 1
+d_model: 256
+prenorm: False
+residual: N
+pool: null
+norm: none
+dropout: 0.0
+# decoder: state

@@ -1,0 +1,14 @@
+# @package model
+# _target_: models.sequence.SequenceModel
+_name_: model
+layer:
+  _name_: lstm
+  d_hidden: 256
+  n_layers: 1
+n_layers: 1
+d_model: 256
+prenorm: False
+residual: R
+pool: null
+norm: layer
+dropout: 0.0

@@ -1,0 +1,14 @@
+# CharacterTrajectories
+_name_: ct
+# Sampling frequency relative to original sequence
+train_hz: 1
+eval_hz: 1
+# Sample evenly or randomly
+train_uniform: True
+eval_uniform: True
+# Include timestamps in input
+timestamp: False
+# Timestamp scale (multiplier on timestamp)
+train_ts: 1
+eval_ts: 1
+__l_max: 200

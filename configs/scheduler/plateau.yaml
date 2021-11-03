@@ -1,0 +1,11 @@
+# @package _global_
+train:
+  interval: epoch
+  monitor: ??? # must be specified
+scheduler:
+  # _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _name_: plateau
+  mode: ${train.mode} # Which metric to monitor
+  factor: 0.2  # Decay factor when ReduceLROnPlateau is used
+  patience: 20
+  min_lr: 0.0  # Minimum learning rate during annealing

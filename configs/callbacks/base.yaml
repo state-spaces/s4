@@ -1,0 +1,16 @@
+learning_rate_monitor:
+  # _target_: pytorch_lightning.callbacks.LearningRateMonitor
+  logging_interval: ${train.interval}
+
+timer:
+  # _target_: callbacks.timer.Timer
+  step: True
+  inter_step: False
+  epoch: True
+  val: True
+
+params:
+  # _target_: callbacks.params.ParamsLog
+  total: True
+  trainable: True
+  fixed: True

@@ -1,0 +1,6 @@
+# _target_: dataloaders.lm.EnWik8
+_name_: enwik8
+data_dir: null # Location of the data corpus, defaults to ./dataloaders/data
+bpe: False
+roll_seed: 42
+__l_max: ${loader.l_max} # Used with LM loader

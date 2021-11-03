@@ -1,0 +1,23 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: torch
+  - /dataset: monash
+  - /task: regression
+  - /optimizer: adamw
+  - /scheduler: plateau
+
+train:
+  monitor: val/loss # Needed for plateau scheduler
+  mode: min
+
+encoder: linear
+
+decoder:
+  _name_: sequence
+  mode: last
+
+# Time series data, so the len(train) is quite large because shifting by a single step is a new example
+# Counting batches is more appropriate
+trainer:
+  val_check_interval: 100 # check validation every 100 batches of training

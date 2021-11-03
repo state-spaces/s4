@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar
+  - /model: s4
+
+model:
+  dropout: 0.25
+  n_layers: 6
+  d_model: 1024
+  prenorm: false
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.01
+
+trainer:
+  max_epochs: 200
+
+scheduler:
+  patience: 20
+
+train:
+  seed: 1112

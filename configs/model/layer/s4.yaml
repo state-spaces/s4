@@ -1,0 +1,30 @@
+_name_: s4
+d_state: 64
+measure: legs
+rank: 1
+dt_min: 0.001
+dt_max: 0.1
+trainable:
+    A: 1
+    B: 2
+    C: 1
+    dt: 1
+lr:
+    dt: 0.001
+    A: ${.dt}
+    B: ${.dt}
+    C: null
+cache: False
+weight_decay: 0.0
+activation: gelu
+postact: null
+initializer: null
+weight_norm: False
+input_linear: False
+hyper_act: null
+resample: False
+use_state: False
+keops: False
+length_correction: false
+dropout: ${..dropout} # Same as null
+l_max: ${dataset.__l_max} # TODO temporary; use hydra interpolation for now

@@ -1,0 +1,6 @@
+_name_: cifargen # Cifar generation flattened
+transpose: False
+tokenize: True
+mixture: 0
+val_split: 0.02
+__l_max: 3072

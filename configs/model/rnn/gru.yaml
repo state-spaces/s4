@@ -1,0 +1,20 @@
+# @package model
+# _target_: models.model.SequenceModel
+_name_: model
+layer:
+  _name_: rnn
+  cell:
+    _name_: gru
+    d_model: 256
+    hidden_activation: tanh
+    gate: G
+    reset: G
+    orthogonal: False
+n_layers: 1
+d_model: 256
+prenorm: False
+residual: N
+pool: null
+norm: none
+dropout: 0.0
+# decoder: state # To use the hidden state to decode, pass in decoder=state at top level. If single layer, pass model.layer.return_output=false to save memory

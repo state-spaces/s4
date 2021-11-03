@@ -1,0 +1,5 @@
+# _target_: tasks.tasks.BaseTask
+_name_: base
+loss: mse
+metrics: mse
+torchmetrics: null

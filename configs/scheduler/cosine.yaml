@@ -1,0 +1,8 @@
+# @package _global_
+train:
+  interval: step
+scheduler:
+  # _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  _name_: cosine
+  T_max: 40000  # Max number of training steps for LR scheduler
+  eta_min: 0.001  # Min learning rate for cosine scheduler

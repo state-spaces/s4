@@ -1,0 +1,17 @@
+_name_: lssl
+d_model: 256
+measure: legs
+learn: 1
+lr: 0.0001
+noise: 0.0
+dt:
+  min: 0.001
+  max: 0.1
+  init: random
+  learn: ${..learn}
+  lr: 0.001
+channels: 1
+bias: False
+activation: gelu
+ff: True
+weight_norm: False

@@ -1,0 +1,23 @@
+_name_: eegseizure
+__l_max: 12000
+
+
+
+# # @package _global_
+# # STALE
+
+# dataset:
+#   _name_: eegseizure
+#   input_dir: /media/nvme_data/siyitang/TUH_eeg_seq_v1.5.2/resampled_signal #/home/workspace/hippo/datasets/eeg/resampled_signal
+#   raw_data_dir: /media/nvme_data/TUH/v1.5.2/edf #/home/workspace/hippo/datasets/eeg/edf
+#   clip_len: 60
+#   time_step_size: 1
+#   stride: 60
+#   standardize: False
+#   padding: False
+#   padding_val: 0.0
+#   augmentation: False
+#   balance_train: True
+#   use_fft: False
+#   use_cnn_features: False
+#   min_sz_len: 0

@@ -1,0 +1,76 @@
+# DEPRECTAED; reference from old model backbone 
+# @package _global_
+model:
+  _target_: transformer.transformer.TransformerLM
+  # d_model: 512  # Model dimension
+  d_model: null  # Model dimension
+  qkv_dim: 512
+  n_head: 8  # Number of heads
+  d_inner: 2048  # Inner dimension in feedforward layer
+  pre_lnorm: False  # Apply LayerNorm to the input instead of the output
+  n_layer: 16  # Number of total layers
+  # adaptive: True  # Use adaptive softmax
+  # div_val: 1  # Dividend value for adaptive input and softmax
+  # tie_weights: True  # Tie the word embedding and softmax weights
+  dropout: 0.1  # Global dropout rate
+  # dropatt: 0.0  # Attention probability dropout rate
+  init_cfg:
+    init: normal  # Parameter initializer to use
+    init_range: 0.1  # Parameters initialized by U(-init_range, init_range)
+    init_std: 0.02  # Parameters initialized by N(0, init_std)
+  # init_cfg:
+  #   emb_init: normal  # Parameter initializer to use
+  #   emb_init_range: 0.01  # Parameters initialized by U(-init_range, init_range)
+  #   proj_init_std: 0.01  # Parameters initialized by N(0, init_std)
+
+  # attention:
+  #     qkv_dim: 512
+  #     n_head: 8  # Number of heads
+
+  architecture:
+      # - hippo
+      # - ff
+      - mha
+      - ff
+
+  s4:
+    d_model: 128
+    measure: legs
+    rank: 1
+    dt_min: 0.001
+    dt_max: 0.1
+    trainable:
+        A: 1
+        B: 2
+        C: 1
+        dt: 1
+    lr:
+        A: 0.001
+        B: 0.001
+        C: null
+        dt: 0.001
+    cache: True
+    # weight_decay: 0.0
+
+  hippo:
+    d_model: 256 # ${model.d_model}
+    # order: 64
+    measure: legs
+    learn: 0
+    # lr_scale: 0.1
+    noise: 0.0
+    dt:
+      min: 0.001
+      max: 0.1
+      init: random
+      learn: False
+      # lr_scale: 0.1
+    channels: 1
+    bias: True
+    activation: gelu
+    ff: True
+    weight_norm: False
+    # expand: 4
+
+
+  state: False

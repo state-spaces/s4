@@ -1,0 +1,9 @@
+_name_: copying
+l_noise: 100 # length
+l_memorize: 10  # number of tokens to memorize
+n_tokens: 10  # alphabet size
+variable: False # Randomly distribute memorization tokens throughout sequence instead of frontloading them
+n_samples: 50000
+# test_samples: 5000
+val_split: 0.1
+__l_max: ${eval:${.l_noise} + 2*${.l_memorize}}

@@ -1,0 +1,10 @@
+# @package model
+_target_: models.model.SequenceModel
+cell:
+  _name_: sru
+  d_model: 256
+  feedback: True
+output_mode: state
+depth: 3
+residual:
+  _name_: H

@@ -1,0 +1,4 @@
+_name_: cheetah
+normalize: False
+chunk: True
+__l_max: 32

@@ -1,0 +1,10 @@
+_name_: ct
+train_hz: 0.5
+eval_hz: 0.5
+train_uniform: False
+eval_uniform: False
+timestamp: False
+train_ts: 1
+eval_ts: 1
+mask: True
+__l_max: 200

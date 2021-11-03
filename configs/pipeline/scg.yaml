@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: torch
+  - /dataset: scg
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+
+train:
+  monitor: val/loss # Needed for plateau scheduler
+  mode: min
+
+task:
+  metrics: bpb
+
+encoder: linear
+
+decoder:
+  _name_: sequence
+  mode: last
+
+loader:
+  train_resolution: 1
+  eval_resolutions:
+    - 1

@@ -1,0 +1,5 @@
+_name_: mnist
+permute: True
+val_split: 0.1
+seed: 42
+__l_max: 784

@@ -1,0 +1,14 @@
+- _name_: mha
+  n_heads: 8
+  dropout: null
+  bias: True
+  add_bias_kv: False
+  add_zero_attn: False
+  kdim: null
+  vdim: null
+  batch_first: True
+- _name_: ff
+  expand: 4
+  activation: gelu
+  dropout: ${...dropout} # Same as null
+  # transposed: False # Set by backbone

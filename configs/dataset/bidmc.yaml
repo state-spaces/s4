@@ -1,0 +1,5 @@
+_name_: bidmc
+target: RR # 'RR' | 'HR' | 'SpO2'
+prediction: False
+reshuffle: True
+__l_max: 4000

@@ -1,0 +1,20 @@
+# @package model
+# _target_: models.model.SequenceModel
+_name_: model
+layer:
+  _name_: rnn
+  cell:
+    _name_: exprnn # Can change to gru to allow for orthogonal + gating options, i.e. the GORU
+    d_model: 256
+    hidden_activation: modrelu
+    orthogonal: True
+    ortho_args:
+      method: dtriv # 'cayley' | 'exprnn' | 'dtriv'
+      init: cayley # 'henaff' | 'cayley'
+n_layers: 1
+d_model: 256
+prenorm: False
+residual: N
+pool: null
+norm: none
+dropout: 0.0

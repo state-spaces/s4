@@ -1,0 +1,12 @@
+# @package _global_
+dataset: # TODO fix by copying from wt103
+  _name_: wikitext2
+  vocab_size: 28787  # Default is 28785 vocab size + 2 for <pad> and <unk>
+  sequence_length: 70
+  variable_length: True  # Should sequence length in training vary?
+train:
+  batch_size: 80
+  epochs: 40
+model:
+  embed_args:
+    embed_dim: 200

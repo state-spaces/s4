@@ -1,0 +1,25 @@
+# @package _global_
+defaults:
+  - /trainer: lm # Overrides ddp among other things
+  - /loader: lm # Custom LM iterator
+  - /dataset: enwik8
+  - /optimizer: lamb
+  - /scheduler: cosine_warmup
+
+train:
+  monitor: val/loss
+  mode: min
+  # ema: 0.9998
+
+loader:
+  l_max: 2048
+
+task:
+  # _target_: tasks.tasks.LMTask
+  _name_: lm
+  tied: False
+  # loss: cross_entropy # Handled by task: cross entropy loss
+  metrics: bpb # Bits per byte
+
+encoder: null # Handled by LMTask: embeddings
+decoder: sequence

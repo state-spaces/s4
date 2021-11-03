@@ -1,0 +1,8 @@
+_name_: listops
+l_max: 2048
+append_bos: False
+append_eos: True
+n_workers: 4 # Only used for tokenizing once
+max_vocab: 20 # Actual size 18
+# __train_len: 96000
+__l_max: ${.l_max}

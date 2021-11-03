@@ -1,0 +1,13 @@
+# @package _global_
+defaults:
+  - imdb
+  - override /dataset: aan
+
+encoder: embedding
+decoder:
+  _name_: retrieval
+  mode: pool
+  use_lengths: true
+  nli: true
+  activation: gelu
+  d_model: null # Size of intermediate layer

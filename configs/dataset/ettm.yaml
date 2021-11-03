@@ -1,0 +1,15 @@
+_name_: ettm
+size:
+  - 384
+  - 96
+  - 96
+features: 'S'
+target: 'OT'
+variant: 0
+scale: True
+inverse: False
+timeenc: 0
+eval_stamp: False
+eval_mask: False
+# freq: 't' # Shouldn't touch
+__l_max: ${eval:${.size.0}+${.size.2}}

@@ -1,0 +1,15 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: torch
+  - /dataset: integrator
+  - /task: regression
+  - /optimizer: adamw
+  - /scheduler: plateau
+
+train:
+  monitor: val/loss # Needed for plateau scheduler
+  mode: min
+
+encoder: linear
+decoder: sequence

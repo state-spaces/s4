@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - /pipeline: pathfinder
+  - /model: resnet
+
+model:
+  d_input: 1
+encoder: id
+
+dataset:
+  resolution: 128
+
+train:
+  seed: 1111
+
+optimizer:
+  lr: 0.001
+
+loader:
+  batch_size: 100
+
+trainer:
+  max_epochs: 100
+
+scheduler:
+  patience: 10

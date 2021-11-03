@@ -1,0 +1,3 @@
+# _target_: models.baselines.resnet.ResnetSquare
+_name_: resnet
+variant: 18

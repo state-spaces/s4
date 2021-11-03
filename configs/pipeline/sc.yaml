@@ -1,0 +1,24 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: torch
+  - /dataset: sc
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+
+train:
+  monitor: val/accuracy # Needed for plateau scheduler
+  mode: max
+
+encoder: linear
+
+decoder:
+  _name_: sequence
+  mode: pool
+
+loader:
+  train_resolution: 1
+  eval_resolutions:
+    - 1
+    - 2

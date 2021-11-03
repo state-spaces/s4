@@ -1,0 +1,8 @@
+# @package _global_
+train:
+  interval: step
+scheduler:
+  # _target_: torch.optim.lr_scheduler.StepLR
+  _name_: step
+  step_size: 1
+  gamma: 0.99

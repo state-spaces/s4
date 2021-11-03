@@ -1,0 +1,30 @@
+# @package _global_
+defaults:
+  - /pipeline: listops
+  - /model: s4
+
+model:
+  dropout: 0.
+  n_layers: 6
+  d_model: 128
+  prenorm: false
+  norm: batch
+
+decoder:
+  mode: pool
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.01
+
+scheduler:
+  patience: 5
+
+trainer:
+  max_epochs: 50
+
+train:
+  seed: 1112

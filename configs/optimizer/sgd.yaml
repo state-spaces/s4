@@ -1,0 +1,5 @@
+# _target_: torch.optim.SGD
+_name_: sgd
+lr: 0.001  # Initial learning rate
+momentum: 0.9
+weight_decay: 0.0  # Weight decay for adam|lamb

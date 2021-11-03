@@ -1,0 +1,8 @@
+# @package _global_
+train:
+  interval: epoch
+# _target_: torch.optim.lr_scheduler.MultiStepLR
+scheduler:
+  _name_: multistep
+  milestones: [80,140,180]
+  gamma: 0.2

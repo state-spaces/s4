@@ -1,0 +1,51 @@
+# @package _global_
+defaults:
+  - /pipeline: wt103
+  - /model: s4
+  - /model/layer: s4ff
+  - /optimizer: adamw
+
+# Dataset
+dataset:
+  test_split: False
+loader:
+  batch_size: 8
+  l_max: 1024
+  n_context: 1
+  eval:
+    batch_size: null
+    l_max: null
+
+task:
+  div_val: 4
+  dropemb: 0.1
+  dropsoft: 0.1
+
+# Model
+model:
+  dropinp: 0.0
+  dropout: 0.2
+  prenorm: True
+  n_layers: 18
+  d_model: 1024
+  # layer.0.d_model: 64
+  # layer.0.postact: glu
+  # layer.1.activation: gelu
+  # layer.1.expand: 4
+
+# Optimizer
+# optimizer: adamw
+optimizer:
+  lr: 1e-3
+  weight_decay: 0.1
+# model.layer.0.lr.dt: 1e-3
+
+# Scheduler
+trainer:
+  max_epochs: 200
+# scheduler: cosine_warmup
+train:
+  seed: 1111
+  scheduler:
+    num_warmup_steps: 1000
+    num_training_steps: 400000

@@ -1,0 +1,21 @@
+_name_: imdb
+l_max: 4096
+# tokenizer_type: char
+level: char
+# This determines the vocab size
+# word level
+#   min_freq=5: vocab ~ 35000
+#   min_freq=10: vocab ~ 23000
+#   min_freq=20: vocab ~ 15000
+# char level
+#   min_freq=10: vocab ~ 150
+#   min_freq=15: vocab ~ 135
+# vocab_min_freq: 15
+min_freq: 15
+seed: 42
+val_split: 0.0
+append_bos: False
+append_eos: True
+
+max_vocab: 135 # Corresponds to char level min_freq 15 # currently unused due to having model in setup
+__l_max: ${.l_max}

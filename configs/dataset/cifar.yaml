@@ -1,0 +1,10 @@
+_name_: cifar
+permute: null
+grayscale: False
+tokenize: False
+augment: False
+cutout: False
+random_erasing: False
+val_split: 0.1
+seed: 42 # For validation split
+__l_max: 1024

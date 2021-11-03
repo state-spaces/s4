@@ -1,0 +1,6 @@
+# @package model
+# _target_: models.sequence.rnns.lstm.TorchLSTM
+_name_: lstm
+d_model: 256
+d_hidden: ${.d_model}
+n_layers: 1

@@ -1,0 +1,14 @@
+- _name_: performer
+  # _target_: src.models.modules.attention.linear_attention.LinearAttention
+  # Embed dimension is model.mha_cfg.kdim if available, otherwise model.d_model
+  # query_dims: ${eval:${model.d_model} // ${model.n_head}}
+  n_heads: 8
+  feature_map_cfg:
+    _target_: src.models.sequence.attention.performer.PerformerFeatures
+    n_features: 64
+  causal: False
+- _name_: ff
+  expand: 4
+  activation: gelu
+  dropout: ${...dropout} # Same as null
+  # transposed: False # Set by backbone

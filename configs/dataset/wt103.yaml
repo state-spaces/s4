@@ -1,0 +1,8 @@
+# _target_: dataloaders.lm.WikiText103
+_name_: wt103
+data_dir: null # Location of the data corpus, defaults to ./dataloaders/data
+bpe: False
+roll_seed: 42 # "rotate" data every epoch so it starts somewhere random
+test_split: True
+__l_max: ${loader.l_max} # Used with LM loader
+# l_max: ${eval:${loader.l_max}//${loader.n_context}} # Used with LM loader

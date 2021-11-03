@@ -1,0 +1,5 @@
+# @package _global_
+defaults:
+  - /pipeline: mnist
+  - /model: base
+# This file is a bare bones config for an experiment, consisting of a pipeline and model backbone

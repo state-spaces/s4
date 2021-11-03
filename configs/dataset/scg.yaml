@@ -1,0 +1,6 @@
+_name_: scg
+mfcc: False
+dropped_rate: 0.
+length: 16000
+discrete_input: false
+__l_max: ${.length}

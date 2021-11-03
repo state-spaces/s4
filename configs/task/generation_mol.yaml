@@ -1,0 +1,10 @@
+_target_: tasks.tasks.GeneralTask
+encoder:
+  _name_: linear
+decoder:
+  _name_: sequence
+loss:
+  _name_: mixture
+  scale: 2.0
+metrics:
+  - bpb

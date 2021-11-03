@@ -1,0 +1,30 @@
+# TODO there has to be a way to compose this
+- _name_: s4
+  d_state: 64
+  measure: legs
+  rank: 1
+  dt_min: 0.001
+  dt_max: 0.1
+  trainable:
+      A: 1
+      B: 2
+      C: 1
+      dt: 1
+  lr:
+      dt: ${optimizer.lr} # 0.0005
+      A: ${.dt}
+      B: ${.dt}
+      C: null
+  cache: False
+  weight_decay: 0.0
+  weight_norm: False
+  activation: gelu
+  postact: glu
+  initializer: null
+  dropout: ${...dropout} # Same as null
+  l_max: ${dataset.__l_max} # TODO temporary; use hydra interpolation for now
+- _name_: ff
+  expand: 4
+  activation: gelu
+  dropout: ${...dropout} # Same as null
+  # transposed: False # Set by backbone

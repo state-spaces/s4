@@ -1,0 +1,21 @@
+# @package model
+# _target_: models.model.SequenceModel
+_name_: model
+layer:
+  _name_: rnn
+  cell:
+    _name_: lmu
+    d_model: 256
+    memory_size: 1
+    memory_order: -1
+    dt: 1.0
+    theta: 784
+    discretization: zoh
+    gate: N
+n_layers: 1
+d_model: 256
+prenorm: False
+residual: N
+pool: null
+norm: none
+dropout: 0.0

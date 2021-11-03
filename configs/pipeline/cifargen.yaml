@@ -1,0 +1,24 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /optimizer: adamw
+  - /scheduler: plateau
+  - /loader: torch
+  - /dataset: cifargen # Cifar generation flattened
+  # - /model: s3unet
+  # - /task:
+
+train:
+  ema: .9995 # Exponential moving average
+  # monitor: val/ema/loss # Needed for plateau scheduler and checkpointing
+  monitor: val/loss # Needed for plateau scheduler and checkpointing
+  mode: min
+
+task:
+  _name_: base
+  loss: cross_entropy
+  metrics: bpb
+
+encoder: embedding # Change this to linear if dataset.tokenize=False
+
+decoder: sequence
