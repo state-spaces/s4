@@ -33,13 +33,15 @@ Other packages are listed in `requirements.txt`.
 
 #### Datasets and Dataloaders
 All logic for creating and loading datasets is in `src/dataloaders`.
-This folders includes many old and experimental datasets.
+This folder may include old and experimental datasets.
 The datasets that we consider core are located in `src/dataloaders/datasets.py`.
 
+
+#### Data
 The raw data should be organized as follows.
 The data path can be configured by the environment variable `DATA_PATH`, or defaults to `./data` by default, where `.` is the top level directory of this repository (e.g. 'state-spaces').
 
-#### Data
+Most of the dataloaders download their datasets automatically if not found.
 External datasets include Long Range Arena (LRA), which can be downloaded from their [GitHub page](https://github.com/google-research/long-range-arena).
 <!--- and Language Modeling datasets including WikiText-103, which can be downloaded by the `getdata.sh` script from the [Transformer-XL codebase](https://github.com/kimiyoung/transformer-xl). -->
 These external datasets should be organized as follows:
@@ -85,10 +87,6 @@ The S4 module is found at
 For users who would like to import a single file that has the self-contained S4 layer,
 a standalone version can be found at `src/models/sequence/ss/standalone/s4.py`.
 
-### Testing
-
-For testing, we frequently use synthetic datasets or the Permuted MNIST dataset.
-This can be run with `python -m train wandb=null pipeline=mnist model=s4`, which should get to around 90% after 1 epoch which takes 2-4 minutes depending on GPU.
 
 ### Long Range Arena (LRA)
 
@@ -101,13 +99,10 @@ python -m train wandb=null experiment=s4-lra-pathfinder
 python -m train wandb=null experiment=s4-lra-pathx
 ```
 
-Note that these experiments may take different amounts of time to train. IMDB should take just 1-2 hours, while Path-X will take several epochs to take off and take over a day to train to completion.
-
 ### CIFAR-10
 ```
 python -m train wandb=null experiment=s4-cifar
 ```
-The above command line reproduces our best sequential CIFAR model. Decreasing the model size should yield close results, e.g. halving the hidden dimension with `model.d_model=512`.
 
 ### Speech Commands
 
@@ -185,7 +180,7 @@ See instructions in [Getting Started](#-structured-state-space-(s4)).
 
 ### LSSL
 
-The LSSL is an old version of S4. It is currently not recommended for use, but the model can be found at `src/models/sequence/ss/lssl.py`.
+The LSSL is the predecessor of S4. It is currently not recommended for use, but the model can be found at `src/models/sequence/ss/lssl.py`.
 
 It can be run with `model/layer=lssl` or `model/layer=lssl model.layer.learn=0` for the LSSL-fixed model which does not train A, B, or dt.
 
@@ -194,7 +189,7 @@ It can be run with `model/layer=lssl` or `model/layer=lssl model.layer.learn=0` 
 HiPPO is the mathematical framework upon which the papers HiPPO, LSSL, and S4 are built on.
 The logic for HiPPO operators is found under `src/models/hippo/`.
 
-HiPPO-RNN cells from the original [https://arxiv.org/abs/2008.07669] can be found under the [RNN cells](#-rnns)
+HiPPO-RNN cells from the original [paper](https://arxiv.org/abs/2008.07669) can be found under the [RNN cells](#-rnns)
 
 ### RNNs
 
@@ -227,7 +222,17 @@ configs/         config files for model, data pipeline, training loop, etc.
 data/            default location of raw data
 extensions/      CUDA extension for Cauchy kernel
 src/             main source code for models, datasets, etc.
-train.py         main entrypoint
+  callbacks/     training loop utilities (e.g. checkpointing)
+  dataloaders/   data loading logic
+  models/        model backbones
+    baselines/   misc. baseline models
+    functional/  mathematical utilities
+    nn/          standalone modules and components
+    hippo/       core HiPPO logic
+    sequence/    sequence model backbones and layers including RNNs and S4/LSSL
+  tasks/         encoder/decoder modules to interface between data and model backbone
+  utils/
+train.py         training loop entrypoint
 ```
 
 
