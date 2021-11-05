@@ -32,8 +32,9 @@ def get_logger(name=__name__, level=logging.INFO) -> logging.Logger:
     return logger
 log = get_logger(__name__)
 
+""" Cauchy kernel """
 
-try:
+try: # Try CUDA extension
     from extensions.cauchy.cauchy import cauchy_mult
     has_cauchy_extension = True
 except:
@@ -42,14 +43,55 @@ except:
     )
     has_cauchy_extension = False
 
-try:
-    import src.models.functional.cauchy as cauchy
+try: # Try pykeops
+    import pykeops
+    from pykeops.torch import Genred
 except ImportError:
     if not has_cauchy_extension:
         log.error(
-            "Install at least one of pykeops or cauchy_mult."
+            "Install at least one of pykeops or the cauchy_mult extension."
         )
 
+def _broadcast_dims(*tensors):
+    max_dim = max([len(tensor.shape) for tensor in tensors])
+    tensors = [tensor.view((1,)*(max_dim-len(tensor.shape))+tensor.shape) for tensor in tensors]
+    return tensors
+
+def cauchy_conj(v, z, w, num=2, denom=2):
+    """ Pykeops version """
+    if num == 1:
+        expr_num = 'z * ComplexReal(v) - Real2Complex(ComplexReal(v)*ComplexReal(w) + ComplexImag(v)*ComplexImag(w))'
+    elif num == 2:
+        expr_num = 'z * ComplexReal(v) - Real2Complex(Sum(v * w))'
+    else: raise NotImplementedError
+
+    if denom == 1:
+        expr_denom = 'ComplexMult(z-Real2Complex(ComplexReal(w)), z-Real2Complex(ComplexReal(w))) + Real2Complex(Square(ComplexImag(w)))'
+    elif denom == 2:
+        expr_denom = 'ComplexMult(z-w, z-Conj(w))'
+    else: raise NotImplementedError
+
+    cauchy_mult = Genred(
+        f'ComplexDivide({expr_num}, {expr_denom})',
+        # expr_num,
+        # expr_denom,
+        [
+            'v = Vj(2)',
+            'z = Vi(2)',
+            'w = Vj(2)',
+        ],
+        reduction_op='Sum',
+        axis=1,
+        dtype='float32' if v.dtype == torch.cfloat else 'float64',
+    )
+
+    v, z, w = _broadcast_dims(v, z, w)
+    v = torch.view_as_real(v)
+    z = torch.view_as_real(z)
+    w = torch.view_as_real(w)
+
+    r = 2*cauchy_mult(v, z, w, backend='GPU')
+    return torch.view_as_complex(r)
 
 _conj = lambda x: torch.cat([x, x.conj()], dim=-1)
 
@@ -553,7 +595,7 @@ class SSKernelNPLR(OptimModule):
         if not self.keops and has_cauchy_extension:
             r = cauchy_mult(v, z, w, symmetric=True)
         else:
-            r = cauchy.cauchy_conj(v, z, w)
+            r = cauchy_conj(v, z, w)
         r = r * dt[..., None, None, None]  # (..., 1+r, 1+r, L)
 
         # Low-rank Woodbury correction
