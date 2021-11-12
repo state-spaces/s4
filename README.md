@@ -87,6 +87,9 @@ The S4 module is found at
 For users who would like to import a single file that has the self-contained S4 layer,
 a standalone version can be found at `src/models/sequence/ss/standalone/s4.py`.
 
+We include a simple example in PyTorch (`example.py`) that only depends on the standalone S4 layer. 
+This file shows you how to build models with the S4 layer, 
+using a standard backbone (`S4Model`) for sequence classification on MNIST and CIFAR-10.
 
 ### Long Range Arena (LRA)
 
