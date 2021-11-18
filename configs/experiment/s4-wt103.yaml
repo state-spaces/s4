@@ -2,12 +2,11 @@
 defaults:
   - /pipeline: wt103
   - /model: s4
-  - /model/layer: s4ff
-  - /optimizer: adamw
+  - override /model/layer: s4s4ff
 
 # Dataset
 dataset:
-  test_split: False
+  test_split: True
 loader:
   batch_size: 8
   l_max: 1024
@@ -18,15 +17,15 @@ loader:
 
 task:
   div_val: 4
-  dropemb: 0.1
-  dropsoft: 0.1
+  dropemb: 0.25
+  dropsoft: 0.25
 
 # Model
 model:
   dropinp: 0.0
-  dropout: 0.2
+  dropout: 0.25
   prenorm: True
-  n_layers: 18
+  n_layers: 16
   d_model: 1024
   # layer.0.d_model: 64
   # layer.0.postact: glu
@@ -36,16 +35,17 @@ model:
 # Optimizer
 # optimizer: adamw
 optimizer:
-  lr: 1e-3
+  lr: 5e-4
   weight_decay: 0.1
 # model.layer.0.lr.dt: 1e-3
 
 # Scheduler
 trainer:
-  max_epochs: 200
+  max_epochs: 1000
 # scheduler: cosine_warmup
+scheduler:
+  num_warmup_steps: 1000
+  num_training_steps: 800000
+
 train:
   seed: 1111
-  scheduler:
-    num_warmup_steps: 1000
-    num_training_steps: 400000

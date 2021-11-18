@@ -21,7 +21,7 @@
   postact: glu
   initializer: null
   dropout: ${...dropout} # Same as null
-- _name_: s3
+- _name_: s4
   d_state: 64
   measure: legs
   rank: 1

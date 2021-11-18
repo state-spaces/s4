@@ -42,8 +42,8 @@ The raw data should be organized as follows.
 The data path can be configured by the environment variable `DATA_PATH`, or defaults to `./data` by default, where `.` is the top level directory of this repository (e.g. 'state-spaces').
 
 Most of the dataloaders download their datasets automatically if not found.
-External datasets include Long Range Arena (LRA), which can be downloaded from their [GitHub page](https://github.com/google-research/long-range-arena).
-<!--- and Language Modeling datasets including WikiText-103, which can be downloaded by the `getdata.sh` script from the [Transformer-XL codebase](https://github.com/kimiyoung/transformer-xl). -->
+External datasets include Long Range Arena (LRA), which can be downloaded from their [GitHub page](https://github.com/google-research/long-range-arena),
+and the WikiText-103 language modeling dataset, which can be downloaded by the `getdata.sh` script from the [Transformer-XL codebase](https://github.com/kimiyoung/transformer-xl).
 These external datasets should be organized as follows:
 ```
 DATA_PATH/
@@ -54,6 +54,7 @@ DATA_PATH/
     pathfinder256/
   aan/
   listops/
+  wt103/
 ```
 Fine-grained control over the data directory is allowed, e.g. if the LRA ListOps files are located in `/home/lra/listops-1000/`, you can pass in `+dataset.data_dir=/home/lra/listops-1000` on the command line
 
@@ -87,9 +88,10 @@ The S4 module is found at
 For users who would like to import a single file that has the self-contained S4 layer,
 a standalone version can be found at `src/models/sequence/ss/standalone/s4.py`.
 
-We include a simple example in PyTorch (`example.py`) that only depends on the standalone S4 layer. 
-This file shows you how to build models with the S4 layer, 
-using a standard backbone (`S4Model`) for sequence classification on MNIST and CIFAR-10.
+### Testing
+
+For testing, we frequently use synthetic datasets or the Permuted MNIST dataset.
+This can be run with `python -m train wandb=null pipeline=mnist model=s4`, which should get to around 90% after 1 epoch which takes 1-3 minutes depending on GPU.
 
 ### Long Range Arena (LRA)
 
@@ -102,20 +104,34 @@ python -m train wandb=null experiment=s4-lra-pathfinder
 python -m train wandb=null experiment=s4-lra-pathx
 ```
 
+Note that these experiments may take different amounts of time to train. IMDB should take 1-2 hours, while Path-X will take several epochs to take off and take over a day to train to completion.
+
 ### CIFAR-10
+
 ```
 python -m train wandb=null experiment=s4-cifar
 ```
 
+The above command line reproduces our best sequential CIFAR model. Decreasing the model size should yield close results, e.g. decreasing the hidden dimension and number of layers with `model.d_model=512 model.n_layers=4`.
+
 ### Speech Commands
 
-The Speech Commands dataset we [compare](https://arxiv.org/abs/2005.08926) [against](https://arxiv.org/abs/2102.02611) is a modified smaller 10-way classification task.
+The Speech Commands dataset that our [baselines](https://arxiv.org/abs/2005.08926) [use](https://arxiv.org/abs/2102.02611) is a modified smaller 10-way classification task.
 
 ```
 python -m train wandb=null experiment=s4-sc
 ```
 
 To use the original version with the full 35 classes, pass in `dataset.all_classes=true`
+
+### WikiText-103
+
+```
+python -m train wandb=null experiment=s4-wt103
+```
+
+The default settings require 8 GPUs with 32GB memory. Modifications can be made by decreasing batch size and accumulating gradients, e.g. `loader.batch_size=4 trainer.accumulate_grad_batches=2`
+
 
 ### Optimizer Hyperparameters
 
