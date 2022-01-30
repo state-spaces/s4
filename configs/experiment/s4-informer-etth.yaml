@@ -2,7 +2,7 @@
 defaults:
   - /pipeline: informer
   - /model: s4
-  - /dataset: etth
+  - override /dataset: etth
 
 trainer:
   max_epochs: 10

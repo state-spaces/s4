@@ -2,7 +2,7 @@
 defaults:
   - /pipeline: informer
   - /model: s4
-  - /dataset: ecl
+  - override /dataset: ecl
 
 trainer:
   max_epochs: 10

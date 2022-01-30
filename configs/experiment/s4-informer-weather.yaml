@@ -2,7 +2,7 @@
 defaults:
   - /pipeline: informer
   - /model: s4
-  - /dataset: weather
+  - override /dataset: weather
 
 trainer:
   max_epochs: 10
