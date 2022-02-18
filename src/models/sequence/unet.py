@@ -12,11 +12,8 @@ from omegaconf import DictConfig
 from einops import rearrange, repeat, reduce
 from opt_einsum import contract
 
-from src.models.sequence.ss.s4 import StateSpace
-from src.models.nn.components import TransposedLN
 from src.models.sequence.base import SequenceModule
 from src.models.sequence.pool import DownPool, UpPool
-from src.models.sequence.ff import FF
 from src.models.sequence.block import SequenceResidualBlock
 
 
@@ -155,7 +152,7 @@ class SequenceUNet(SequenceModule):
         layers = list(self.d_layers) + list(self.c_layers) + list(self.u_layers)
         return [layer.default_state(*args, **kwargs) for layer in layers]
 
-    def step(self, x, state):
+    def step(self, x, state, **kwargs):
         """
         input: (batch, d_input)
         output: (batch, d_output)
@@ -168,7 +165,7 @@ class SequenceUNet(SequenceModule):
         next_state = []
         for layer in self.d_layers:
             outputs.append(x)
-            x, _next_state = layer.step(x, state=state.pop())
+            x, _next_state = layer.step(x, state=state.pop(), **kwargs)
             next_state.append(_next_state)
             if x is None: break
 
@@ -182,13 +179,13 @@ class SequenceUNet(SequenceModule):
         else:
             outputs.append(x)
             for layer in self.c_layers:
-                x, _next_state = layer.step(x, state=state.pop())
+                x, _next_state = layer.step(x, state=state.pop(), **kwargs)
                 next_state.append(_next_state)
             x = x + outputs.pop()
             u_layers = self.u_layers
 
         for layer in u_layers:
-            x, _next_state = layer.step(x, state=state.pop())
+            x, _next_state = layer.step(x, state=state.pop(), **kwargs)
             next_state.append(_next_state)
             x = x + outputs.pop()
 

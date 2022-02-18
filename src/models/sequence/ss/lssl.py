@@ -109,6 +109,8 @@ class Platypus(SequenceModule):
                 self.transition = transition.GLagTToeplitzAdaptiveTransition(self.N, **measure_args)
             elif measure == 'legs':
                 self.transition = transition.LegSTriDInverseAdaptiveTransition(self.N, **measure_args)
+            elif measure == 'jac':
+                self.transition = transition.JacTriDInverseAdaptiveTransition(self.N, **measure_args)
             else:
                 raise NotImplementedError
         elif self.learn == 1 or self.learn == 2:

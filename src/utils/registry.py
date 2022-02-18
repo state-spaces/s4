@@ -20,6 +20,7 @@ scheduler = {
 model = {
     "model": "src.models.sequence.SequenceModel",
     "unet": "src.models.sequence.SequenceUNet",
+    "sashimi": "src.models.sequence.sashimi.SequenceSNet",
     "lstm": "src.models.sequence.rnns.lstm.TorchLSTM",
     "ckconv": "src.models.baselines.ckconv.ClassificationCKCNN",
     "unicornn": "src.models.baselines.unicornn.UnICORNN",
@@ -36,14 +37,12 @@ layer = {
     "lstm": "src.models.sequence.rnns.lstm.TorchLSTM",
     "sru": "src.models.sequence.rnns.sru.SRURNN",  # TODO not updated
     "lssl": "src.models.sequence.ss.lssl.LSSL",
-    "s4": "src.models.sequence.ss.s4.StateSpace",
+    "s4": "src.models.sequence.ss.s4.S4",
     "standalone": "src.models.sequence.ss.standalone.s4.S4",
-    "s4_2d": "src.models.sequence.ss.s4_2d.StateSpace2D",
     "ff": "src.models.sequence.ff.FF",
     "rnn": "src.models.sequence.rnns.rnn.RNN",
     "mha": "src.models.sequence.mha.MultiheadAttention",
     "performer": "src.models.sequence.attention.linear.Performer",
-    # 'packedrnn': 'models.sequence.rnns.packedrnn.PackedRNN',
 }
 
 callbacks = {

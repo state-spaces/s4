@@ -27,17 +27,11 @@ model:
   prenorm: True
   n_layers: 16
   d_model: 1024
-  # layer.0.d_model: 64
-  # layer.0.postact: glu
-  # layer.1.activation: gelu
-  # layer.1.expand: 4
 
 # Optimizer
-# optimizer: adamw
 optimizer:
   lr: 5e-4
   weight_decay: 0.1
-# model.layer.0.lr.dt: 1e-3
 
 # Scheduler
 trainer:

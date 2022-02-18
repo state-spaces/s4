@@ -1,0 +1,21 @@
+defaults:
+  - layer: s4
+
+_name_: sashimi
+d_model: 64
+n_layers: 4
+pool:
+  - 3
+  - 4
+expand: 1
+ff: 2
+prenorm: False
+dropout: 0.0
+dropres: 0.0
+initializer: null
+transposed: True
+residual: R
+norm: layer
+interp: 0
+act_pool: null
+l_max: ${dataset.__l_max}

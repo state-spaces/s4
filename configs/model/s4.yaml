@@ -12,4 +12,4 @@ pool:
   pool: 1
   expand: 1
 norm: layer
-dropout: 0.2
+dropout: 0.0

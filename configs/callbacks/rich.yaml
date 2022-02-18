@@ -4,4 +4,4 @@ rich_model_summary:
 
 rich_progress_bar:
   # _target_: pytorch_lightning.callbacks.RichProgressBar
-  refresh_rate: 1.0
+  refresh_rate_per_second: 1.0

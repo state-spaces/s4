@@ -8,6 +8,12 @@ from scipy import special as ss
 from einops import rearrange
 from opt_einsum import contract
 
+def embed_c2r(A):
+    A = rearrange(A, '... m n -> ... m () n ()')
+    A = np.pad(A, ((0, 0), (0, 1), (0, 0), (0, 1))) + \
+        np.pad(A, ((0, 0), (1, 0), (0, 0), (1,0)))
+    return rearrange(A, 'm x n y -> (m x) (n y)')
+
 # TODO take in 'torch' option to return torch instead of numpy, which converts the shape of B from (N, 1) to (N)
 # TODO remove tlagt
 def transition(measure, N, **measure_args):
@@ -66,6 +72,18 @@ def transition(measure, N, **measure_args):
         A = T @ M @ np.linalg.inv(T)
         B = np.diag(T)[:, None]
         B = B.copy() # Otherwise "UserWarning: given NumPY array is not writeable..." after torch.as_tensor(B)
+    elif measure == 'fourier':
+        freqs = np.arange(N//2)
+        d = np.stack([freqs, np.zeros(N//2)], axis=-1).reshape(-1)[:-1]
+        A = 2*np.pi*(np.diag(d, 1) - np.diag(d, -1))
+        A = A - embed_c2r(np.ones((N//2, N//2)))
+        B = embed_c2r(np.ones((N//2, 1)))[..., :1]
+    elif measure == 'random':
+        A = np.random.randn(N, N) / N
+        B = np.random.randn(N, 1)
+    elif measure == 'diagonal':
+        A = -np.diag(np.exp(np.random.randn(N)))
+        B = np.random.randn(N, 1)
     else:
         raise NotImplementedError
 
@@ -76,37 +94,69 @@ def rank_correction(measure, N, rank=1, dtype=torch.float):
 
     if measure == 'legs':
         assert rank >= 1
-        p = torch.sqrt(.5+torch.arange(N, dtype=dtype)).unsqueeze(0) # (1 N)
+        P = torch.sqrt(.5+torch.arange(N, dtype=dtype)).unsqueeze(0) # (1 N)
     elif measure == 'legt':
         assert rank >= 2
-        p = torch.sqrt(1+2*torch.arange(N, dtype=dtype)) # (N)
-        p0 = p.clone()
-        p0[0::2] = 0.
-        p1 = p.clone()
-        p1[1::2] = 0.
-        p = torch.stack([p0, p1], dim=0) # (2 N)
+        P = torch.sqrt(1+2*torch.arange(N, dtype=dtype)) # (N)
+        P0 = P.clone()
+        P0[0::2] = 0.
+        P1 = P.clone()
+        P1[1::2] = 0.
+        P = torch.stack([P0, P1], dim=0) # (2 N)
     elif measure == 'lagt':
         assert rank >= 1
-        p = .5**.5 * torch.ones(1, N, dtype=dtype)
+        P = .5**.5 * torch.ones(1, N, dtype=dtype)
+    elif measure == 'fourier':
+        P = torch.ones(N, dtype=dtype) # (N)
+        P0 = P.clone()
+        P0[0::2] = 0.
+        P1 = P.clone()
+        P1[1::2] = 0.
+        P = torch.stack([P0, P1], dim=0) # (2 N)
     else: raise NotImplementedError
 
-    d = p.size(0)
+    d = P.size(0)
     if rank > d:
-        p = torch.stack([p, torch.zeros(N, dtype=dtype).repeat(rank-d, d)], dim=0) # (rank N)
-    return p
+        P = torch.cat([P, torch.zeros(rank-d, N, dtype=dtype)], dim=0) # (rank N)
+    return P
+
+def initial_C(measure, N, dtype=torch.float):
+    """ Return C that captures the other endpoint in the HiPPO approximation """
+
+    if measure == 'legt':
+        C = (torch.arange(N, dtype=dtype)*2+1)**.5 * (-1)**torch.arange(N)
+    elif measure == 'fourier':
+        C = torch.ones(N, dtype=dtype) # (N)
+    else:
+        C = torch.zeros(N, dtype=dtype) # (N)
+
+    return C
+
 
 def nplr(measure, N, rank=1, dtype=torch.float):
     """ Return w, p, q, V, B such that
     (w - p q^*, B) is unitarily equivalent to the original HiPPO A, B by the matrix V
     i.e. A = V[w - p q^*]V^*, B = V B
     """
+    assert dtype == torch.float or torch.cfloat
+    if measure == 'random':
+        dtype = torch.cfloat if dtype == torch.float else torch.cdouble
+        # w = torch.randn(N//2, dtype=dtype)
+        w = -torch.exp(torch.randn(N//2)) + 1j*torch.randn(N//2)
+        P = torch.randn(rank, N//2, dtype=dtype)
+        # p = torch.zeros(rank, N//2, dtype=dtype)
+        B = torch.randn(N//2, dtype=dtype)
+        C = torch.randn(N//2, dtype=dtype)
+        V = torch.eye(N, dtype=dtype)[..., :N//2] # Only used in testing
+        return w, P, B, C, V
+
     A, B = transition(measure, N)
     A = torch.as_tensor(A, dtype=dtype) # (N, N)
     B = torch.as_tensor(B, dtype=dtype)[:, 0] # (N,)
 
-    p = rank_correction(measure, N, rank=rank, dtype=dtype)
-    Ap = A + torch.sum(p.unsqueeze(-2)*p.unsqueeze(-1), dim=-3)
-    w, V = torch.linalg.eig(Ap) # (..., N) (..., N, N)
+    P = rank_correction(measure, N, rank=rank, dtype=dtype)
+    AP = A + torch.sum(P.unsqueeze(-2)*P.unsqueeze(-1), dim=-3)
+    w, V = torch.linalg.eig(AP) # (..., N) (..., N, N)
     # V w V^{-1} = A
 
     # Only keep one of the conjugate pairs
@@ -115,22 +165,25 @@ def nplr(measure, N, rank=1, dtype=torch.float):
 
     V_inv = V.conj().transpose(-1, -2)
 
+    C = initial_C(measure, N, dtype=dtype)
     B = contract('ij, j -> i', V_inv, B.to(V)) # V^* B
-    p = contract('ij, ...j -> ...i', V_inv, p.to(V)) # V^* p
+    C = contract('ij, j -> i', V_inv, C.to(V)) # V^* C
+    P = contract('ij, ...j -> ...i', V_inv, P.to(V)) # V^* P
 
 
-    return w, p, p, B, V
+    return w, P, B, C, V
 
 def test_nplr():
     N = 4
     measure = 'legs'
-    w, p, q, B, V = nplr(measure, N)
+    w, P, B, C, V = nplr(measure, N)
     w = torch.cat([w, w.conj()], dim=-1)
     V = torch.cat([V, V.conj()], dim=-1)
     B = torch.cat([B, B.conj()], dim=-1)
-    p = torch.cat([p, p.conj()], dim=-1)
-    q = torch.cat([q, q.conj()], dim=-1)
-    A = torch.diag_embed(w) - contract('... r p, ... r q -> ... p q', p, q.conj())
+    P = torch.cat([P, P.conj()], dim=-1)
+    Q = P
+    # q = torch.cat([q, q.conj()], dim=-1)
+    A = torch.diag_embed(w) - contract('... r p, ... r q -> ... p q', P, Q.conj())
 
     A = contract('ij, jk, kl -> ... il', V, A, V.conj().transpose(-1,-2)) # Ap^{-1} = V @ w^{-1} @ V^T
     B = contract('ij, ... j -> ... i', V, B)
