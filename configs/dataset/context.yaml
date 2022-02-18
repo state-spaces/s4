@@ -1,6 +1,0 @@
-_name_: context
-l_max: 64 # Length
-batch_size: 4
-n_tokens: 8
-n_samples: 16384
-__l_max: ${.l_max}

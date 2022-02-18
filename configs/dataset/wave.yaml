@@ -1,4 +1,0 @@
-_name_: wave
-train_dataset: wave-runs_train-wave-n10-t10205-n0_00001
-val_dataset: wave-runs_val-wave-n3-t10205-n0_00001
-__l_max: 10204

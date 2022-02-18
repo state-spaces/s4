@@ -1,7 +1,0 @@
-_name_: voxceleb
-clip_length: 3
-noise: false
-effects: false
-num_classes: null
-self_normalize: false
-__l_max: ${eval:16000*${.clip_length}}

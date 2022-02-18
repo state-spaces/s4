@@ -1,7 +1,0 @@
-_name_: impedance
-studies: [1, 2, 3, 4, 5, 7, 8, 11, 12, 17, 18, 19, 23, 32]
-build_clip_duration: 60 # seconds
-sensors: [0, 1, 2, 3, 4, 5]
-scaling: 'none' # ['none', 'standardize', 'minmax']
-val_size: 0.2
-__l_max: 2400

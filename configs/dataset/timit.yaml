@@ -1,9 +1,0 @@
-# @package _global_
-# STALE
-dataset:
-  _name_: timit
-loader:
-  batch_size: 128
-train:
-  pl:
-    max_epochs: 1200
