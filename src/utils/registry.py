@@ -20,7 +20,6 @@ scheduler = {
 model = {
     "model": "src.models.sequence.SequenceModel",
     "unet": "src.models.sequence.SequenceUNet",
-    "sashimi": "src.models.sequence.sashimi.SequenceSNet",
     "lstm": "src.models.sequence.rnns.lstm.TorchLSTM",
     "ckconv": "src.models.baselines.ckconv.ClassificationCKCNN",
     "unicornn": "src.models.baselines.unicornn.UnICORNN",
@@ -30,6 +29,9 @@ model = {
     "lipschitzrnn": "src.models.baselines.lipschitzrnn.RnnModels",
     "wavegan": "src.models.baselines.wavegan.WaveGANDiscriminator",
     "denseinception": "src.models.baselines.dense_inception.DenseInception",
+    "sashimi": "src.models.sequence.sashimi.Sashimi",
+    "wavenet": "src.models.baselines.wavenet.WaveNetModel",
+    "samplernn": "src.models.baselines.samplernn.SampleRNN",
 }
 
 layer = {

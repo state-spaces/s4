@@ -1,0 +1,9 @@
+_name_: wavenet
+layers: 10
+blocks: 4
+dilation_channels: 64
+residual_channels: 64
+skip_channels: 1024
+end_channels: 512
+kernel_size: 2
+classes: 256

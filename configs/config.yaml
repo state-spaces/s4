@@ -29,7 +29,9 @@ train:
   ignore_warnings: False # Disable python warnings
   # These control state
   state:
-    mode: null # [ None | 'none' | 'reset' | 'bptt' ]
+    mode: null # [ None | 'none' | 'reset' | 'bptt' | 'tbptt' ]
+    chunk_len: null  # [ None | int ] chunk length for tbptt (used by TBPTTDataLoader)
+    overlap_len: null # [ None | int ] overlap length for tbptt (used by TBPTTDataLoader)
     n_context: 0 # How many steps to use as memory context. Must be >= 0 or None (null), meaning infinite context
     n_context_eval: ${.n_context}
   # Convenience keys to allow grouping runs
@@ -41,6 +43,7 @@ train:
   benchmark_step_T: 1 # Number of additional repeats to benchmark the step function
   checkpoint_path: null # Path to checkpoint file: only used for visualization at the moment
   visualizer: 'filters' # Which visualizer to use: [ 'filters' | 'forecasting' ]
+  disable_dataset: False # Disable dataset loading
 
 # We primarily use wandb so this is moved to top level for convenience
 # Set ~wandb or wandb=null or wandb.mode=disabled to disable logging

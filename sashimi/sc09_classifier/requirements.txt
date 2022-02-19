@@ -1,0 +1,9 @@
+torch
+torchvision
+librosa
+natsort
+scipy
+numpy
+scikit-learn
+tqdm
+tensorboardX

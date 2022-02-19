@@ -1,0 +1,10 @@
+_name_: qautoaudio
+path: beethoven
+bits: 8
+sample_len: 128000
+train_percentage: 0.88
+quantization: linear
+drop_last: true
+context_len: null
+pad_len: null
+__l_max: ${.sample_len}

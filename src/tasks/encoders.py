@@ -4,7 +4,6 @@ from typing import ForwardRef
 import torch
 from torch import nn
 import torch.nn.functional as F
-from fast_transformers.masking import LengthMask
 
 import src.models.nn.utils as U
 import src.utils as utils

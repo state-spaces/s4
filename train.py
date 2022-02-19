@@ -34,7 +34,14 @@ class SequenceLightningModule(pl.LightningModule):
         self.save_hyperparameters(config, logger=False)
 
         self.dataset = SequenceDataset.registry[self.hparams.dataset._name_](
-            **self.hparams.dataset
+            **{
+                # Arguments for configuring dataloader when using TBPTT
+                "tbptt": self.hparams.train.state.mode == 'tbptt',
+                "chunk_len": self.hparams.train.state.chunk_len,
+                "overlap_len": self.hparams.train.state.overlap_len,
+                # Dataset arguments
+                **self.hparams.dataset, 
+            }
         )
 
         # Check hparams
@@ -45,7 +52,8 @@ class SequenceLightningModule(pl.LightningModule):
         self._has_on_post_move_to_device = False
 
     def setup(self, stage=None):
-        self.dataset.setup()
+        if not self.hparams.train.disable_dataset:
+            self.dataset.setup()
 
         # We need to set up the model in setup() because for some reason when training with DDP, one GPU uses much more memory than the others
         # In order to not overwrite the model multiple times during different stages, we need this hack
@@ -90,7 +98,7 @@ class SequenceLightningModule(pl.LightningModule):
         self._initialize_state()
 
     def _check_config(self):
-        assert self.hparams.train.state.mode in [None, "none", "null", "reset", "bptt"]
+        assert self.hparams.train.state.mode in [None, "none", "null", "reset", "bptt", "tbptt"]
         assert (
             (n := self.hparams.train.state.n_context) is None
             or isinstance(n, int)
@@ -101,6 +109,11 @@ class SequenceLightningModule(pl.LightningModule):
             or isinstance(n, int)
             and n >= 0
         )
+        assert (
+            not (self.hparams.train.state.mode == 'tbptt') or 
+            (self.hparams.train.state.chunk_len is not None and 
+            self.hparams.train.state.overlap_len is not None)
+        ), "If tbptt is True, chunk_len and overlap_len must be specified."
 
     def _initialize_state(self):
         self._state = None
@@ -110,6 +123,20 @@ class SequenceLightningModule(pl.LightningModule):
         device = device or batch[0].device
         self._state = self.model.default_state(*batch[0].shape[:1], device=device)
 
+    def _detach_state(self, state):
+        if isinstance(state, torch.Tensor):
+            return state.detach()
+        elif isinstance(state, tuple):
+            return tuple(self._detach_state(s) for s in state)
+        elif isinstance(state, list):
+            return [self._detach_state(s) for s in state]
+        elif isinstance(state, dict):
+            return {k: self._detach_state(v) for k, v in state.items()}
+        elif state is None:
+            return None
+        else:
+            raise NotImplementedError
+
     def _process_state(self, batch, batch_idx, train=True):
         """Handle logic for state context. This is unused for all current S3 experiments"""
 
@@ -118,7 +145,7 @@ class SequenceLightningModule(pl.LightningModule):
         n_context = self.hparams.train.state.get(key)
 
         # Don't need to do anything if 0 context steps
-        if n_context == 0:
+        if n_context == 0 and self.hparams.train.state.mode not in ['tbptt']:
             return
 
         # Reset state if needed
@@ -135,6 +162,14 @@ class SequenceLightningModule(pl.LightningModule):
             # Prepare for next step
             self._memory_chunks.append(batch)
             self._memory_chunks = self._memory_chunks[-n_context:]
+
+        elif self.hparams.train.state.mode == 'tbptt':
+            _, _, *z = batch
+            reset = z[-1]  # if tbptt, last element of z should be whether to reset state!
+            if reset:
+                self._reset_state(batch)
+            else:
+                self._state = self._detach_state(self._state)
 
     def on_epoch_start(self):
         self._initialize_state()

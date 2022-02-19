@@ -1,36 +1,21 @@
-""" Different deep backbone that is essentially a 1-D UNet instead of ResNet/Transformer backbone.
-
-Sequence length gets downsampled through the depth of the network while number of feature increases.
-Then sequence length gets upsampled again (causally) and blocks are connected through skip connections.
-"""
-
 import math
-from turtle import forward
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from omegaconf import DictConfig
-from einops import rearrange, repeat, reduce
-from opt_einsum import contract
 
-from src.models.sequence.base import SequenceModule, SequenceIdentity
+from src.models.sequence.base import SequenceModule
 from src.models.sequence.pool import DownPool, UpPool
 from src.models.sequence.block import SequenceResidualBlock
 
 
-
-class SequenceSNet(SequenceModule):
-    """
-    layer is a Namespace that specifies '_name_', referring to a constructor, and a list of arguments to that layer constructor. This layer must subscribe to the interface (i) takes a hidden dimension H and sequence length L (ii) forward pass transforms input sequence of shape (B, H, L) to output (B, H, L)
-    """
-
+class Sashimi(SequenceModule):
     def __init__(
         self,
-        d_model,
-        n_layers,
-        pool=[],
-        expand=1,
-        ff=2,
+        d_model, 
+        n_layers, 
+        pool=[], 
+        expand=1, 
+        ff=2, 
         prenorm=False,
         dropout=0.0,
         dropres=0.0,
@@ -44,7 +29,7 @@ class SequenceSNet(SequenceModule):
         act_pool=None,
     ):
         super().__init__()
-        assert l_max > 0, "UNet must have length passed in"
+        assert l_max > 0, "SaShiMi must have length passed in"
 
         self.d_model = d_model
         H = d_model
@@ -62,23 +47,22 @@ class SequenceSNet(SequenceModule):
         layer_cfg = layer.copy()
         layer_cfg['dropout'] = dropout
         layer_cfg['transposed'] = self.transposed
-        layer_cfg['initializer'] = initializer
+        # layer_cfg['initializer'] = initializer
         layer_cfg['l_max'] = L
-        print("layer config", layer_cfg)
 
         ff_cfg = {
             '_name_': 'ff',
             'expand': ff,
             'transposed': self.transposed,
             'activation': 'gelu',
-            'initializer': initializer, # TODO
-            'dropout': dropout, # TODO untie dropout
+            'initializer': initializer,
+            'dropout': dropout,
         }
 
         def _residual(d, i, layer):
             return SequenceResidualBlock(
                 d,
-                i, # temporary placeholder for i_layer
+                i,
                 prenorm=prenorm,
                 dropout=dropres,
                 layer=layer,
@@ -91,7 +75,7 @@ class SequenceSNet(SequenceModule):
         d_layers = []
         for p in pool:
             # Add sequence downsampling and feature expanding
-            d_layers.append(DownPool(H, H*expand, pool=p, transposed=self.transposed, activation=act_pool)) # TODO take expansion argument instead
+            d_layers.append(DownPool(H, H*expand, pool=p, transposed=self.transposed, activation=act_pool))
             L //= p
             layer_cfg['l_max'] = L
             H *= expand
@@ -111,14 +95,14 @@ class SequenceSNet(SequenceModule):
             H //= expand
             L *= p
             layer_cfg['l_max'] = L
-            block.append(UpPool(H*expand, H, pool=p, transposed=self.transposed, activation=act_pool)) # TODO
+            block.append(UpPool(H*expand, H, pool=p, transposed=self.transposed, activation=act_pool))
 
             for i in range(n_layers):
                 block.append(_residual(H, i+1, layer_cfg))
                 if ff > 0: block.append(_residual(H, i+1, ff_cfg))
 
             u_layers.append(nn.ModuleList(block))
-
+        
         self.u_layers = nn.ModuleList(u_layers)
 
         assert H == d_model
@@ -216,7 +200,7 @@ class SequenceSNet(SequenceModule):
         state = state[::-1]
 
         # Down blocks
-        outputs = [] # Store all layers for SequenceUNet structure
+        outputs = [] # Store all layers for SaShiMi
         next_state = []
         for layer in self.d_layers:
             outputs.append(x)
@@ -255,13 +239,3 @@ class SequenceSNet(SequenceModule):
         # feature projection
         x = self.norm(x)
         return x, next_state
-
-    def cache_all(self):
-        modules = self.modules()
-        next(modules)
-        for layer in modules:
-            if hasattr(layer, 'cache_all'): layer.cache_all()
-
-def prepare_generation(model):
-    model.eval()
-    if hasattr(model, 'cache_all'): model.cache_all()

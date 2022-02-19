@@ -1,0 +1,10 @@
+_name_: qautoaudio
+path: youtube_mix
+bits: 8
+sample_len: 131072
+train_percentage: 0.88
+quantization: mu-law
+drop_last: true
+context_len: null
+pad_len: null
+__l_max: ${.sample_len}

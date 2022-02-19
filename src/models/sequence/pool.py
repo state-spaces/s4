@@ -55,7 +55,7 @@ class DownSample(SequenceModule):
     def forward(self, x):
         return downsample(x, self.pool, self.expand, self.transposed)
 
-    def step(self, x, state):
+    def step(self, x, state, **kwargs):
         if self.pool > 1 or self.expand > 1:
             raise NotImplementedError
         return x, state
@@ -78,7 +78,7 @@ class UpSample(nn.Module):
     @property
     def d_output(self):
         return self.d_input // self.expand
-    def step(self, x, state):
+    def step(self, x, state, **kwargs):
         if self.pool > 1 or self.expand > 1:
             raise NotImplementedError
         return x, state
@@ -86,7 +86,7 @@ class UpSample(nn.Module):
 
 """ Pooling functions with trainable parameters """ # TODO make d_output expand instead
 class DownPool(SequenceModule):
-    def __init__(self, d_input, d_output, pool, transposed=True, weight_norm=True, initializer=None):
+    def __init__(self, d_input, d_output, pool, transposed=True, weight_norm=True, initializer=None, activation=None):
         super().__init__()
         self._d_output = d_output
         self.pool = pool
@@ -98,6 +98,8 @@ class DownPool(SequenceModule):
             transposed=transposed,
             initializer=initializer,
             weight_norm = weight_norm,
+            activation=activation,
+            activate=True if activation is not None else False,
         )
 
     def forward(self, x):
@@ -108,7 +110,7 @@ class DownPool(SequenceModule):
         x = self.linear(x)
         return x, None
 
-    def step(self, x, state): # TODO needs fix in transpose case
+    def step(self, x, state, **kwargs): # TODO needs fix in transpose ca, **kwargsse
         """
         x: (..., H)
         """
@@ -132,7 +134,7 @@ class DownPool(SequenceModule):
 
 
 class UpPool(SequenceModule): # TODO subclass SequenceModule
-    def __init__(self, d_input, d_output, pool, transposed=True, weight_norm=True, initializer=None):
+    def __init__(self, d_input, d_output, pool, transposed=True, weight_norm=True, initializer=None, activation=None):
         super().__init__()
         self.d_input = d_input
         self._d_output = d_output
@@ -145,6 +147,8 @@ class UpPool(SequenceModule): # TODO subclass SequenceModule
             transposed=transposed,
             initializer=initializer,
             weight_norm = weight_norm,
+            activation=activation,
+            activate=True if activation is not None else False,
         )
 
     def forward(self, x, skip=None):
@@ -159,7 +163,7 @@ class UpPool(SequenceModule): # TODO subclass SequenceModule
             x = x + skip
         return x, None
 
-    def step(self, x, state):
+    def step(self, x, state, **kwargs):
         """
         x: (..., H)
         """

@@ -1,1 +1,1 @@
-from .components import LinearActivation, Activation
+from .components import LinearActivation, Activation, Normalization

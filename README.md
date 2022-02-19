@@ -2,27 +2,43 @@
 
 This repository provides implementations and experiments for the following papers.
 
-## S4
+## SaShiMi (arXiv)
+
+![SaShiMi](assets/sashimi.png "SaShiMi Architecture")
+> **It's Raw! Audio Generation with State-Space Models**\
+> Karan Goel, Albert Gu, Chris Donahue, Christopher Ré\
+> Paper: https://arxiv.org/abs/2202.09729
+
+## S4 (ICLR 2022 Oral)
 
 ![Structured State Spaces](assets/properties.png "Properties of Structured State Spaces")
 > **Efficiently Modeling Long Sequences with Structured State Spaces**\
 > Albert Gu, Karan Goel, Christopher Ré\
 > Paper: https://arxiv.org/abs/2111.00396
 
-## LSSL
+## LSSL (NeurIPS 2021)
 
 ![Linear State Space Layer](assets/splash.png "Properties of Sequential State Spaces")
 > **Combining Recurrent, Convolutional, and Continuous-time Models with the Linear State Space Layer**\
 > Albert Gu, Isys Johnson, Karan Goel, Khaled Saab, Tri Dao, Atri Rudra, Christopher Ré\
 > Paper: https://arxiv.org/abs/2110.13985
 
-## HiPPO
+## HiPPO (NeurIPS 2020 Spotlight)
 ![HiPPO Framework](assets/hippo.png "HiPPO Framework")
 > **HiPPO: Recurrent Memory with Optimal Polynomial Projections**\
 > Albert Gu*, Tri Dao*, Stefano Ermon, Atri Rudra, Christopher Ré\
 > Paper: https://arxiv.org/abs/2008.07669
 
 
+## Table of Contents
+- [Repository Setup](#setup)
+- S4
+  - [Experiments](#s4-experiments)
+  - [Training](#training)
+  - [Models](#models)
+- [SaShiMi](sashimi/README.md#sashimi)
+- [Repository Structure](#overall-repository-structure)
+- [Citation](#citation)
 ## Setup
 
 ### Requirements
@@ -257,6 +273,7 @@ src/             main source code for models, datasets, etc.
     sequence/    sequence model backbones and layers including RNNs and S4/LSSL
   tasks/         encoder/decoder modules to interface between data and model backbone
   utils/
+sashimi/         SaShiMi README and additional code (generation, metrics, MTurk)
 train.py         training loop entrypoint
 ```
 
@@ -265,11 +282,18 @@ train.py         training loop entrypoint
 ## Citation
 If you use this codebase, or otherwise found our work valuable, please cite:
 ```
-@article{gu2021efficiently,
+@article{goel2022sashimi,
+  title={It's Raw! Audio Generation with State-Space Models},
+  author={Goel, Karan and Gu, Albert and Donahue, Chris and R{\'e}, Christopher},
+  journal={arXiv preprint arXiv:2202.09729},
+  year={2022}
+}
+
+@inproceedings{gu2022efficiently,
   title={Efficiently Modeling Long Sequences with Structured State Spaces},
-  author={Gu, Albert and Goel, Karan and R{\'e}, Christopher},
-  journal={arXiv preprint arXiv:2111.00396},
-  year={2021}
+  author={Gu, Albert and Goel, Karan and R\'e, Christopher},
+  booktitle={The International Conference on Learning Representations ({ICLR})},
+  year={2022}
 }
 
 @article{gu2021combining,
@@ -282,7 +306,7 @@ If you use this codebase, or otherwise found our work valuable, please cite:
 
 @article{gu2020hippo,
   title={HiPPO: Recurrent Memory with Optimal Polynomial Projections},
-  author={Gu, Albert and Dao, Tri and Ermon, Stefano and Rudra, Atri and Re, Christopher},
+  author={Gu, Albert and Dao, Tri and Ermon, Stefano and Rudra, Atri and R{\'e}, Christopher},
   journal={Advances in neural information processing systems},
   volume={33},
   year={2020}

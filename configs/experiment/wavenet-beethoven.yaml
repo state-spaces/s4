@@ -1,0 +1,42 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: torch
+  - /dataset: beethoven
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+  - /model: wavenet
+
+train:
+  monitor: val/loss
+  mode: min
+
+dataset:
+  quantization: linear
+  pad_len: 4093
+
+model:
+  skip_channels: 1024
+
+task:
+  metrics: 
+    - bpb
+    - accuracy
+    - accuracy@3
+    - accuracy@5
+    - accuracy@10
+
+encoder: embedding
+decoder:
+  _name_: sequence
+  mode: last
+
+scheduler:
+  patience: 5
+
+loader:
+  batch_size: 1
+  train_resolution: 1
+  eval_resolutions:
+    - 1

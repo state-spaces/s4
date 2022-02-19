@@ -1,0 +1,5 @@
+_name_: sc09
+bits: 8
+quantization: mu-law
+pad_len: null
+__l_max: 16000

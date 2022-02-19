@@ -47,6 +47,9 @@ class SequenceDecoder(Decoder):
         self.use_lengths = use_lengths
         self.mode = mode
 
+        if mode == 'ragged':
+            assert not use_lengths
+
     def forward(self, x, state, l_batch=None, *args, **kwargs):
         """
         x: (n_batch, l_seq, d_model)
@@ -84,7 +87,11 @@ class SequenceDecoder(Decoder):
                 return s
         elif self.mode == 'sum':
             restrict = lambda x: torch.cumsum(x, dim=-2)[..., -l_output:, :]
-            # TODO use same restrict function as pool case
+            # TODO use same restrict function as pool case\
+        elif self.mode == 'ragged':
+            assert l_batch is not None, "l_batch must be provided for ragged mode"
+            # remove any additional padding (beyond max length of any sequence in the batch)
+            restrict = lambda x: x[..., : max(l_batch), :]
         else: raise NotImplementedError("Mode must be ['last' | 'first' | 'pool' | 'sum']")
 
         # Restrict to actual length of sequence

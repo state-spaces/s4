@@ -161,7 +161,14 @@ class S4Model(nn.Module):
         self.dropouts = nn.ModuleList()
         for _ in range(n_layers):
             self.s4_layers.append(
-                S4(H=d_model, l_max=1024, dropout=dropout, transposed=True)
+                S4(
+                    d_model=d_model, 
+                    l_max=1024, 
+                    bidirectional=True,
+                    postact='glu',
+                    dropout=dropout, 
+                    transposed=True,
+                )
             )
             self.norms.append(nn.LayerNorm(d_model))
             self.dropouts.append(nn.Dropout2d(dropout))

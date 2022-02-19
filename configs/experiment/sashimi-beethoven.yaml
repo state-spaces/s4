@@ -1,0 +1,59 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: torch
+  - /dataset: beethoven
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+  - /model: sashimi
+
+dataset:
+  quantization: linear
+  drop_last: False
+
+model:
+  n_layers: 8
+  pool: 
+    - 4
+    - 4
+  dropout: 0.0
+  prenorm: True
+
+  layer:
+    hurwitz: True
+    postact: glu
+  
+
+train:
+  monitor: val/loss
+  mode: min
+
+task:
+  metrics: 
+    - bpb
+    - accuracy
+    - accuracy@3
+    - accuracy@5
+    - accuracy@10
+
+encoder: embedding
+
+decoder:
+  _name_: sequence
+  mode: ragged
+
+loader:
+  batch_size: 1
+  train_resolution: 1
+  eval_resolutions:
+    - 1
+
+trainer:
+  max_epochs: 1000
+
+optimizer:
+  lr: 0.004
+
+scheduler:
+  patience: 20

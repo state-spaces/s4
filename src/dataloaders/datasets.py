@@ -33,6 +33,88 @@ else:
     default_data_path = Path(default_data_path).absolute()
 
 
+class TBPTTDataLoader(torch.utils.data.DataLoader):
+    """
+    Adapted from https://github.com/deepsound-project/samplernn-pytorch
+    """
+
+    def __init__(
+        self, 
+        dataset, 
+        batch_size, 
+        chunk_len,
+        overlap_len,
+        *args, 
+        **kwargs
+    ):
+        super().__init__(dataset, batch_size, *args, **kwargs)
+        
+        # Zero padding value, given by the dataset
+        self.zero = dataset.zero if hasattr(dataset, "zero") else 0
+
+        # Size of the chunks to be fed into the model
+        self.chunk_len = chunk_len
+
+        # Keep `overlap_len` from the previous chunk (e.g. SampleRNN requires this)
+        self.overlap_len = overlap_len
+
+    def __iter__(self):
+        for batch in super().__iter__():
+            x, y, *z = batch
+
+            # Pad with self.overlap_len - 1 zeros
+            x = torch.cat(
+                [
+                    torch.zeros((x.shape[0], self.overlap_len - 1, *x.shape[2:])).to(x.device).to(x.dtype) + self.zero,
+                    x
+                ],
+                dim=1,
+            )
+            y = torch.cat(
+                [
+                    torch.zeros((y.shape[0], self.overlap_len - 1, *y.shape[2:])).to(y.device).to(y.dtype) + self.zero,
+                    y
+                ],
+                dim=1,
+            )
+            z = [
+                torch.cat(
+                    [
+                        torch.zeros((z[i].shape[0], self.overlap_len - 1, *z[i].shape[2:])).to(z[i].device).to(z[i].dtype),
+                        z[i]
+                    ],
+                    dim=1,
+                )
+                for i in range(len(z)) if len(z[i].shape) > 1
+            ]
+
+            _, seq_len, *_ = x.shape
+
+            reset = True
+
+            for seq_begin in list(range(self.overlap_len - 1, seq_len, self.chunk_len))[:-1]:
+                from_index = seq_begin - self.overlap_len + 1
+                to_index = seq_begin + self.chunk_len
+                # TODO: check this
+                # Ensure divisible by overlap_len
+                if self.overlap_len > 0:
+                    to_index = min(to_index, seq_len - ((seq_len - self.overlap_len + 1) % self.overlap_len))
+            
+                x_chunk = x[:, from_index:to_index]
+                if len(y.shape) == 3:
+                    y_chunk = y[:, seq_begin:to_index]
+                else:
+                    y_chunk = y
+                z_chunk = [z_[:, from_index:to_index] for z_ in z if len(z_.shape) > 1]
+
+                yield (x_chunk, y_chunk, *z_chunk, reset)
+
+                reset = False
+
+    def __len__(self):
+        raise NotImplementedError()
+
+
 # class SequenceDataset(LightningDataModule):
 # [21-09-10 AG] Subclassing LightningDataModule fails due to trying to access _has_setup_fit. No idea why
 class SequenceDataset:
@@ -51,9 +133,14 @@ class SequenceDataset:
         super().__init_subclass__(**kwargs)
         cls.registry[cls._name_] = cls
 
-    def __init__(self, _name_, data_dir=None, **dataset_cfg):
+    def __init__(self, _name_, data_dir=None, tbptt=False, chunk_len=None, overlap_len=None, **dataset_cfg):
         assert _name_ == self._name_
         self.data_dir = Path(data_dir).absolute() if data_dir is not None else None
+
+        # Arguments for TBPTT: only used if tbptt is True and are passed to TBPTTDataLoader 
+        self.tbptt = tbptt
+        self.chunk_len = chunk_len
+        self.overlap_len = overlap_len
 
         # Add all arguments to self
         init_args = self.init_defaults
@@ -165,9 +252,14 @@ class SequenceDataset:
         if dataset is None:
             return None
 
+        if self.tbptt:
+            DataLoader = partial(TBPTTDataLoader, chunk_len=self.chunk_len, overlap_len=self.overlap_len)
+        else:
+            DataLoader = torch.utils.data.DataLoader
+
         return [
-            torch.utils.data.DataLoader(
-                dataset,
+            DataLoader(
+                dataset=dataset,
                 collate_fn=partial(self.collate_fn, resolution=resolution)
                 if self.collate_fn is not None
                 else None,
@@ -1334,3 +1426,201 @@ class AAN(SequenceDataset):
         return dataset, tokenizer, vocab
 
 
+class QuantizedAutoregressiveAudio(SequenceDataset):
+    _name_ = 'qautoaudio'
+
+    @property
+    def d_input(self):
+        return 1
+
+    @property
+    def d_output(self):
+        return 1 << self.bits
+
+    @property
+    def l_output(self):
+        return self.sample_len
+
+    @property
+    def n_tokens(self):
+        return 1 << self.bits
+
+    @property
+    def init_defaults(self):
+        return {
+            'path': None,
+            'bits': 8,
+            'sample_len': None,
+            'train_percentage': 0.88,
+            'quantization': 'linear',
+            'drop_last': False,
+            'context_len': None,
+            'pad_len': None,
+        }
+
+    def init(self):
+        return
+
+    def setup(self):
+        from src.dataloaders.audio import QuantizedAudioDataset
+        assert self.path is not None, "Pass a path to a folder of audio."
+        self.data_dir = self.data_dir or default_data_path / Path(self.path)
+        
+        self.dataset_train = QuantizedAudioDataset(
+            path=self.data_dir,
+            bits=self.bits,
+            ratio_min=0,
+            ratio_max=self.train_percentage,
+            sample_len=self.sample_len,
+            quantization=self.quantization,
+            drop_last=self.drop_last,
+            context_len=self.context_len,
+            pad_len=self.pad_len,
+        )
+
+        self.dataset_val = QuantizedAudioDataset(
+            path=self.data_dir,
+            bits=self.bits,
+            ratio_min=self.train_percentage,
+            ratio_max=self.train_percentage + (1 - self.train_percentage) / 2,
+            sample_len=self.sample_len,
+            quantization=self.quantization,
+            drop_last=self.drop_last,
+            context_len=self.context_len,
+            pad_len=self.pad_len,
+        )
+
+        self.dataset_test = QuantizedAudioDataset(
+            path=self.data_dir,
+            bits=self.bits,
+            ratio_min=self.train_percentage + (1 - self.train_percentage) / 2,
+            ratio_max=1,
+            sample_len=self.sample_len,
+            quantization=self.quantization,
+            drop_last=self.drop_last,
+            context_len=self.context_len,
+            pad_len=self.pad_len,
+        )
+
+        def collate_fn_1(batch, resolution=1):
+            x, y, *z = zip(*batch)
+            x = torch.stack(x, dim=0)[:, ::resolution]
+            y = torch.stack(y, dim=0)[:, ::resolution]
+            z = [torch.stack(e, dim=0)[:, ::resolution] for e in z]
+            return x, y, *z
+
+        def collate_fn_2(batch, resolution=1):
+            x, y, *z = zip(*batch)
+            assert len(z) == 0
+            lengths = torch.tensor([len(e) for e in x])
+            max_length = lengths.max()
+            if self.pad_len is None:
+                pad_length = int(min(2**max_length.log2().ceil(), self.sample_len) - max_length)
+            else:
+                pad_length = int(min(2**max_length.log2().ceil(), self.sample_len + self.pad_len) - max_length)
+            x = nn.utils.rnn.pad_sequence(
+                x, 
+                padding_value=self.dataset_train.zero, 
+                batch_first=True,
+            )
+            x = F.pad(x, (0, pad_length), value=self.dataset_train.zero)
+            x = x[:, ::resolution]
+            y = nn.utils.rnn.pad_sequence(
+                y, 
+                padding_value=-100, # pad with -100 to ignore these locations in cross-entropy loss
+                batch_first=True,
+            )
+            y = y[:, ::resolution]
+            return x, y, lengths
+
+        self.collate_fn_train = collate_fn_1
+        if not self.drop_last:
+            self.collate_fn = collate_fn_2
+
+
+class SpeechCommands09Autoregressive(SequenceDataset):
+    _name_ = 'sc09'
+
+    @property
+    def d_input(self):
+        return 1
+
+    @property
+    def d_output(self):
+        return 1 << self.bits
+
+    @property
+    def l_output(self):
+        return self.sample_len
+
+    @property
+    def n_tokens(self):
+        return 1 << self.bits
+
+    @property
+    def init_defaults(self):
+        return {
+            'bits': 8,
+            'quantization': 'mu-law',
+            'dequantize': False,
+            'pad_len': None,
+        }
+
+    def setup(self):
+        from src.dataloaders.audio import SpeechCommands09
+        self.data_dir = self.data_dir or default_data_path / self._name_
+
+        self.dataset_train = SpeechCommands09(
+            path=self.data_dir,
+            bits=self.bits,
+            split='train',
+            quantization=self.quantization,
+            dequantize=self.dequantize,
+            pad_len=self.pad_len,
+        )
+
+        self.dataset_val = SpeechCommands09(
+            path=self.data_dir,
+            bits=self.bits,
+            split='validation',
+            quantization=self.quantization,
+            dequantize=self.dequantize,
+            pad_len=self.pad_len,
+        )
+
+        self.dataset_test = SpeechCommands09(
+            path=self.data_dir,
+            bits=self.bits,
+            split='test',
+            quantization=self.quantization,
+            dequantize=self.dequantize,
+            pad_len=self.pad_len,
+        )
+
+        self.sample_len = self.dataset_train.sample_len
+
+        def collate_fn(batch, resolution=1):
+            x, y, *z = zip(*batch)
+            assert len(z) == 0
+            lengths = torch.tensor([len(e) for e in x])
+            max_length = lengths.max()
+            if self.pad_len is None:
+                pad_length = int(min(2**max_length.log2().ceil(), self.sample_len) - max_length)
+            else:
+                pad_length = 0 # int(self.sample_len + self.pad_len - max_length)
+            x = nn.utils.rnn.pad_sequence(
+                x, 
+                padding_value=self.dataset_train.zero if not self.dequantize else 0., 
+                batch_first=True,
+            )
+            x = F.pad(x, (0, pad_length), value=self.dataset_train.zero if not self.dequantize else 0.)
+            x = x[:, ::resolution]
+            y = nn.utils.rnn.pad_sequence(
+                y, 
+                padding_value=-100, # pad with -100 to ignore these locations in cross-entropy loss
+                batch_first=True,
+            )
+            y = y[:, ::resolution]
+            return x, y, lengths
+
+        self.collate_fn = collate_fn
