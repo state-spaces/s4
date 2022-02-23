@@ -29,6 +29,7 @@ class DownPool(nn.Module):
             d_input * pool,
             self.d_output,
             transposed=True,
+            weight_norm=True,
         )
 
     def forward(self, x):
@@ -66,6 +67,7 @@ class UpPool(nn.Module):
             d_input,
             self.d_output * pool,
             transposed=True,
+            weight_norm=True,
         )
 
     def forward(self, x, skip=None):
@@ -113,15 +115,15 @@ class FFBlock(nn.Module):
         """
         super().__init__()
 
-        self.input_linear = LinearActivation(
+        input_linear = LinearActivation(
             d_model, 
             d_model * expand,
             transposed=True,
             activation='gelu',
             activate=True,
         )
-        self.dropout = nn.Dropout2d(dropout) if dropout > 0.0 else nn.Identity()
-        self.output_linear = LinearActivation(
+        dropout = nn.Dropout2d(dropout) if dropout > 0.0 else nn.Identity()
+        output_linear = LinearActivation(
             d_model * expand,
             d_model, 
             transposed=True,
@@ -130,9 +132,9 @@ class FFBlock(nn.Module):
         )
 
         self.ff = nn.Sequential(
-            self.input_linear,
-            self.dropout,
-            self.output_linear,
+            input_linear,
+            dropout,
+            output_linear,
         )
 
     def forward(self, x):
@@ -257,6 +259,13 @@ class Sashimi(nn.Module):
                 transposed=True,
                 hurwitz=True, # use the Hurwitz parameterization for stability
                 tie_state=True, # tie SSM parameters across d_state in the S4 layer
+                trainable={
+                    'dt': True,
+                    'A': True,
+                    'P': True,
+                    'B': True,
+                }, # train all internal S4 parameters
+                    
             )
             return ResidualBlock(
                 d_model=dim,
