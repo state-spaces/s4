@@ -1533,7 +1533,7 @@ class QuantizedAutoregressiveAudio(SequenceDataset):
             y = y[:, ::resolution]
             return x, y, lengths
 
-        self.collate_fn_train = collate_fn_1
+        self.collate_fn = collate_fn_1
         if not self.drop_last:
             self.collate_fn = collate_fn_2
 

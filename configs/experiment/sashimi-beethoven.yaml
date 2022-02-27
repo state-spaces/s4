@@ -10,7 +10,7 @@ defaults:
 
 dataset:
   quantization: linear
-  drop_last: False
+  drop_last: True
 
 model:
   n_layers: 8
@@ -41,7 +41,7 @@ encoder: embedding
 
 decoder:
   _name_: sequence
-  mode: ragged
+  mode: last
 
 loader:
   batch_size: 1
