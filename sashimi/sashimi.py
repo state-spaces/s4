@@ -9,8 +9,10 @@ It's Raw! Audio Generation with State-Space Models
 Karan Goel, Albert Gu, Chris Donahue, Christopher Re. 
 """
 import sys
+import warnings
 sys.path.append('../')
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -18,6 +20,71 @@ import torch.nn.functional as F
 from einops import rearrange
 
 from src.models.sequence.ss.standalone.s4 import LinearActivation, S4
+
+
+def swish(x):
+    return x * torch.sigmoid(x)
+
+
+def calc_diffusion_step_embedding(diffusion_steps, diffusion_step_embed_dim_in):
+    """
+    Embed a diffusion step $t$ into a higher dimensional space
+    E.g. the embedding vector in the 128-dimensional space is
+    [sin(t * 10^(0*4/63)), ... , sin(t * 10^(63*4/63)), cos(t * 10^(0*4/63)), ... , cos(t * 10^(63*4/63))]
+
+    Taken from https://github.com/philsyn/DiffWave-Vocoder
+
+    Parameters:
+        diffusion_steps (torch.long tensor, shape=(batchsize, 1)):
+                                    diffusion steps for batch data
+        diffusion_step_embed_dim_in (int, default=128):
+                                    dimensionality of the embedding space for discrete diffusion steps
+
+    Returns:
+        the embedding vectors (torch.tensor, shape=(batchsize, diffusion_step_embed_dim_in)):
+    """
+
+    assert diffusion_step_embed_dim_in % 2 == 0
+
+    half_dim = diffusion_step_embed_dim_in // 2
+    _embed = np.log(10000) / (half_dim - 1)
+    _embed = torch.exp(torch.arange(half_dim) * -_embed).cuda()
+    _embed = diffusion_steps * _embed
+    diffusion_step_embed = torch.cat((torch.sin(_embed), torch.cos(_embed)), 1)
+
+    return diffusion_step_embed
+
+class Conv(nn.Module):
+    """
+    Dilated conv layer with kaiming_normal initialization
+    from https://github.com/ksw0306/FloWaveNet/blob/master/modules.py
+    """
+    def __init__(self, in_channels, out_channels, kernel_size=3, dilation=1):
+        super(Conv, self).__init__()
+        self.padding = dilation * (kernel_size - 1) // 2
+        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size, dilation=dilation, padding=self.padding)
+        self.conv = nn.utils.weight_norm(self.conv)
+        nn.init.kaiming_normal_(self.conv.weight)
+
+    def forward(self, x):
+        out = self.conv(x)
+        return out
+
+
+class ZeroConv1d(nn.Module):
+    """
+    Conv1x1 layer with zero initialization 
+    From https://github.com/ksw0306/FloWaveNet/blob/master/modules.py but the scale parameter is removed
+    """
+    def __init__(self, in_channel, out_channel):
+        super(ZeroConv1d, self).__init__()
+        self.conv = nn.Conv1d(in_channel, out_channel, kernel_size=1, padding=0)
+        self.conv.weight.data.zero_()
+        self.conv.bias.data.zero_()
+
+    def forward(self, x):
+        out = self.conv(x)
+        return out
 
 class DownPool(nn.Module):
     def __init__(self, d_input, expand, pool):
@@ -32,7 +99,7 @@ class DownPool(nn.Module):
             weight_norm=True,
         )
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         x = rearrange(x, '... h (l s) -> ... (h s) l', s=self.pool)
         x = self.linear(x)
         return x, None
@@ -58,10 +125,11 @@ class DownPool(nn.Module):
 
 
 class UpPool(nn.Module):
-    def __init__(self, d_input, expand, pool):
+    def __init__(self, d_input, expand, pool, causal=True):
         super().__init__()
         self.d_output = d_input // expand
         self.pool = pool
+        self.causal = causal
 
         self.linear = LinearActivation(
             d_input,
@@ -70,14 +138,14 @@ class UpPool(nn.Module):
             weight_norm=True,
         )
 
-    def forward(self, x, skip=None):
+    def forward(self, x, **kwargs):
         x = self.linear(x)
         
-        x = F.pad(x[..., :-1], (1, 0)) # Shift to ensure causality
+        if self.causal:
+            # Shift to ensure causality
+            x = F.pad(x[..., :-1], (1, 0))
+
         x = rearrange(x, '... (h s) l -> ... h (l s)', s=self.pool)
-    
-        if skip is not None:
-            x = x + skip
         return x, None
 
     def step(self, x, state, **kwargs):
@@ -137,7 +205,7 @@ class FFBlock(nn.Module):
             output_linear,
         )
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         return self.ff(x), None
 
     def default_state(self, *args, **kwargs):
@@ -171,7 +239,7 @@ class ResidualBlock(nn.Module):
         self.norm = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout2d(dropout) if dropout > 0.0 else nn.Identity()
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         """
         Input x is shape (B, d_input, L)
         """
@@ -209,6 +277,84 @@ class ResidualBlock(nn.Module):
         return x, state
 
 
+class DiffWaveS4Block(nn.Module):
+    """
+    Modified DiffWave block that uses S4.
+
+    Taken from https://github.com/philsyn/DiffWave-Vocoder
+    """
+    def __init__(self,
+            d_model, 
+            diffusion_step_embed_dim_out=512,
+            unconditional=False,
+            mel_upsample=[16, 16],
+        ):
+        super().__init__()
+        self.d_model = d_model
+
+        # the layer-specific fc for diffusion step embedding
+        self.fc_t = nn.Linear(diffusion_step_embed_dim_out, self.d_model)
+
+        self.layer = S4(
+            d_model, 
+            bidirectional=True,
+            hurwitz=True, # use the Hurwitz parameterization for stability
+            tie_state=True, # tie SSM parameters across d_state in the S4 layer
+            trainable={
+                'dt': True,
+                'A': True,
+                'P': True,
+                'B': True,
+            }, # train all internal S4 parameters
+        )
+        self.norm = nn.LayerNorm(d_model)
+
+        self.unconditional = unconditional
+        if not self.unconditional:
+            # add mel spectrogram upsampler and conditioner conv1x1 layer
+            self.upsample_conv2d = torch.nn.ModuleList()
+            for s in mel_upsample:
+                conv_trans2d = torch.nn.ConvTranspose2d(1, 1, (3, 2 * s), padding=(1, s // 2), stride=(1, s))
+                conv_trans2d = torch.nn.utils.weight_norm(conv_trans2d)
+                torch.nn.init.kaiming_normal_(conv_trans2d.weight)
+                self.upsample_conv2d.append(conv_trans2d)
+            self.mel_conv = Conv(80, self.d_model, kernel_size=1)  # 80 is mel bands
+
+    def forward(self, x, diffusion_step_embed, mel_spec=None):
+        y = x
+        B, C, L = x.shape
+        assert C == self.d_model
+
+        y = self.norm(y.transpose(-1, -2)).transpose(-1, -2)
+
+        # add in diffusion step embedding
+        part_t = self.fc_t(diffusion_step_embed)
+        y = y + part_t.unsqueeze(-1)
+        
+        # S4 layer
+        y, _ = self.layer(y)
+
+        # add mel spectrogram as (local) conditioner
+        if mel_spec is not None:
+            assert not self.unconditional
+            # Upsample spectrogram to size of audio
+            mel_spec = torch.unsqueeze(mel_spec, dim=1)
+            mel_spec = F.leaky_relu(self.upsample_conv2d[0](mel_spec), 0.4)
+            mel_spec = F.leaky_relu(self.upsample_conv2d[1](mel_spec), 0.4)
+            mel_spec = torch.squeeze(mel_spec, dim=1)
+
+            assert(mel_spec.size(2) >= L)
+            if mel_spec.size(2) > L:
+                mel_spec = mel_spec[:, :, :L]
+
+            mel_spec = self.mel_conv(mel_spec)
+            y = y + mel_spec
+
+        # Residual
+        y = x + y
+
+        return y, None
+
 class Sashimi(nn.Module):
     def __init__(
         self,
@@ -220,7 +366,9 @@ class Sashimi(nn.Module):
         bidirectional=False,
         glu=True,
         unet=False,
+        diffwave=False,
         dropout=0.0,
+        **kwargs,
     ):
         """
         SaShiMi model backbone. 
@@ -243,11 +391,27 @@ class Sashimi(nn.Module):
                 All else fixed, this slows down inference (and slightly slows training), but generally improves performance.
                 We use this variant when dropping in SaShiMi into diffusion models, and this should generally be preferred
                 for non-autoregressive models.
+            diffwave: switch to DiffWave model with SaShiMi backbone. We use this variant for our diffusion
+                models. Note that S4 is bidirectional by default in this variant, and we recommend switching 
+                on the `unet` argument as well. Additional kwargs for 
+                    - `diffusion_step_embed_dim_in` (default 128)
+                    - `diffusion_step_embed_dim_mid` (default 512)
+                    - `diffusion_step_embed_dim_out` (default 512)
+                    - `unconditional` (default False)
+                    - `mel_upsample` (default [16, 16])
+                can be passed in to control the SaShiMi diffusion model.
             dropout: dropout rate. Default to 0.0, since we haven't found settings where SaShiMi overfits.
         """
         super().__init__()
         self.d_model = H = d_model
         self.unet = unet
+        self.diffwave = diffwave
+
+        # Bidirectional S4 layers are always used in DiffWave
+        bidirectional = bidirectional or diffwave 
+
+        if self.diffwave and not self.unet: 
+            warnings.warn("DiffWave is not recommended without UNet. Consider using UNet instead.")
 
         def s4_block(dim):
             layer = S4(
@@ -285,6 +449,38 @@ class Sashimi(nn.Module):
                 dropout=dropout,
             )
 
+        if diffwave:
+            # Setup for DiffWave SaShiMi model
+            # Borrows code from https://github.com/philsyn/DiffWave-Vocoder
+
+            self.diffusion_step_embed_dim_in = kwargs.get('diffusion_step_embed_dim_in', 128)
+            self.diffusion_step_embed_dim_mid = kwargs.get('diffusion_step_embed_dim_mid', 512)
+            self.diffusion_step_embed_dim_out = kwargs.get('diffusion_step_embed_dim_out', 512)
+            in_channels = 1
+            out_channels = 1
+            
+            # Initial conv1x1 with relu
+            self.init_conv = nn.Sequential(Conv(in_channels, d_model, kernel_size=1), nn.ReLU())
+
+            # the shared two fc layers for diffusion step embedding
+            self.fc_t1 = nn.Linear(self.diffusion_step_embed_dim_in, self.diffusion_step_embed_dim_mid)
+            self.fc_t2 = nn.Linear(self.diffusion_step_embed_dim_mid, self.diffusion_step_embed_dim_out)
+
+            # Final conv1x1 -> relu -> zeroconv1x1
+            self.final_conv = nn.Sequential(
+                Conv(d_model, d_model, kernel_size=1),
+                nn.ReLU(),
+                ZeroConv1d(d_model, out_channels),
+            )
+
+            def s4_block(dim):
+                return DiffWaveS4Block(
+                    d_model=dim,
+                    diffusion_step_embed_dim_out=self.diffusion_step_embed_dim_out,
+                    unconditional=kwargs.get('unconditional', False),
+                    mel_upsample=kwargs.get('mel_upsample', [16, 16]),
+                )
+
         # Down blocks
         d_layers = []
         for p in pool:
@@ -309,7 +505,7 @@ class Sashimi(nn.Module):
         for p in pool[::-1]:
             block = []
             H //= expand
-            block.append(UpPool(H * expand, expand, p))
+            block.append(UpPool(H * expand, expand, p, causal=not bidirectional))
 
             for _ in range(n_layers):
                 block.append(s4_block(H))
@@ -324,34 +520,56 @@ class Sashimi(nn.Module):
 
         assert H == d_model
 
-    def forward(self, x, state=None):
+    def forward(self, x, state=None, mel_spec=None):
         """
         input: (batch, length, d_input)
         output: (batch, length, d_output)
         """
-        x = x.transpose(1, 2)
+        if self.diffwave:
+            audio, diffusion_steps = x
+            x = audio
+            # BLD -> BDL
+            x = x.transpose(1, 2)
+
+            x = self.init_conv(x)
+
+            diffusion_step_embed = calc_diffusion_step_embedding(
+                diffusion_steps, 
+                self.diffusion_step_embed_dim_in,
+            )
+            diffusion_step_embed = swish(self.fc_t1(diffusion_step_embed))
+            diffusion_step_embed = swish(self.fc_t2(diffusion_step_embed))
+
+            # Additional kwargs to pass onto the DiffWaveS4Block
+            layer_kwargs = dict(diffusion_step_embed=diffusion_step_embed, mel_spec=mel_spec)
+        else:
+            # BLD -> BDL
+            x = x.transpose(1, 2)
+
+            # No additional kwargs to pass onto the S4 & FF blocks
+            layer_kwargs = dict()
 
         # Down blocks
         outputs = []
         outputs.append(x)
         for layer in self.d_layers:
-            x, _ = layer(x)
+            x, _ = layer(x, **layer_kwargs)
             outputs.append(x)
 
         # Center block
         for layer in self.c_layers:
-            x, _ = layer(x)
+            x, _ = layer(x, **layer_kwargs)
         x = x + outputs.pop() # add a skip connection to the last output of the down block
 
         # Up blocks
         for block in self.u_layers:
             if self.unet:
                 for layer in block:
-                    x, _ = layer(x)
+                    x, _ = layer(x, **layer_kwargs)
                     x = x + outputs.pop() # skip connection
             else:
                 for layer in block:
-                    x, _ = layer(x)
+                    x, _ = layer(x, **layer_kwargs)
                     if isinstance(layer, UpPool):
                         # Before modeling layer in the block
                         x = x + outputs.pop()
@@ -361,6 +579,9 @@ class Sashimi(nn.Module):
         # feature projection
         x = x.transpose(1, 2) # (batch, length, expand)
         x = self.norm(x)
+
+        if self.diffwave:
+            x = self.final_conv(x.transpose(1, 2)).transpose(1, 2)
 
         return x, None # required to return a state
 
@@ -447,6 +668,7 @@ class Sashimi(nn.Module):
 if __name__ == '__main__':
     from tqdm.auto import tqdm
 
+    # Example: SaShiMi for autoregressive modeling
     model = Sashimi(n_layers=2).cuda()
     # Print parameter count
     print(sum(p.numel() for p in model.parameters()))
@@ -469,6 +691,20 @@ if __name__ == '__main__':
             ys.append(y_.detach().cpu())
         
         ys = torch.stack(ys, dim=1)
-        breakpoint()
 
         print(y.shape, ys.shape)
+
+    
+    # Example: SaShiMi for diffusion modeling
+    model = Sashimi(n_layers=2, diffwave=True, unet=True).cuda()
+    # Print parameter count
+    print(sum(p.numel() for p in model.parameters()))
+
+    model.eval()
+
+    with torch.no_grad():
+        # Forward (only) in convolutional mode
+        x = torch.randn(3, 10240, 1).cuda()
+        steps = torch.randint(0, 4, (3, 1)).cuda()
+        y, _ = model((x, steps))
+        print(y.shape)

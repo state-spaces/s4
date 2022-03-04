@@ -40,7 +40,7 @@ You can treat the SaShiMi module as a sequence-to-sequence map taking `(batch, s
 sashimi = Sashimi().cuda() # refer to docstring for arguments
 x = torch.randn(batch_size, seq_len, dim).cuda()
 # Run forward
-y = sashimi(x) # y.shape == x.shape
+y, _ = sashimi(x) # y.shape == x.shape
 ```
 
 If you use SaShiMi for autoregressive generation, you can convert it to a recurrent model at inference time and then step it to generate samples one at a time.
@@ -60,6 +60,14 @@ with torch.no_grad():
     ys = torch.stack(ys, dim=1) # ys.shape == x.shape
 ```
 
+We also include a modified DiffWave SaShiMi backbone for diffusion models. This can be enabled by simply passing in the `diffwave=True` argument to the `Sashimi` constructor (refer to the model docstring for more details).
+```python
+sashimi = Sashimi(diffwave=True, unet=True).cuda() # we recommend turning on the unet option
+x = torch.randn(batch_size, seq_len, dim).cuda()
+diffusion_steps = torch.randint(0, max_steps, (batch_size, 1)).cuda()
+# Run forward
+y, _ = sashimi((x, diffusion_steps)) # y.shape == x.shape
+```
 
 ## Datasets
 You can download the Beethoven, YouTubeMix and SC09 datasets from the following links on the Huggingface Hub. Details about the datasets can be found in the README files on the respective dataset pages.
