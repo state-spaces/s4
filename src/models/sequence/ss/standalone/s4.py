@@ -45,11 +45,46 @@ except:
 try: # Try pykeops
     import pykeops
     from pykeops.torch import Genred
+    has_pykeops = True
+    def cauchy_conj(v, z, w):
+        """ Pykeops version """
+        expr_num = 'z * ComplexReal(v) - Real2Complex(Sum(v * w))'
+        expr_denom = 'ComplexMult(z-w, z-Conj(w))'
+
+        cauchy_mult = Genred(
+            f'ComplexDivide({expr_num}, {expr_denom})',
+            # expr_num,
+            # expr_denom,
+            [
+                'v = Vj(2)',
+                'z = Vi(2)',
+                'w = Vj(2)',
+            ],
+            reduction_op='Sum',
+            axis=1,
+            dtype='float32' if v.dtype == torch.cfloat else 'float64',
+        )
+
+        v, z, w = _broadcast_dims(v, z, w)
+        v = _c2r(v)
+        z = _c2r(z)
+        w = _c2r(w)
+
+        r = 2*cauchy_mult(v, z, w, backend='GPU')
+        return _r2c(r)
 except ImportError:
+    has_pykeops = False
     if not has_cauchy_extension:
         log.error(
-            "Install at least one of pykeops or the cauchy_mult extension."
+            "Falling back on slow Cauchy kernel. Install at least one of pykeops or the CUDA extension for efficiency."
         )
+        def cauchy_conj_slow(v, z, w):
+            z = z.unsqueeze(-1)
+            v = v.unsqueeze(-2)
+            w = w.unsqueeze(-2)
+            r = (z*v.real - (v*w.conj()).real) / ((z-w.real)**2 + w.imag**2)
+            # r =  ((z-w.real)**2 + w.imag**2)
+            return 2 * torch.sum(r, dim=-1)
 
 def _broadcast_dims(*tensors):
     max_dim = max([len(tensor.shape) for tensor in tensors])
@@ -64,32 +99,6 @@ if torch.__version__.startswith('1.10'):
 else:
     _resolve_conj = lambda x: x.conj()
 
-def cauchy_conj(v, z, w):
-    """ Pykeops version """
-    expr_num = 'z * ComplexReal(v) - Real2Complex(Sum(v * w))'
-    expr_denom = 'ComplexMult(z-w, z-Conj(w))'
-
-    cauchy_mult = Genred(
-        f'ComplexDivide({expr_num}, {expr_denom})',
-        # expr_num,
-        # expr_denom,
-        [
-            'v = Vj(2)',
-            'z = Vi(2)',
-            'w = Vj(2)',
-        ],
-        reduction_op='Sum',
-        axis=1,
-        dtype='float32' if v.dtype == torch.cfloat else 'float64',
-    )
-
-    v, z, w = _broadcast_dims(v, z, w)
-    v = _c2r(v)
-    z = _c2r(z)
-    w = _c2r(w)
-
-    r = 2*cauchy_mult(v, z, w, backend='GPU')
-    return _r2c(r)
 
 
 """ simple nn.Module components """
@@ -650,8 +659,10 @@ class SSKernelNPLR(nn.Module):
         # Calculate resolvent at omega
         if has_cauchy_extension and z.dtype == torch.cfloat:
             r = cauchy_mult(v, z, w, symmetric=True)
-        else:
+        elif has_pykeops:
             r = cauchy_conj(v, z, w)
+        else:
+            r = cauchy_conj_slow(v, z, w)
         r = r * dt[None, None, :, None]  # (S+1+R, C+R, H, L)
 
         # Low-rank Woodbury correction

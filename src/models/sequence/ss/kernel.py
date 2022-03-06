@@ -42,11 +42,15 @@ except:
     has_cauchy_extension = False
 
 try:
-    import src.models.functional.cauchy as cauchy
+    import pykeops
+    from src.models.functional.cauchy import cauchy_conj
+    has_pykeops = True
 except ImportError:
+    has_pykeops = False
+    from src.models.functional.cauchy import cauchy_conj_slow
     if not has_cauchy_extension:
         log.error(
-            "Install at least one of pykeops or cauchy_mult."
+            "Falling back on slow Cauchy kernel. Install at least one of pykeops or the CUDA extension for efficiency."
         )
 
 
@@ -318,8 +322,10 @@ class SSKernelNPLR(OptimModule):
         # Calculate resolvent at omega
         if has_cauchy_extension and z.dtype == torch.cfloat and not self.keops:
             r = cauchy_mult(v, z, w, symmetric=True)
+        elif has_pykeops:
+            r = cauchy_conj(v, z, w)
         else:
-            r = cauchy.cauchy_conj(v, z, w)
+            r = cauchy_conj_slow(v, z, w)
         r = r * dt[None, None, :, None]  # (S+1+R, C+R, H, L)
 
         # Low-rank Woodbury correction
