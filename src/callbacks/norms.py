@@ -1,13 +1,17 @@
 import pytorch_lightning as pl
-from pytorch_lightning.utilities import rank_zero_only
-from pytorch_lightning.utilities.parsing import AttributeDict
+import torch
 from omegaconf import OmegaConf
+
+# from pytorch_lightning.utilities import rank_zero_only
+
 
 class TrackNorms(pl.Callback):
 
     # TODO do callbacks happen before or after the method in the main LightningModule?
     # @rank_zero_only # needed?
-    def on_after_training_step(self, batch, batch_idx, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_after_training_step(
+        self, batch, batch_idx, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ):
         # Log extra metrics
         metrics = {}
 
@@ -23,17 +27,17 @@ class TrackNorms(pl.Callback):
             sync_dist=True,
         )
 
-
     def on_after_backward(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # example to inspect gradient information in tensorboard
-        if OmegaConf.select(trainer.hparams, 'trainer.track_grad_norms'): # TODO dot notation should work with omegaconf?
+        if OmegaConf.select(
+            trainer.hparams, "trainer.track_grad_norms"
+        ):  # TODO dot notation should work with omegaconf?
             norms = {}
             for name, p in pl_module.named_parameters():
                 if p.grad is None:
                     continue
 
                 # param_norm = float(p.grad.data.norm(norm_type))
-                param_norm = torch.mean(p.grad.data ** 2)
+                param_norm = torch.mean(p.grad.data**2)
                 norms[f"grad_norm.{name}"] = param_norm
             pl_module._grad_norms = norms
-
