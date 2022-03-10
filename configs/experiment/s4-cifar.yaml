@@ -8,12 +8,14 @@ model:
   n_layers: 6
   d_model: 1024
   prenorm: false
+  layer:
+    bidirectional: true
 
 loader:
-  batch_size: 50
+  batch_size: 32
 
 optimizer:
-  lr: 0.01
+  lr: 0.004
   weight_decay: 0.01
 
 trainer:
