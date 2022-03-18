@@ -94,7 +94,7 @@ def _broadcast_dims(*tensors):
 _c2r = torch.view_as_real
 _r2c = torch.view_as_complex
 _conj = lambda x: torch.cat([x, x.conj()], dim=-1)
-if torch.__version__.startswith('1.10'):
+if tuple(map(int, torch.__version__.split('.')[:2])) >= (1, 10):
     _resolve_conj = lambda x: x.conj().resolve_conj()
 else:
     _resolve_conj = lambda x: x.conj()
