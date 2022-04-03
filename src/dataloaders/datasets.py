@@ -722,6 +722,7 @@ class SpeechCommands(SequenceDataset):
         self.l_output = 0
 
     def setup(self):
+        self.data_dir = self.data_dir or default_data_path # TODO make same logic as other classes
         from src.dataloaders.sc import _SpeechCommands
 
         # TODO refactor with data_dir argument
@@ -731,7 +732,7 @@ class SpeechCommands(SequenceDataset):
             mfcc=self.mfcc,
             sr=1,
             dropped_rate=self.dropped_rate,
-            path=default_data_path,
+            path=self.data_dir,
             all_classes=self.all_classes,
         )
 
@@ -741,7 +742,7 @@ class SpeechCommands(SequenceDataset):
             mfcc=self.mfcc,
             sr=1,
             dropped_rate=self.dropped_rate,
-            path=default_data_path,
+            path=self.data_dir,
             all_classes=self.all_classes,
         )
 
@@ -751,7 +752,7 @@ class SpeechCommands(SequenceDataset):
             mfcc=self.mfcc,
             sr=1,
             dropped_rate=self.dropped_rate,
-            path=default_data_path,
+            path=self.data_dir,
             all_classes=self.all_classes,
         )
 
