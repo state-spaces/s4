@@ -173,28 +173,3 @@ def nplr(measure, N, rank=1, dtype=torch.float):
 
     return w, P, B, C, V
 
-def test_nplr():
-    N = 4
-    measure = 'legs'
-    w, P, B, C, V = nplr(measure, N)
-    w = torch.cat([w, w.conj()], dim=-1)
-    V = torch.cat([V, V.conj()], dim=-1)
-    B = torch.cat([B, B.conj()], dim=-1)
-    P = torch.cat([P, P.conj()], dim=-1)
-    Q = P
-    # q = torch.cat([q, q.conj()], dim=-1)
-    A = torch.diag_embed(w) - contract('... r p, ... r q -> ... p q', P, Q.conj())
-
-    A = contract('ij, jk, kl -> ... il', V, A, V.conj().transpose(-1,-2)) # Ap^{-1} = V @ w^{-1} @ V^T
-    B = contract('ij, ... j -> ... i', V, B)
-    print(A.real)
-    print(B.real)
-
-if __name__ == '__main__':
-    from benchmark import utils
-
-    device = 'cuda' # 'cpu'
-    device = torch.device(device)
-
-    # benchmark_krylov(measure='legs', rank=1)
-    test_nplr()

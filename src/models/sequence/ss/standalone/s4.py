@@ -78,13 +78,14 @@ except ImportError:
         log.error(
             "Falling back on slow Cauchy kernel. Install at least one of pykeops or the CUDA extension for efficiency."
         )
-        def cauchy_conj_slow(v, z, w):
-            z = z.unsqueeze(-1)
-            v = v.unsqueeze(-2)
-            w = w.unsqueeze(-2)
-            r = (z*v.real - (v*w.conj()).real) / ((z-w.real)**2 + w.imag**2)
-            # r =  ((z-w.real)**2 + w.imag**2)
-            return 2 * torch.sum(r, dim=-1)
+        def cauchy_slow(v, z, w):
+            """
+            v, w: (..., N)
+            z: (..., L)
+            returns: (..., L)
+            """
+            cauchy_matrix = v.unsqueeze(-1) / (z.unsqueeze(-2) - w.unsqueeze(-1)) # (... N L)
+            return torch.sum(cauchy_matrix, dim=-2)
 
 def _broadcast_dims(*tensors):
     max_dim = max([len(tensor.shape) for tensor in tensors])
@@ -662,7 +663,7 @@ class SSKernelNPLR(nn.Module):
         elif has_pykeops:
             r = cauchy_conj(v, z, w)
         else:
-            r = cauchy_conj_slow(v, z, w)
+            r = cauchy_slow(v, z, w)
         r = r * dt[None, None, :, None]  # (S+1+R, C+R, H, L)
 
         # Low-rank Woodbury correction

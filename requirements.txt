@@ -13,9 +13,9 @@ omegaconf
 wandb
 einops
 opt_einsum
-pykeops
 cmake
 torchtext
 datasets
 transformers
 pytorch-fast-transformers
+# pykeops==1.5 # Install to enable fast Cauchy kernel through pykeops

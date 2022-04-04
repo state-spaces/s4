@@ -77,7 +77,10 @@ Fine-grained control over the data directory is allowed, e.g. if the LRA ListOps
 ### Cauchy Kernel
 
 A core operation of S4 is the "Cauchy kernel" described in the [paper](https://arxiv.org/abs/2111.00396).
-The implementation of this requires one of two methods:
+This is a very simple operation; a naive implementation of this operation can be found in `src/models/sequence/ss/standalone/s4.py` in the function `cauchy_slow`.
+As the paper describes, this has undesirable memory usage that currently requires a custom kernel to overcome.
+
+Two methods are supported. The code will automatically detect if either of these is installed and call the appropriate kernel.
 
 #### Custom CUDA Kernel
 
@@ -87,7 +90,7 @@ Run `python setup.py install` from the directory `extensions/cauchy/`.
 #### Pykeops
 
 This version is provided by the [pykeops library](https://www.kernel-operations.io/keops/index.html).
-Installation usually works out of the box with `pip install pykeops cmake` which are provided in the requirements file.
+Installation usually works out of the box with `pip install pykeops==1.5 cmake` which are provided in the requirements file.
 
 Note that running in a Colab requires installing a different pip package; instructions can be found in the pykeops documentation.
 
