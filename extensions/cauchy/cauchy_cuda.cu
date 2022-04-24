@@ -96,17 +96,17 @@ __global__ void cauchy_mult_fwd_cuda_kernel(CudaAcsr<scalar_t, 2> v,
     // for (int N_idx = threadIdx.x; N_idx < N; N_idx += blockDimx) {
     //     result += s_v[N_idx] / (t_z - s_w[N_idx]);
     // }
-    // TODO: this only works for N a power of 2
-    #pragma unroll
-    for (int offset = blockDimx / 2; offset > 0; offset /= 2) {
-      result += WARP_SHFL_DOWN(result, offset);
-    }
-    // if ((L_idx < L) && (threadIdx.x == 0)) {
-    //   out[batch_idx][L_idx] = result;
-    // }
-    if (threadIdx.x == 0) {
-      s_out[threadIdx.y] = result;
-    }
+  }
+  // TODO: this only works for N a power of 2
+  #pragma unroll
+  for (int offset = blockDimx / 2; offset > 0; offset /= 2) {
+    result += WARP_SHFL_DOWN(result, offset);
+  }
+  // if ((L_idx < L) && (threadIdx.x == 0)) {
+  //   out[batch_idx][L_idx] = result;
+  // }
+  if ((threadIdx.x == 0) && (L_idx < L)) {
+    s_out[threadIdx.y] = result;
   }
   __syncthreads();
   if (tid < blockDim.y && L_block_start + tid < L) {
@@ -257,12 +257,14 @@ __global__ void cauchy_mult_sym_fwd_cuda_kernel(CudaAcsr<scalar_t, 2> v,
   // But it doesn't work for complex: https://github.com/pytorch/pytorch/issues/39270
   // So we declare a char array and cast it.
   // The casting is subtle: https://stackoverflow.com/questions/12692310/convert-array-to-two-dimensional-array-by-pointer
-  __shared__ float_t s_vr[N];
-  // __shared__ char s_w_char[N * sizeof(scalar_t)];
-  // scalar_t *s_w = (scalar_t *)&s_w_char;
-  __shared__ float_t s_wr[N];
-  __shared__ float_t s_wnorm[N];
-  __shared__ float_t s_vwconj_r[N];
+  // __shared__ float_t s_vr[N];
+  __shared__ char s_v_char[N * sizeof(scalar_t)];
+  scalar_t *s_v = (scalar_t *)&s_v_char;
+  __shared__ char s_w_char[N * sizeof(scalar_t)];
+  scalar_t *s_w = (scalar_t *)&s_w_char;
+  // __shared__ float_t s_wr[N];
+  // __shared__ float_t s_wnorm[N];
+  // __shared__ float_t s_vwconj_r[N];
   __shared__ char s_z_char[blockDimy * sizeof(scalar_t)];
   scalar_t *s_z = (scalar_t *)&s_z_char;
   __shared__ char s_out_char[blockDimy * sizeof(scalar_t)];
@@ -274,22 +276,24 @@ __global__ void cauchy_mult_sym_fwd_cuda_kernel(CudaAcsr<scalar_t, 2> v,
   for (int N_idx = threadIdx.x + threadIdx.y * blockDim.x; N_idx < N; N_idx += blockDim.x * blockDim.y) {
     scalar_t t_v = v[batch_idx][N_idx];
     scalar_t t_w = w[batch_idx][N_idx];
-    s_vr[N_idx] = std::real(t_v);
-    // s_w[N_idx] = t_w;
-    s_wr[N_idx] = std::real(t_w);
-    s_wnorm[N_idx] = std::norm(t_w);
+    s_v[N_idx] = t_v;
+    s_w[N_idx] = t_w;
+    // s_vr[N_idx] = std::real(t_v);
+    // s_wr[N_idx] = std::real(t_w);
+    // s_wnorm[N_idx] = std::norm(t_w);
     // s_vwconj_r[N_idx] = std::real(t_v) * std::real(t_w) + std::imag(t_v) * std::imag(t_w);
     // Compiler is able to optimize this, so the two lines give idential speed;
-    s_vwconj_r[N_idx] = std::real(t_v * std::conj(t_w));
+    // s_vwconj_r[N_idx] = std::real(t_v * std::conj(t_w));
   }
   if (tid < blockDim.y && L_block_start + tid < L) {
     s_z[tid] = z[L_block_start + tid];
   }
   __syncthreads();
+  scalar_t result = 0;
   if (L_idx < L) {
     scalar_t t_z = s_z[threadIdx.y];
     scalar_t t_z_sq = t_z * t_z;
-    scalar_t result = 0;
+    // c10::complex<double> result = 0;
     #pragma unroll
     // for (int item = 0; item < items_per_thread; ++item) {
     //   int N_idx = item * blockDimx + threadIdx.x;
@@ -306,28 +310,39 @@ __global__ void cauchy_mult_sym_fwd_cuda_kernel(CudaAcsr<scalar_t, 2> v,
     //   // scalar_t denom_inv = scalar_t(1.0) / (t_z - 2 * std::real(t_w) + std::norm(t_w) * std::conj(t_z));
     //   // result += (std::real(t_v) - (std::real(t_v) * std::real(t_w) + std::imag(t_v) * std::imag(t_w)) * std::conj(t_z)) * denom_inv;
     // }
-    for (int item = 0; item < items_per_thread / 2; ++item) {
-      int N_idx_1 = item * 2 * blockDimx + threadIdx.x;
-      int N_idx_2 = (item * 2 + 1) * blockDimx + threadIdx.x;
-      scalar_t denom_1 = (t_z_sq - 2 * t_z * s_wr[N_idx_1] + s_wnorm[N_idx_1]);
-      scalar_t nom_1 = (t_z * s_vr[N_idx_1] - s_vwconj_r[N_idx_1]);
-      scalar_t denom_2 = (t_z_sq - 2 * t_z * s_wr[N_idx_2] + s_wnorm[N_idx_2]);
-      scalar_t nom_2 = (t_z * s_vr[N_idx_2] - s_vwconj_r[N_idx_2]);
-      scalar_t denom_prod_inv = scalar_t(1) / (denom_1 * denom_2);
-      result += (nom_1 * denom_2 + nom_2 * denom_1) * denom_prod_inv;
+    // for (int item = 0; item < items_per_thread / 2; ++item) {
+    //   int N_idx_1 = item * 2 * blockDimx + threadIdx.x;
+    //   int N_idx_2 = (item * 2 + 1) * blockDimx + threadIdx.x;
+    //   scalar_t denom_1 = (t_z_sq - 2 * t_z * s_wr[N_idx_1] + s_wnorm[N_idx_1]);
+    //   scalar_t nom_1 = (t_z * s_vr[N_idx_1] - s_vwconj_r[N_idx_1]);
+    //   scalar_t denom_2 = (t_z_sq - 2 * t_z * s_wr[N_idx_2] + s_wnorm[N_idx_2]);
+    //   scalar_t nom_2 = (t_z * s_vr[N_idx_2] - s_vwconj_r[N_idx_2]);
+    //   scalar_t denom_prod_inv = scalar_t(1) / (denom_1 * denom_2);
+    //   result += (nom_1 * denom_2 + nom_2 * denom_1) * denom_prod_inv;
+    // }
+    // Combining the two terms (a/b + c/d = (ad + bc)/(bd)) seems to increase numerical errors.
+    // Using nvcc --use_fast_math is yields the same speed between the versions.
+    // So we don't combine the two terms.
+    for (int item = 0; item < items_per_thread; ++item) {
+      int N_idx = item * blockDimx + threadIdx.x;
+      // scalar_t denom = (t_z_sq - 2 * t_z * s_wr[N_idx] + s_wnorm[N_idx]);
+      // scalar_t nom = (t_z * s_vr[N_idx] - s_vwconj_r[N_idx]);
+      // result += nom / denom;
+      result += s_v[N_idx] / (t_z - s_w[N_idx]) + std::conj(s_v[N_idx]) / (t_z - std::conj(s_w[N_idx]));
     }
-    // TODO: this only works for N a power of 2
-    #pragma unroll
-    for (int offset = blockDimx / 2; offset > 0; offset /= 2) {
-      result += WARP_SHFL_DOWN(result, offset);
-    }
-    if (threadIdx.x == 0) {
-      s_out[threadIdx.y] = result;
-    }
+  }
+  // TODO: this only works for N a power of 2
+  #pragma unroll
+  for (int offset = blockDimx / 2; offset > 0; offset /= 2) {
+    result += WARP_SHFL_DOWN(result, offset);
+  }
+  if ((threadIdx.x == 0) && (L_idx < L)) {
+    s_out[threadIdx.y] = result;
   }
   __syncthreads();
   if (tid < blockDim.y && L_block_start + tid < L) {
-    out[batch_idx][L_block_start + tid] = 2 * s_out[tid];
+    // out[batch_idx][L_block_start + tid] = 2 * s_out[tid];
+    out[batch_idx][L_block_start + tid] = s_out[tid];
   }
 }
 
@@ -404,24 +419,32 @@ __global__ void cauchy_mult_sym_bwd_cuda_kernel(CudaAcsr<scalar_t, 2> v,
       t_dout = dout[batch_idx][l];
       t_z = z[l];
     }
-    scalar_t denom_inv = scalar_t(1) / (std::norm(t_z) - 2 * std::real(t_z) * t_w_conj + t_w_conj_sq);
+    scalar_t denom_1 = std::conj(t_z) - t_w_conj;
+    scalar_t denom_2 = t_z - t_w_conj;
+    scalar_t term_1 = t_dout / denom_1;
+    scalar_t term_2 = std::conj(t_dout) / denom_2;
+    t_dv += term_1 + term_2;
+    t_dw += term_1 / denom_1 + term_2 / denom_2;
+    // scalar_t denom_inv = scalar_t(1) / (std::norm(t_z) - 2 * std::real(t_z) * t_w_conj + t_w_conj_sq);
     // auto dout_z_real = std::real(t_dout) * std::real(t_z) - std::imag(t_dout) * std::imag(t_z);
     // Compiler is able to optimize this, so the two lines give idential speed;
-    auto dout_z_real = std::real(t_dout * t_z);
-    scalar_t dv_nom = (dout_z_real - std::real(t_dout) * t_w_conj);
-    t_dv += dv_nom * denom_inv;
-    scalar_t t_z_sq = t_z * t_z;
+    // auto dout_z_real = std::real(t_dout * t_z);
+    // scalar_t dv_nom = (dout_z_real - std::real(t_dout) * t_w_conj);
+    // t_dv += dv_nom * denom_inv;
+    // scalar_t t_z_sq = t_z * t_z;
     // auto dout_z_sq_real = std::real(t_dout) * std::real(t_z_sq) - std::imag(t_dout) * std::imag(t_z_sq);
     // Compiler is able to optimize this, so the two lines give idential speed;
-    auto dout_z_sq_real = std::real(t_dout * t_z_sq);
-    scalar_t dw_nom = dout_z_sq_real - 2 * dout_z_real * t_w_conj + std::real(t_dout) * t_w_conj_sq;
-    t_dw += dw_nom * denom_inv * denom_inv;
+    // auto dout_z_sq_real = std::real(t_dout * t_z_sq);
+    // scalar_t dw_nom = dout_z_sq_real - 2 * dout_z_real * t_w_conj + std::real(t_dout) * t_w_conj_sq;
+    // t_dw += dw_nom * denom_inv * denom_inv;
   }
   t_dv = at::native::cuda_utils::BlockReduceSum<scalar_t>(t_dv, s_dv);
   t_dw = at::native::cuda_utils::BlockReduceSum<scalar_t>(t_dw, s_dw);
   if (tid == 0) {
-    dw[batch_idx][N_idx][L_chunk_idx] = 2 * t_dw * std::conj(v[batch_idx][N_idx]);
-    dv[batch_idx][N_idx][L_chunk_idx] = 2 * t_dv;
+    // dw[batch_idx][N_idx][L_chunk_idx] = 2 * t_dw * std::conj(v[batch_idx][N_idx]);
+    dw[batch_idx][N_idx][L_chunk_idx] = t_dw * std::conj(v[batch_idx][N_idx]);
+    // dv[batch_idx][N_idx][L_chunk_idx] = 2 * t_dv;
+    dv[batch_idx][N_idx][L_chunk_idx] = t_dv;
   }
 }
 
