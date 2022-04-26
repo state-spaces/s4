@@ -47,7 +47,7 @@ parser.add_argument('--dataset', default='cifar10', choices=['mnist', 'cifar10']
 parser.add_argument('--grayscale', action='store_true', help='Use grayscale CIFAR10')
 # Dataloader
 parser.add_argument('--num_workers', default=4, type=int, help='Number of workers to use for dataloader')
-parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
+parser.add_argument('--batch_size', default=128, type=int, help='Batch size')
 # Model
 parser.add_argument('--n_layers', default=4, type=int, help='Number of layers')
 parser.add_argument('--d_model', default=512, type=int, help='Model dimension')
@@ -131,11 +131,11 @@ elif args.dataset == 'mnist':
 
 # Dataloaders
 trainloader = torch.utils.data.DataLoader(
-    trainset, batch_size=128, shuffle=True, num_workers=args.num_workers)
+    trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 valloader = torch.utils.data.DataLoader(
-    valset, batch_size=128, shuffle=False, num_workers=args.num_workers)
+    valset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 testloader = torch.utils.data.DataLoader(
-    testset, batch_size=128, shuffle=False, num_workers=args.num_workers)
+    testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
 class S4Model(nn.Module):
 
