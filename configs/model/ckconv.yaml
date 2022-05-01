@@ -1,6 +1,10 @@
+# @package _global_
 # _target_: models.baselines.ckconv.ClassificationCKCNN
+# defaults:
+#   - /model: base
+
 _name_: ckconv
-hidden_channels: 30 # taken from Table 8
+d_model: 30 # taken from Table 8
 num_blocks: 2 # always 2 blocks
 kernelnet_hidden_channels: 32
 kernelnet_activation_function: Sine

@@ -294,10 +294,10 @@ class LinearInitovertime(nn.Module):
 class UnICORNN(nn.Module):
     def __init__(
         self,
-        d_input,
-        d_output,
-        l_output,
-        nhid,
+        # d_input,
+        # d_output,
+        # l_output,
+        d_model,
         dt,
         alpha,
         n_layers,
@@ -310,21 +310,23 @@ class UnICORNN(nn.Module):
             )
 
         super(UnICORNN, self).__init__()
-        self.nhid = nhid
+        self.d_model = d_model
+        self.d_output = d_model
         self.drop = drop
         self.nlayers = n_layers
-        self.l_output = l_output
+        # self.l_output = l_output
         self.DIs = nn.ModuleList()
-        denseinput = LinearInitovertime(d_input, nhid)
-        self.DIs.append(denseinput)
-        for x in range(self.nlayers - 1):
-            denseinput = LinearInitovertime(nhid, nhid)
+        # denseinput = LinearInitovertime(d_input, nhid)
+        # self.DIs.append(denseinput)
+        # for x in range(self.nlayers - 1):
+        for x in range(self.nlayers):
+            denseinput = LinearInitovertime(d_model, d_model)
             self.DIs.append(denseinput)
-        self.classifier = nn.Linear(nhid, d_output)
+        # self.classifier = nn.Linear(nhid, d_output)
         self.init_weights()
         self.RNNs = []
         for x in range(self.nlayers):
-            rnn = UnICORNN_recurrence(nhid, dt[x], alpha)
+            rnn = UnICORNN_recurrence(d_model, dt[x], alpha)
             self.RNNs.append(rnn)
         self.RNNs = torch.nn.ModuleList(self.RNNs)
 
@@ -332,8 +334,8 @@ class UnICORNN(nn.Module):
         for name, param in self.named_parameters():
             if ("fc" in name) and "weight" in name:
                 nn.init.kaiming_uniform_(param, a=8, mode="fan_in")
-            if "classifier" in name and "weight" in name:
-                nn.init.kaiming_normal_(param.data)
+            # if "classifier" in name and "weight" in name:
+            #     nn.init.kaiming_normal_(param.data)
             if "bias" in name:
                 param.data.fill_(0.0)
 
@@ -352,8 +354,10 @@ class UnICORNN(nn.Module):
                 rnnoutputs["outlayer%d" % x], self.drop, self.training
             )
 
-        temp = rnnoutputs["outlayer%d" % (len(self.RNNs) - 1)][-1]
-        output = self.classifier(temp)
+        # temp = rnnoutputs["outlayer%d" % (len(self.RNNs) - 1)][-1]
+        # output = self.classifier(temp)
+        output = rnnoutputs["outlayer%d" % (len(self.RNNs) - 1)]
+        output = output.transpose(0, 1)
 
         # if self.l_output == 0:
         #     output = output[:, -1]

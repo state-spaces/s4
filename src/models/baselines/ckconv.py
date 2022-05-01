@@ -571,7 +571,6 @@ class CKBlock(torch.nn.Module):
 class CKCNN(torch.nn.Module):
     def __init__(
             self,
-            in_channels: int,
             hidden_channels: int,
             num_blocks: int,  # 2
             kernelnet_hidden_channels: int,
@@ -588,10 +587,10 @@ class CKCNN(torch.nn.Module):
 
         blocks = []
         for i in range(num_blocks):
-            block_in_channels = in_channels if i == 0 else hidden_channels
             blocks.append(
                 CKBlock(
-                    block_in_channels,
+                    # block_in_channels,
+                    hidden_channels,
                     hidden_channels,
                     kernelnet_hidden_channels,
                     kernelnet_activation_function,
@@ -608,9 +607,11 @@ class CKCNN(torch.nn.Module):
         self.backbone = torch.nn.Sequential(*blocks)
 
     def forward(self, x, *args, **kwargs):
-        # Change from (B, S, C) -> (B, C, S)
+        # Change from (B, L, H) -> (B, H, L)
         x = x.transpose(1, 2)
-        return self.backbone(x)
+        x = self.backbone(x)
+        x = x.transpose(1, 2)
+        return x
 
 
 class CopyMemory_CKCNN(CKCNN):
@@ -710,9 +711,9 @@ class AddProblem_CKCNN(CKCNN):
 class ClassificationCKCNN(CKCNN):
     def __init__(
             self,
-            d_input: int,
-            d_output: int,
-            hidden_channels: int,
+            # d_input: int,
+            # d_output: int,
+            d_model: int,
             num_blocks: int,
             kernelnet_hidden_channels: int,
             kernelnet_activation_function: str,
@@ -724,11 +725,11 @@ class ClassificationCKCNN(CKCNN):
             weight_dropout: float,
             pool: bool,
             wd: float,
-            **kwargs,
+            # **kwargs,
     ):
         super().__init__(
-            d_input,
-            hidden_channels,
+            # d_input,
+            d_model,
             num_blocks,
             kernelnet_hidden_channels,
             kernelnet_activation_function,
@@ -740,29 +741,18 @@ class ClassificationCKCNN(CKCNN):
             weight_dropout,
             pool,
         )
-        if 'l_output' in kwargs and kwargs['l_output'] > 1:
-            d_output = kwargs['l_output']
-
-        self.finallyr = torch.nn.Linear(
-            in_features=hidden_channels, out_features=d_output
-        )
-        # Initialize finallyr
-        self.finallyr.weight.data.normal_(
-            mean=0.0,
-            std=0.01,
-        )
-        self.finallyr.bias.data.fill_(value=0.0)
+        self.d_model = d_model
+        self.d_output = d_model
 
         self.wd = LnLoss(wd, 2)
 
     def forward(self, x, *args, **kwargs):
         # Change from (B, S, C) -> (B, C, S)
         x = x.transpose(1, 2)
-        out = self.backbone(x)
-        out = self.finallyr(out[:, :, -1])
-        return out
+        x = self.backbone(x)
+        x = x.transpose(1, 2)
+        return x, None # Have to return a state
 
-    # def decay(self):
     def loss(self):
         return self.wd.forward(model=self)
 
