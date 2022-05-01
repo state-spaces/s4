@@ -1,0 +1,12 @@
+_name_: s4d
+d_state: 64
+channels: 1
+bidirectional: false
+activation: gelu
+postact: null
+dropout: ${..dropout} # Same as null
+scaling: inverse
+dt_min: 0.001
+dt_max: 0.1
+lr: 0.001
+n_ssm: 1

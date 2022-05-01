@@ -23,7 +23,7 @@ else:
     contract = torch.einsum
 
 from src.models.sequence.ss.kernel import HippoSSKernel
-from src.models.nn import LinearActivation, Activation
+from src.models.nn import LinearActivation, Activation, Normalization
 
 class S4(nn.Module):
     requires_length = True
@@ -37,11 +37,16 @@ class S4(nn.Module):
             bidirectional=False,
             # Arguments for FF
             activation='gelu', # activation in between SS and FF
-            postact=None, # activation after FF. Setting to 'glu' usually improves performance
+            ln=False, # Extra normalization
+            postact=None, # activation after FF
+            initializer=None, # initializer on FF
+            weight_norm=False, # weight normalization on FF
             hyper_act=None, # Use a "hypernetwork" multiplication
             dropout=0.0,
             transposed=True, # axis ordering (B, L, D) or (B, D, L)
             verbose=False,
+            shift=False,
+            linear=False,
             # SSM Kernel arguments
             **kernel_args,
         ):
@@ -66,8 +71,11 @@ class S4(nn.Module):
         self.h = d_model
         self.n = d_state
         self.bidirectional = bidirectional
+        self.ln = ln
         self.channels = channels
         self.transposed = transposed
+        self.shift = shift
+        self.linear = linear
 
         # optional multiplicative modulation GLU-style
         # https://arxiv.org/abs/2002.05202
@@ -86,18 +94,26 @@ class S4(nn.Module):
         self.kernel = HippoSSKernel(self.h, N=self.n, L=l_max, channels=channels, verbose=verbose, **kernel_args)
 
         # Pointwise
-        self.activation = Activation(activation)
-        dropout_fn = nn.Dropout2d if self.transposed else nn.Dropout
-        self.dropout = dropout_fn(dropout) if dropout > 0.0 else nn.Identity()
+        if not self.linear:
+            self.activation = Activation(activation)
+            dropout_fn = nn.Dropout2d if self.transposed else nn.Dropout
+            self.dropout = dropout_fn(dropout) if dropout > 0.0 else nn.Identity()
+            if self.ln:
+                self.norm = Normalization(self.h*self.channels, transposed=transposed)
+            else:
+                self.norm = nn.Identity()
 
         # position-wise output transform to mix features
-        self.output_linear = LinearActivation(
-            self.h*self.channels,
-            self.h,
-            transposed=self.transposed,
-            activation=postact,
-            activate=True,
-        )
+        if not self.linear:
+            self.output_linear = LinearActivation(
+                self.h*self.channels,
+                self.h,
+                transposed=self.transposed,
+                initializer=initializer,
+                activation=postact,
+                activate=True,
+                weight_norm=weight_norm,
+            )
 
 
     def forward(self, u, state=None, **kwargs): # absorbs return_output and transformer src mask
@@ -119,10 +135,18 @@ class S4(nn.Module):
             k = F.pad(k0, (0, L)) \
                     + F.pad(k1.flip(-1), (L, 0)) \
 
-        k_f = torch.fft.rfft(k, n=2*L) # (C H L)
-        u_f = torch.fft.rfft(u, n=2*L) # (B H L)
-        y_f = contract('bhl,chl->bchl', u_f, k_f) # k_f.unsqueeze(-4) * u_f.unsqueeze(-3) # (B C H L)
-        y = torch.fft.irfft(y_f, n=2*L)[..., :L] # (B C H L)
+        if self.shift:
+            # Try flip and pad to correct for potential off-by-one
+            k_f = torch.fft.rfft(F.pad(k.flip(-1), (L, 0)), n=2*L) # (C H L)
+            u_f = torch.fft.rfft(F.pad(u.flip(-1), (L, 0)), n=2*L) # (B H L)
+            y_f = contract('bhl,chl->bchl', u_f, k_f) # k_f.unsqueeze(-4) * u_f.unsqueeze(-3) # (B C H L)
+            y = torch.fft.irfft(y_f, n=2*L)[..., L:].flip(-1) # (B C H L)
+        else:
+            k_f = torch.fft.rfft(k, n=2*L) # (C H L)
+            u_f = torch.fft.rfft(u, n=2*L) # (B H L)
+            y_f = contract('bhl,chl->bchl', u_f, k_f) # k_f.unsqueeze(-4) * u_f.unsqueeze(-3) # (B C H L)
+            y = torch.fft.irfft(y_f, n=2*L)[..., :L] # (B C H L)
+
 
 
         # Compute D term in state space equation - essentially a skip connection
@@ -144,13 +168,19 @@ class S4(nn.Module):
         # Reshape to flatten channels
         y = rearrange(y, '... c h l -> ... (c h) l')
 
-        y = self.dropout(self.activation(y))
+        if not self.linear:
+            y = self.dropout(self.activation(y))
 
         if not self.transposed: y = y.transpose(-1, -2)
 
-        y = self.output_linear(y)
+        if not self.linear:
+            y = self.norm(y)
+            y = self.output_linear(y)
 
         return y, next_state
+
+    def setup_step(self):
+        self.kernel.setup_step()
 
     def step(self, u, state):
         """ Step one time step as a recurrent model. Intended to be used during validation.
@@ -185,3 +215,68 @@ class S4(nn.Module):
     @property
     def state_to_tensor(self):
         return lambda state: rearrange('... h n -> ... (h n)', state)
+
+
+def test_state(random_init=False, **kwargs):
+    # B = 1
+    # H = 64
+    # N = 64
+    # L = 1024
+    B = 2
+    H = 3
+    N = 4
+    L = 8
+    s4 = S4(H, d_state=N, l_max=L, **kwargs)
+    s4.to(device)
+    s4.eval()
+    for module in s4.modules():
+        if hasattr(module, 'setup_step'): module.setup_step()
+
+    u = torch.ones(B, H, L).to(device)
+    initial_state = s4.default_state(B)
+    if random_init:
+        if initial_state.size(-1) == N:
+            initial_state = initial_state[..., :N//2]
+        initial_state = torch.randn_like(initial_state)
+        initial_state = torch.cat([initial_state, initial_state.conj()], dim=-1)
+
+    state = initial_state.clone()
+    y, final_state = s4(u, state=state)
+    print("output:\n", y, y.shape)
+    print("final state:\n", final_state, final_state.shape)
+
+    # Use Stepping
+    state = initial_state.clone()
+    ys = []
+    for u_ in torch.unbind(u, dim=-1):
+        y_, state = s4.step(u_, state=state)
+        ys.append(y_)
+    ys = torch.stack(ys, dim=-1)
+    print("step outputs:\n", ys)
+    print("step final state:\n", state)
+
+    # Use Chunking
+
+    chunks = 4
+    state = initial_state.clone()
+    ys = []
+    for u_ in u.chunk(chunks, dim=-1):
+        y_, state = s4(u_, state=state)
+        ys.append(y_)
+    ys = torch.cat(ys, dim=-1)
+    print("chunk outputs:\n", ys)
+    print("chunk final state:\n", state)
+    print("chunk output error:")
+    utils.compare_outputs(y, ys)
+    print("chunk final state error:")
+    utils.compare_outputs(final_state, state)
+
+
+if __name__ == '__main__':
+    from benchmark import utils
+    torch.manual_seed(42)
+
+    device = 'cuda' # 'cpu'
+    device = torch.device(device)
+
+    test_state(random_init=True, mode='nplr', measure='legt', rank=2)

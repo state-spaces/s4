@@ -9,7 +9,7 @@ This repository provides implementations and experiments for the following paper
 > Karan Goel, Albert Gu, Chris Donahue, Christopher Ré\
 > Paper: https://arxiv.org/abs/2202.09729
 
-## S4 (ICLR 2022 Oral)
+## S4 (ICLR 2022 - Outstanding Paper HM)
 
 ![Structured State Spaces](assets/properties.png "Properties of Structured State Spaces")
 > **Efficiently Modeling Long Sequences with Structured State Spaces**\
@@ -23,7 +23,7 @@ This repository provides implementations and experiments for the following paper
 > Albert Gu, Isys Johnson, Karan Goel, Khaled Saab, Tri Dao, Atri Rudra, Christopher Ré\
 > Paper: https://arxiv.org/abs/2110.13985
 
-## HiPPO (NeurIPS 2020 Spotlight)
+## HiPPO (NeurIPS 2020 - Spotlight)
 ![HiPPO Framework](assets/hippo.png "HiPPO Framework")
 > **HiPPO: Recurrent Memory with Optimal Polynomial Projections**\
 > Albert Gu*, Tri Dao*, Stefano Ermon, Atri Rudra, Christopher Ré\
@@ -39,6 +39,27 @@ This repository provides implementations and experiments for the following paper
 - [SaShiMi](sashimi/README.md#sashimi)
 - [Repository Structure](#overall-repository-structure)
 - [Citation](#citation)
+
+## Changelog
+
+### 2022-05-01 - [V2.1]
+- Minor updates to S4 modules
+- New S4D (S4-diagonal) standalone model found at `src/models/sequence/ss/standalone/s4d.py`. Simple variant using diagonal SSMs that recovers S4's performance on most tasks. Can be run with any existing experiment config with the additional flag `model/layer=s4d` on the command line.
+- New [LRA configs](#long-range-arena-lra) for updated S4 code, with an average score of ~86
+
+### 2022-04-03
+By default, S4 no longer requires installing Pykeops or a custom CUDA kernel.
+
+### 2022-02-27 - [V2]
+Code release for SaShiMi audio model.
+
+### 2022-01-29
+Added configs for time series datasets from the Informer paper.
+
+### 2021-11-18 - [V1]
+First release of this repository containing the S4 module and configs to reproduce sCIFAR, Speech Commands, Long Range Arena, and WikiText-103 results.
+
+
 ## Setup
 
 ### Requirements
@@ -107,6 +128,8 @@ The S4 module is found at
 For users who would like to import a single file that has the self-contained S4 layer,
 a standalone version can be found at `src/models/sequence/ss/standalone/s4.py`.
 
+[2022-05-01] A simpler self-contained diagonal SSM called S4D can be found at  `src/models/sequence/ss/standalone/s4d.py`.
+
 ### Testing
 
 For testing, we frequently use synthetic datasets or the Permuted MNIST dataset.
@@ -114,6 +137,8 @@ This can be run with `python -m train wandb=null pipeline=mnist model=s4`, which
 
 ### Long Range Arena (LRA)
 
+#### V1
+The configs for the original version of the S4 paper (ICLR 2022) can be run with the following commands.
 ```
 python -m train wandb=null experiment=s4-lra-listops
 python -m train wandb=null experiment=s4-lra-imdb
@@ -123,7 +148,30 @@ python -m train wandb=null experiment=s4-lra-pathfinder
 python -m train wandb=null experiment=s4-lra-pathx
 ```
 
-Note that these experiments may take different amounts of time to train. IMDB should take 1-2 hours, while Path-X will take several epochs to take off and take over a day to train to completion.
+NOTE: These configs are meant for the first version of the S4 model, which is saved in a tag: `git checkout v1`
+
+#### V2
+
+After the SaShiMi release (February 2022), some options and defaults in the model changed.
+Updated configs have been released.
+```
+python -m train wandb=null experiment=s4-lra-listops-new
+python -m train wandb=null experiment=s4-lra-imdb-new
+python -m train wandb=null experiment=s4-lra-cifar-new
+python -m train wandb=null experiment=s4-lra-aan-new
+python -m train wandb=null experiment=s4-lra-pathfinder-new
+python -m train wandb=null experiment=s4-lra-pathx-new
+```
+
+To help reproduce results and sanity check, this table lists approximate final performance, intermediate performance, and timing information.
+For users attempting to reproduce these results, opening an issue confirming the results and timing information (or additional information on different hardware) is appreciated.
+
+
+|                        | listops  | imdb     | aan        | cifar     | pathfinder | pathx      |
+| ---                    | ---      | ---      | ---        | ---       | ---        | ---        |
+| **Final Accuracy**     | 59.5     | 86.5     | 91.0       | 88.5      | 94.0       | 96.0       |
+| **acc @ epoch**        | 50 @ 10  | 80 @ 10  | 80 @ 10    | 80 @ 20   | 90 @ 20    | 92 @ 10    |
+| **time / epoch (GPU)** | 15m (T4) | 17m (T4) | 23m (A100) | 2m (A100) | 7m (A100)  | 56m (A100) |
 
 ### CIFAR-10
 
@@ -145,6 +193,7 @@ To use the original version with the full 35 classes, pass in `dataset.all_class
 
 ### WikiText-103
 
+This config was tested with version V1 of the code.
 ```
 python -m train wandb=null experiment=s4-wt103
 ```

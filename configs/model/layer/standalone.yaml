@@ -1,26 +1,15 @@
-_name_: s4
+_name_: standalone
 d_state: 64
 channels: 1
 bidirectional: false
 activation: gelu
 postact: null
-initializer: null
-weight_norm: false
-hyper_act: null
 dropout: ${..dropout} # Same as null
 measure: legs
-rank: 1
 dt_min: 0.001
 dt_max: 0.1
-trainable:
-    dt: true
-    A: true
-    P: true
-    B: true
+trainable: true
 lr: 0.001
-mode: nplr
 n_ssm: 1
-resample: false
-deterministic: false # Special C init
 l_max: ${oc.select:dataset.__l_max,null} # Grab dataset length if exists, otherwise set to 1 and kernel will automatically resize
 verbose: true

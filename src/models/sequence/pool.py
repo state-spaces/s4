@@ -10,17 +10,22 @@ from src.models.nn import LinearActivation
 
 """ Simple pooling functions that just downsample or repeat
 
-pool: Subsample on the layer dimension
+stride: Subsample on the layer dimension
 expand: Repeat on the feature dimension
 """
 
-def downsample(x, pool=1, expand=1, transposed=False):
+def downsample(x, stride=1, expand=1, average=False, transposed=False):
     if x is None: return None
-    if pool > 1:
+    if stride > 1:
+        # TODO higher dimension stuff
         if transposed:
-            x = x[..., 0::pool]
+            # einops appears slower than F
+            # if average: x = reduce(x, '... (l s) -> ... l', 'mean', s=stride)
+            if average: x = F.avg_pool1d(x, stride, stride)
+            else: x = x[..., 0::stride]
         else:
-            x = x[..., 0::pool, :]
+            if average: x = reduce(x, '... (l s) h -> ... l h', 'mean', s=stride)
+            else: x = x[..., 0::stride, :]
 
     if expand > 1:
         if transposed:
@@ -30,33 +35,55 @@ def downsample(x, pool=1, expand=1, transposed=False):
 
     return x
 
-def upsample(x, pool=1, expand=1, transposed=False):
+def upsample(x, stride=1, expand=1, transposed=False):
     if x is None: return None
     if expand > 1:
         if transposed:
             x = reduce(x, '... (d e) l -> ... d l', 'mean', e=expand)
         else:
             x = reduce(x, '... (d e) -> ... d', 'mean', e=expand)
-    if pool > 1:
+    if stride > 1:
         if transposed:
-            x = repeat(x, '... l -> ... (l e)', e=pool)
+            x = repeat(x, '... l -> ... (l e)', e=stride)
         else:
-            x = repeat(x, '... l d -> ... (l e) d', e=pool)
+            x = repeat(x, '... l d -> ... (l e) d', e=stride)
     return x
 
 class DownSample(SequenceModule):
-    def __init__(self, d_input, pool=1, expand=1, transposed=True):
+    def __init__(self, d_input, stride=1, expand=1, transposed=True):
         super().__init__()
         self.d_input = d_input
-        self.pool = pool
+        self.stride = stride
         self.expand = expand
+        # self.average = average
         self.transposed = transposed
 
     def forward(self, x):
-        return downsample(x, self.pool, self.expand, self.transposed)
+        return downsample(x, self.stride, self.expand, False, self.transposed)
 
     def step(self, x, state, **kwargs):
-        if self.pool > 1 or self.expand > 1:
+        if self.stride > 1 or self.expand > 1:
+            raise NotImplementedError
+        return x, state
+
+    @property
+    def d_output(self):
+        return self.d_input * self.expand
+
+class DownAvgPool(SequenceModule):
+    def __init__(self, d_input, stride=1, expand=1, transposed=True):
+        super().__init__()
+        self.d_input = d_input
+        self.stride = stride
+        self.expand = expand
+        # self.average = average
+        self.transposed = transposed
+
+    def forward(self, x):
+        return downsample(x, self.stride, self.expand, True, self.transposed)
+
+    def step(self, x, state, **kwargs):
+        if self.stride > 1 or self.expand > 1:
             raise NotImplementedError
         return x, state
 
@@ -65,35 +92,94 @@ class DownSample(SequenceModule):
         return self.d_input * self.expand
 
 class UpSample(nn.Module):
-    def __init__(self, d_input, pool=1, expand=1, transposed=True):
+    def __init__(self, d_input, stride=1, expand=1, transposed=True):
         super().__init__()
         self.d_input = d_input
-        self.pool = pool
+        self.stride = stride
         self.expand = expand
         self.transposed = transposed
 
     def forward(self, x):
-        return upsample(x, self.pool, self.expand, self.transposed)
+        return upsample(x, self.stride, self.expand, self.transposed)
 
     @property
     def d_output(self):
         return self.d_input // self.expand
     def step(self, x, state, **kwargs):
-        if self.pool > 1 or self.expand > 1:
+        if self.stride > 1 or self.expand > 1:
             raise NotImplementedError
         return x, state
 
-
-""" Pooling functions with trainable parameters """ # TODO make d_output expand instead
-class DownPool(SequenceModule):
-    def __init__(self, d_input, d_output, pool, transposed=True, weight_norm=True, initializer=None, activation=None):
+""" Pooling functions with trainable parameters """ # For the flexible backbone SequenceModel
+class DownLinearPool(SequenceModule):
+    def __init__(self, d_input, stride=1, expand=1, transposed=True):
         super().__init__()
-        self._d_output = d_output
-        self.pool = pool
+
+        self.d_input = d_input
+        self.stride = stride
+        self.expand = expand
         self.transposed = transposed
 
         self.linear = LinearActivation(
-            d_input * pool,
+            d_input * stride,
+            d_input * expand,
+            transposed=transposed,
+            # initializer=initializer,
+            # weight_norm = weight_norm,
+            # activation=activation,
+            # activate=True if activation is not None else False,
+        )
+
+    def forward(self, x):
+        if self.transposed:
+            x = rearrange(x, '... h (l s) -> ... (h s) l', s=self.stride)
+        else:
+            x = rearrange(x, '... (l s) h -> ... l (h s)', s=self.stride)
+        x = self.linear(x)
+        return x
+
+    def step(self, x, state, **kwargs):
+        if self.stride > 1 or self.expand > 1:
+            raise NotImplementedError
+        return x, state
+
+    @property
+    def d_output(self):
+        return self.d_input * self.expand
+
+
+""" Pooling functions with trainable parameters """ # TODO make d_output expand instead
+
+class DownPool2d(SequenceModule):
+
+    def __init__(self, d_input, d_output, stride=1, transposed=True, weight_norm=True):
+        super().__init__()
+
+        self.linear = LinearActivation(
+            d_input,
+            d_output,
+            transposed=transposed,
+            weight_norm=weight_norm,
+        )
+
+        self.pool = nn.AvgPool2d(kernel_size=stride, stride=stride),
+
+    def forward(self, x):
+        if self.transposed:
+            x = self.pool(x)
+
+class DownPool(SequenceModule):
+    def __init__(self, d_input, d_output=None, expand=None, stride=1, transposed=True, weight_norm=True, initializer=None, activation=None):
+        super().__init__()
+        assert (d_output is None) + (expand is None) == 1
+        if d_output is None: d_output = d_input * expand
+
+        self._d_output = d_output
+        self.stride = stride
+        self.transposed = transposed
+
+        self.linear = LinearActivation(
+            d_input * stride,
             d_output,
             transposed=transposed,
             initializer=initializer,
@@ -104,9 +190,9 @@ class DownPool(SequenceModule):
 
     def forward(self, x):
         if self.transposed:
-            x = rearrange(x, '... h (l s) -> ... (h s) l', s=self.pool)
+            x = rearrange(x, '... h (l s) -> ... (h s) l', s=self.stride)
         else:
-            x = rearrange(x, '... (l s) h -> ... l (h s)', s=self.pool)
+            x = rearrange(x, '... (l s) h -> ... l (h s)', s=self.stride)
         x = self.linear(x)
         return x, None
 
@@ -117,7 +203,7 @@ class DownPool(SequenceModule):
 
         if x is None: return None, state
         state.append(x)
-        if len(state) == self.pool:
+        if len(state) == self.stride:
             x = rearrange(torch.stack(state, dim=-1), '... h s -> ... (h s)')
             if self.transposed: x = x.unsqueeze(-1)
             x = self.linear(x)
@@ -134,16 +220,17 @@ class DownPool(SequenceModule):
 
 
 class UpPool(SequenceModule): # TODO subclass SequenceModule
-    def __init__(self, d_input, d_output, pool, transposed=True, weight_norm=True, initializer=None, activation=None):
+    def __init__(self, d_input, d_output, stride, transposed=True, weight_norm=True, initializer=None, activation=None):
         super().__init__()
+
         self.d_input = d_input
         self._d_output = d_output
-        self.pool = pool
+        self.stride = stride
         self.transposed = transposed
 
         self.linear = LinearActivation(
             d_input,
-            d_output * pool,
+            d_output * stride,
             transposed=transposed,
             initializer=initializer,
             weight_norm = weight_norm,
@@ -155,10 +242,10 @@ class UpPool(SequenceModule): # TODO subclass SequenceModule
         x = self.linear(x)
         if self.transposed:
             x = F.pad(x[..., :-1], (1, 0)) # Shift to ensure causality
-            x = rearrange(x, '... (h s) l -> ... h (l s)', s=self.pool)
+            x = rearrange(x, '... (h s) l -> ... h (l s)', s=self.stride)
         else:
             x = F.pad(x[..., :-1, :], (0, 0, 1, 0)) # Shift to ensure causality
-            x = rearrange(x, '... l (h s) -> ... (l s) h', s=self.pool)
+            x = rearrange(x, '... l (h s) -> ... (l s) h', s=self.stride)
         if skip is not None:
             x = x + skip
         return x, None
@@ -175,13 +262,13 @@ class UpPool(SequenceModule): # TODO subclass SequenceModule
             if self.transposed: x = x.unsqueeze(-1)
             x = self.linear(x)
             if self.transposed: x = x.squeeze(-1)
-            x = rearrange(x, '... (h s) -> ... h s', s=self.pool)
+            x = rearrange(x, '... (h s) -> ... h s', s=self.stride)
             state = list(torch.unbind(x, dim=-1))
         else: assert x is None
         return y, state
 
     def default_state(self, *batch_shape, device=None):
-        state = torch.zeros(batch_shape + (self.d_output, self.pool), device=device) # (batch, h, s)
+        state = torch.zeros(batch_shape + (self.d_output, self.stride), device=device) # (batch, h, s)
         state = list(torch.unbind(state, dim=-1)) # List of (..., H)
         return state
 
@@ -190,5 +277,23 @@ class UpPool(SequenceModule): # TODO subclass SequenceModule
 
 registry = {
     'sample': DownSample,
-    'pool': DownPool,
+    'pool': DownAvgPool,
+    'linear': DownLinearPool,
+    # 'pool': DownPool,
 }
+
+if __name__ == '__main__':
+    from benchmark import utils
+
+    a = torch.ones(50, 256, 1024)
+    a, = utils.convert_data(a)
+    stride = 4
+
+    y0 = downsample(a, stride=stride, average=True, transposed=True)
+    y1 = F.avg_pool1d(a, stride, stride)
+
+    print(y0.shape, y1.shape)
+    print(y0 - y1)
+
+    utils.benchmark(downsample, a, stride, 1, True, True, repeat=100, desc='einops')
+    utils.benchmark(F.avg_pool1d, a, stride, stride, repeat=100, desc='torch')
