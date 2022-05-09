@@ -75,7 +75,7 @@ class Sashimi(SequenceModule):
         d_layers = []
         for p in pool:
             # Add sequence downsampling and feature expanding
-            d_layers.append(DownPool(H, H*expand, pool=p, transposed=self.transposed, activation=act_pool))
+            d_layers.append(DownPool(H, H*expand, stride=p, transposed=self.transposed, activation=act_pool))
             L //= p
             layer_cfg['l_max'] = L
             H *= expand
@@ -95,7 +95,7 @@ class Sashimi(SequenceModule):
             H //= expand
             L *= p
             layer_cfg['l_max'] = L
-            block.append(UpPool(H*expand, H, pool=p, transposed=self.transposed, activation=act_pool))
+            block.append(UpPool(H*expand, H, stride=p, transposed=self.transposed, activation=act_pool))
 
             for i in range(n_layers):
                 block.append(_residual(H, i+1, layer_cfg))
