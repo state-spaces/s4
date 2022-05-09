@@ -19,7 +19,7 @@ model:
   prenorm: True
 
   layer:
-    hurwitz: true
+    # hurwitz: true
     postact: glu
     
 train:

@@ -257,8 +257,8 @@ class Sashimi(nn.Module):
                 postact='glu' if glu else None,
                 dropout=dropout,
                 transposed=True,
-                hurwitz=True, # use the Hurwitz parameterization for stability
-                tie_state=True, # tie SSM parameters across d_state in the S4 layer
+                # hurwitz=True, # use the Hurwitz parameterization for stability
+                # tie_state=True, # tie SSM parameters across d_state in the S4 layer
                 trainable={
                     'dt': True,
                     'A': True,
