@@ -2,7 +2,7 @@
 
 This repository provides implementations and experiments for the following papers.
 
-## SaShiMi (arXiv)
+## SaShiMi (ICML 2022 - Long Talk)
 
 ![SaShiMi](assets/sashimi.png "SaShiMi Architecture")
 > **It's Raw! Audio Generation with State-Space Models**\
@@ -337,7 +337,7 @@ If you use this codebase, or otherwise found our work valuable, please cite:
 @article{goel2022sashimi,
   title={It's Raw! Audio Generation with State-Space Models},
   author={Goel, Karan and Gu, Albert and Donahue, Chris and R{\'e}, Christopher},
-  journal={arXiv preprint arXiv:2202.09729},
+  journal={International Conference on Machine Learning ({ICML})},
   year={2022}
 }
 
