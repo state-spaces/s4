@@ -4,15 +4,11 @@
   postact: glu
   dropout: ${...dropout} # Same as null
   lr: 0.0005
-  hurwitz: false
-  tie_state: false
 - _name_: s4
   l_max: ${dataset.__l_max}
   postact: glu
   dropout: ${...dropout} # Same as null
   lr: 0.0005
-  hurwitz: false
-  tie_state: false
 - _name_: ff
   expand: 4
   activation: gelu
