@@ -92,16 +92,16 @@ class SequenceResidualBlock(SequenceModule):
         y, state = self.layer(y, *args, state=state, **kwargs)
 
         # Residual
-        if self.residual is not None: x = self.residual(x, self.drop(y), self.transposed)
+        if self.residual is not None: y = self.residual(x, self.drop(y), self.transposed)
 
         # Post-norm
-        if self.norm is not None and not self.prenorm: x = self.norm(x)
+        if self.norm is not None and not self.prenorm: y = self.norm(y)
 
         # Pool
         # x = pool.downpool(x, self.pool, self.expand, self.transposed)
-        if self.pool is not None: x = self.pool(x)
+        if self.pool is not None: y = self.pool(y)
 
-        return x, state
+        return y, state
 
     def step(self, x, state, *args, **kwargs): # TODO needs fix for transpose logic
         y = x
@@ -116,15 +116,15 @@ class SequenceResidualBlock(SequenceModule):
         y, state = self.layer.step(y, state, *args, **kwargs)
 
         # Residual
-        if self.residual is not None: x = self.residual(x, y, transposed=False) # TODO this would not work with concat
+        if self.residual is not None: y = self.residual(x, y, transposed=False) # TODO this would not work with concat
 
         # Post-norm
         if self.norm is not None and not self.prenorm:
             if self.transposed: y = y.unsqueeze(-1)
-            x = self.norm(x)#.step(x)
+            y = self.norm(y)#.step(x)
             if self.transposed: y = y.squeeze(-1)
 
         # Pool
-        if self.pool is not None: x = self.pool(x)
+        if self.pool is not None: y = self.pool(y)
 
-        return x, state
+        return y, state
