@@ -13,7 +13,7 @@ python -m train experiment=s4-simple-cifar wandb=null
 This code should reach 83-84% val accuracy on CIFAR10.
 
 By default, the kernel ignores the initial state (fusing `b` and `c`), and only trains the `a` parameters (leaving `theta` fixed to the initialization).
-You can play with those parameters in the training run:
+You can play with these parameters in the training run:
 * Adding `use_initial=true` will add a learnable initial state, and learn the `b` and `c` parameters separately.
 * Setting `learn_theta=true` will make the `theta` parameters learnable (we usually see a decrease in performance of about 3 points from this).
 * Setting `leran_a=false` will make the `a` parameters not learnable. We don't see much of a performance degradation on CIFAR in this case, which speaks to the utility of the Chebyshev initialization!
