@@ -72,7 +72,7 @@ layer = {
     "attsimp": "src.models.sequence.mha.AttentionSimple",
     "performer": "src.models.sequence.attention.linear.Performer",
     "s4_2dconv": "src.models.sequence.ss.s4_2dconv.S42DConv",
-    "s4_simple": "src.models.sequence.ss.s4_simple.SimpleS4Wrapper",
+    "s4_simple": "src.models.sequence.ss.s4_simple.s4_wrapper.SimpleS4Wrapper",
     # 'packedrnn': 'models.sequence.rnns.packedrnn.PackedRNN',
 }
 

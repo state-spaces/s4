@@ -24,9 +24,9 @@ lr: 0.001
 #deterministic: false # Special C init
 #l_max: ${oc.select:dataset.__l_max,null} # Grab dataset length if exists, otherwise set to 1 and kernel will automatically resize
 #verbose: true
-use_initial: true
+use_initial: false
 learn_a: true
-learn_theta: true
+learn_theta: false
 trap_rule: false
 zero_order_hold: true
 theta_scale: false
