@@ -5,7 +5,11 @@ We present a simplified version of the S4 kernel with diagonal matrices and fewe
 
 You can find the kernel in the `s4_simple.py` file.
 
-Running the code is as simple as (from the root directory of this repo):
+## Running the Code
+
+To run the code, first follow the install instructions of the overall repo.
+
+Then, running the code is as simple as (from the root directory of this repo):
 ```
 python -m train experiment=s4-simple-cifar wandb=null
 ```
@@ -18,3 +22,8 @@ You can play with these parameters in the training run:
 * Setting `learn_theta=true` will make the `theta` parameters learnable (we usually see a decrease in performance of about 3 points from this).
 * Setting `leran_a=false` will make the `a` parameters not learnable. We don't see much of a performance degradation on CIFAR in this case, which speaks to the utility of the Chebyshev initialization!
 * Setting `zero_order_hold=false` will switch from Zero-Order Hold to left-end-point quadrature. Additionally setting `trap_rule=true` will switch to the trapezoid rule (when `zero_order_hold` is set to `false`).
+
+## Other Files
+
+There are two other files in this folder, `s4_wrapper.py` and `utils.py`.
+They contain some standard wrapper classes and utils for integrating into the state spaces code base.

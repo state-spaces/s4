@@ -6,7 +6,7 @@ from src.models.sequence.ss.s4_simple.s4_simple import SimpleS4
 
 # Below here are standard wrapper classes to handle
 # (1) Non-linearity
-# (2) Integration with the Hippo Code base
+# (2) Integration with the State Spaces Code base
 class NonLinear(nn.Module):
     def __init__(self, h, channels, 
                 ln=False, # Extra normalization

@@ -25,6 +25,7 @@ class DropoutNd(nn.Module):
             return X * mask * (1.0/(1-self.p))
         return X
 
+# Utility class for registering the learning rate in the state spaces repo
 class OurModule(nn.Module):
     def __init__(self): super().__init__()
 
