@@ -2,6 +2,21 @@
 
 This repository provides implementations and experiments for the following papers.
 
+## S4D
+
+![S4D](assets/s4d.png "S4D: The diagonal variant of S4")
+> **On the Parameterization and Initialization of Diagonal State Space Models**\
+> Albert Gu, Ankit Gupta, Karan Goel, Christopher Ré\
+> Paper: https://arxiv.org/abs/2206.11893
+
+The predecessor "Diagonal State Spaces are as Effective as Structured State Spaces" (DSS) is not officially supported here but in the [fork](https://github.com/ag1988/dss).
+
+## HTTYH
+
+![HTTYH](assets/httyh.png "Basis Functions for S4 Variants")
+> **How to Train Your HiPPO: State Spaces with Generalized Orthogonal Basis Projections**\
+> Albert Gu*, Isys Johnson*, Aman Timalsina, Atri Rudra, Christopher Ré\
+
 ## SaShiMi (ICML 2022 - Long Talk)
 
 ![SaShiMi](assets/sashimi.png "SaShiMi Architecture")
@@ -11,14 +26,14 @@ This repository provides implementations and experiments for the following paper
 
 ## S4 (ICLR 2022 - Outstanding Paper HM)
 
-![Structured State Spaces](assets/properties.png "Properties of Structured State Spaces")
+![Structured State Spaces](assets/s4.png "Properties of Structured State Spaces")
 > **Efficiently Modeling Long Sequences with Structured State Spaces**\
 > Albert Gu, Karan Goel, Christopher Ré\
 > Paper: https://arxiv.org/abs/2111.00396
 
 ## LSSL (NeurIPS 2021)
 
-![Linear State Space Layer](assets/splash.png "Properties of Sequential State Spaces")
+![Linear State Space Layer](assets/splash.png "Properties of State Spaces")
 > **Combining Recurrent, Convolutional, and Continuous-time Models with the Linear State Space Layer**\
 > Albert Gu, Isys Johnson, Karan Goel, Khaled Saab, Tri Dao, Atri Rudra, Christopher Ré\
 > Paper: https://arxiv.org/abs/2110.13985
@@ -41,6 +56,25 @@ This repository provides implementations and experiments for the following paper
 - [Citation](#citation)
 
 ## Changelog
+
+### 2022-06-25 - [V3] (WIP)
+We are actively working on a stable v3 release. Changes include:
+
+- Modules
+  - Updated version of S4 module, including new measures from "How to Train Your HiPPO" (arXiv link will be available 06/27/2022)
+  - Complete version of S4D module from [On the Parameterization and Initialization of Diagonal State Space Models](https://arxiv.org/abs/2206.11893)
+- Compilation of additional resources
+  - Recommended resources for understanding S4-style models, including the [Simplifying S4 blog](https://hazyresearch.stanford.edu/blog/2022-06-11-simplifying-s4) ([code](https://github.com/HazyResearch/state-spaces/tree/simple/src/models/sequence/ss/s4_simple)) and a minimal pedagogical version of S4D ([code](https://github.com/HazyResearch/state-spaces/blob/4bc304d756e8cc031f4cf98ed4dbe8170f88c2e0/src/models/sequence/ss/standalone/s4d_minimal.py))
+  - Tips & Tricks page for getting started with tuning S4
+- Bug fixes and library compatibility issues
+  - Dropout bug in PyTorch 1.11 (https://github.com/HazyResearch/state-spaces/issues/42, https://github.com/HazyResearch/state-spaces/issues/22)
+  - Conjugated tensors API change in PyTorch 1.10 (https://github.com/HazyResearch/state-spaces/issues/35)
+- SaShiMi
+  - More flexible generation script for training from scratch and generating with your own models (https://github.com/HazyResearch/state-spaces/issues/38)
+  - Re-trained checkpoints with the newest version of S4 and S4D (https://github.com/HazyResearch/state-spaces/issues/37, https://github.com/HazyResearch/state-spaces/issues/32)
+  - Release of Sashimi+DiffWave model (https://github.com/HazyResearch/state-spaces/issues/46)
+- pip package
+
 
 ### 2022-05-01 - [V2.1]
 - Minor updates to S4 modules
