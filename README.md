@@ -16,6 +16,7 @@ The predecessor "Diagonal State Spaces are as Effective as Structured State Spac
 ![HTTYH](assets/httyh.png "Basis Functions for S4 Variants")
 > **How to Train Your HiPPO: State Spaces with Generalized Orthogonal Basis Projections**\
 > Albert Gu*, Isys Johnson*, Aman Timalsina, Atri Rudra, Christopher Ré\
+> Paper: https://arxiv.org/abs/2206.12037
 
 ## SaShiMi (ICML 2022 - Long Talk)
 
@@ -57,11 +58,11 @@ The predecessor "Diagonal State Spaces are as Effective as Structured State Spac
 
 ## Changelog
 
-### 2022-06-25 - [V3] (WIP)
+### 2022-06-25 - [V3.0] (WIP)
 We are actively working on a stable v3 release. Changes include:
 
 - Modules
-  - Updated version of S4 module, including new measures from "How to Train Your HiPPO" (arXiv link will be available 06/27/2022)
+  - Updated version of S4 module, including new measures from [How to Train Your HiPPO](https://arxiv.org/abs/2206.12037)
   - Complete version of S4D module from [On the Parameterization and Initialization of Diagonal State Space Models](https://arxiv.org/abs/2206.11893)
 - Compilation of additional resources
   - Recommended resources for understanding S4-style models, including the [Simplifying S4 blog](https://hazyresearch.stanford.edu/blog/2022-06-11-simplifying-s4) ([code](https://github.com/HazyResearch/state-spaces/tree/simple/src/models/sequence/ss/s4_simple)) and a minimal pedagogical version of S4D ([code](https://github.com/HazyResearch/state-spaces/blob/4bc304d756e8cc031f4cf98ed4dbe8170f88c2e0/src/models/sequence/ss/standalone/s4d_minimal.py))
@@ -73,25 +74,27 @@ We are actively working on a stable v3 release. Changes include:
   - More flexible generation script for training from scratch and generating with your own models (https://github.com/HazyResearch/state-spaces/issues/38)
   - Re-trained checkpoints with the newest version of S4 and S4D (https://github.com/HazyResearch/state-spaces/issues/37, https://github.com/HazyResearch/state-spaces/issues/32)
   - Release of Sashimi+DiffWave model (https://github.com/HazyResearch/state-spaces/issues/46)
+- HiPPO
+  - Release of new [notebook]() (and equivalent [standalone]()) illustrating HiPPO function reconstruction. Includes code for the animations (used in HTTYH, the Annotated S4D, and various S4 talks).
+- Experiments
+  - Configs for new LRA
 - pip package
 
 
 ### 2022-05-01 - [V2.1]
 - Minor updates to S4 modules
+- By default, S4 no longer requires installing Pykeops or a custom CUDA kernel.
 - New S4D (S4-diagonal) standalone model found at `src/models/sequence/ss/standalone/s4d.py`. Simple variant using diagonal SSMs that recovers S4's performance on most tasks. Can be run with any existing experiment config with the additional flag `model/layer=s4d` on the command line.
 - New [LRA configs](#long-range-arena-lra) for updated S4 code, with an average score of ~86
 
-### 2022-04-03
-By default, S4 no longer requires installing Pykeops or a custom CUDA kernel.
-
 ### 2022-02-27 - [V2]
-Code release for SaShiMi audio model.
+Code release for SaShiMi audio model
 
-### 2022-01-29
-Added configs for time series datasets from the Informer paper.
+### 2022-01-29 - [V1.1]
+Added configs for time series datasets from the Informer paper (https://github.com/HazyResearch/state-spaces/issues/4)
 
 ### 2021-11-18 - [V1]
-First release of this repository containing the S4 module and configs to reproduce sCIFAR, Speech Commands, Long Range Arena, and WikiText-103 results.
+First release of this repository containing the S4 module and configs to reproduce sCIFAR, Speech Commands, Long Range Arena, and WikiText-103 results
 
 
 ## Setup
