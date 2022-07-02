@@ -73,7 +73,7 @@ We are actively working on a stable v3 release. Changes include:
 - SaShiMi
   - More flexible generation script for training from scratch and generating with your own models (https://github.com/HazyResearch/state-spaces/issues/38)
   - Re-trained checkpoints with the newest version of S4 and S4D (https://github.com/HazyResearch/state-spaces/issues/37, https://github.com/HazyResearch/state-spaces/issues/32)
-  - Release of Sashimi+DiffWave model (https://github.com/HazyResearch/state-spaces/issues/46)
+  - Release of Sashimi+DiffWave model (https://github.com/HazyResearch/state-spaces/issues/46). Can be found at [albertfgu/diffwave-sashimi](https://github.com/albertfgu/diffwave-sashimi)
 - HiPPO
   - Release of new [notebook](https://github.com/HazyResearch/state-spaces/blob/v3/notebooks/hippo_function_approximation.ipynb) (and equivalent .py [standalone](https://github.com/HazyResearch/state-spaces/blob/v3/src/models/hippo/standalone.py)) illustrating HiPPO function reconstruction. Includes code for the animations (used in HTTYH, the Annotated S4D, and various S4 talks).
 - Experiments
