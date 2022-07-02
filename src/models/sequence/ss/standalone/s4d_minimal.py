@@ -1,4 +1,4 @@
-""" Standalone version of Structured (Sequence) State Space (S4) model. """
+"""Simple standalone version of S4D model. Gets 88% on sequential CIFAR with 200K parameters."""
 
 
 import math
