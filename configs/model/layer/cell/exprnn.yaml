@@ -1,0 +1,7 @@
+_name_: exprnn # Can change to gru to allow for orthogonal + gating options, i.e. the GORU
+d_model: 256
+hidden_activation: modrelu
+orthogonal: True
+ortho_args:
+  method: dtriv # 'cayley' | 'exprnn' | 'dtriv'
+  init: cayley # 'henaff' | 'cayley'

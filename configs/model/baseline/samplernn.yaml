@@ -1,0 +1,13 @@
+_name_: samplernn
+frame_sizes:
+  - 16
+  - 4
+n_rnn: 2
+d_hidden: 1024
+bits: ${..dataset.bits}
+learn_h0: true
+d_model: 256
+weight_norm: true
+reproduce: true
+quantization: ${..dataset.quantization}
+layer: gru

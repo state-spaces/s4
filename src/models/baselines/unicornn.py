@@ -8,6 +8,9 @@ import torch
 import torch.nn as nn
 from torch.autograd import Function
 from torch.nn import Parameter
+from collections import namedtuple
+
+from src.models.sequence.base import SequenceModule, TransposedModule
 
 try:
     from cupy.cuda import function
@@ -17,9 +20,6 @@ try:
 except ImportError:
     _unicornn_available = False
 
-from collections import namedtuple
-
-import pdb
 
 UnICORNN_CODE = """
 extern "C" {
@@ -43,13 +43,13 @@ extern "C" {
                             const float * __restrict__ weight_hh, const float * __restrict__ hy_initial,
                             const float * __restrict__ hz_initial, float * __restrict__ hy_final,
                             float * __restrict__ hz_final,
-                            const int len, const int batch, const int d_model, const float * __restrict__ c, 
+                            const int len, const int batch, const int d_model, const float * __restrict__ c,
                             double dt, double alpha,
                             float * __restrict__ hy_all)
     {
         int ncols = batch*d_model;
         int col = blockIdx.x * blockDim.x + threadIdx.x;
-        if (col >= ncols) return;       
+        if (col >= ncols) return;
         const float weight_hh_cur = *(weight_hh + (col%d_model));
         const float c_cur = *(c + (col%d_model));
         float hy = *(hy_initial + col);
@@ -68,30 +68,30 @@ extern "C" {
         *(hz_final + col) = hz;
     }
     __global__ void unicornn_bwd(const float * __restrict__ x,
-                             const float * __restrict__ weight_hh, const float * __restrict__ hy_final, 
+                             const float * __restrict__ weight_hh, const float * __restrict__ hy_final,
                              const float * __restrict__ hz_final,
-                            const float * __restrict__ grad_h, 
-                            const int len, const int batch, const int d_model, const float * __restrict__ c, 
+                            const float * __restrict__ grad_h,
+                            const int len, const int batch, const int d_model, const float * __restrict__ c,
                             double dt, double alpha, float * __restrict__ grad_x,
                             float * __restrict__ grad_weight_hh, float * __restrict__ grad_c)
-    {    
+    {
         int ncols = batch*d_model;
         int col = blockIdx.x * blockDim.x + threadIdx.x;
-        if (col >= ncols) return;        
+        if (col >= ncols) return;
         const float weight_hh_cur = *(weight_hh + (col%d_model));
         const float c_cur = *(c + (col%d_model));
         float gweight_hh = 0;
         float gc = 0;
-        const float *xp = x+col + (len-1)*ncols;     
+        const float *xp = x+col + (len-1)*ncols;
         float *gxp = grad_x + col + (len-1)*ncols;
         const float *ghp = grad_h + col + (len-1)*ncols;
         float delta_z = 0;
-        float delta_y = (*ghp);        
+        float delta_y = (*ghp);
         float delta_dt = 0;
         float hy = *(hy_final + col);
         float hz = *(hz_final + col);
         for (int row = len-1; row >= 0; --row)
-        {   
+        {
             delta_dt = delta_y*dt*sigmoid_grad(c_cur)*hz;
             // reconstruct hidden states based on the final hidden state using adjoint symplectic Euler:
             hy=hy-dt*sigmoid(c_cur)*hz;
@@ -291,7 +291,8 @@ class LinearInitovertime(nn.Module):
         return y
 
 
-class UnICORNN(nn.Module):
+@TransposedModule
+class UnICORNN(SequenceModule):
     def __init__(
         self,
         # d_input,
@@ -301,7 +302,7 @@ class UnICORNN(nn.Module):
         dt,
         alpha,
         n_layers,
-        drop=0.1,
+        dropout=0.1,
         **kwargs
     ):
         if not _unicornn_available:
@@ -312,7 +313,7 @@ class UnICORNN(nn.Module):
         super(UnICORNN, self).__init__()
         self.d_model = d_model
         self.d_output = d_model
-        self.drop = drop
+        self.dropout = dropout
         self.nlayers = n_layers
         # self.l_output = l_output
         self.DIs = nn.ModuleList()
@@ -351,17 +352,10 @@ class UnICORNN(nn.Module):
             )
             rnnoutputs["outlayer%d" % x] = self.RNNs[x](rnnoutputs["dilayer%d" % x])
             rnnoutputs["outlayer%d" % x] = dropout_overtime(
-                rnnoutputs["outlayer%d" % x], self.drop, self.training
+                rnnoutputs["outlayer%d" % x], self.dropout, self.training
             )
 
-        # temp = rnnoutputs["outlayer%d" % (len(self.RNNs) - 1)][-1]
-        # output = self.classifier(temp)
         output = rnnoutputs["outlayer%d" % (len(self.RNNs) - 1)]
         output = output.transpose(0, 1)
-
-        # if self.l_output == 0:
-        #     output = output[:, -1]
-        # else:
-        #     output = output[:, -self.l_output :]
 
         return output

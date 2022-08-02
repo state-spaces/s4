@@ -1,0 +1,35 @@
+# @package _global_
+defaults:
+  - /pipeline: adding
+  - /model: nonaka/resnet
+  - override /dataset: bidmc
+  - override /scheduler: timm_cosine
+
+dataset:
+  target: SpO2 # 'RR' | 'HR' | 'SpO2'
+
+model:
+  input_channels: 2
+  num_classes: 1
+
+encoder: id
+decoder: id
+
+loader:
+  batch_size: 32
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.05
+
+trainer:
+  max_epochs: 500
+
+scheduler:
+  # milestones: [100,200,300,400,500]
+  # gamma: 0.5
+    t_initial: ${trainer.max_epochs}
+    warmup_t: 5
+
+train:
+  seed: 1112

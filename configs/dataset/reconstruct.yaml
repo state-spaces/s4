@@ -1,0 +1,10 @@
+_name_: reconstruct
+l_seq: 4000 # length of total sequence
+l_mem: 1000  # length to reconstruct
+dt: 0.001
+freq: 100.0
+seed: 0
+static: False # Use a static dataset of size n_train, otherwise always use random data with n_train per epoch
+n_train: 16384 # Training samples per epoch (random)
+n_eval: 1024 # Evaluation samples per epoch (fixed)
+__l_max: ${.l_seq}

@@ -1,0 +1,28 @@
+# @package _global_
+defaults:
+  - /pipeline: sc
+  - /model: nonaka/resnet
+  - override /scheduler: cosine_warmup
+
+model:
+  num_classes: 35
+  input_channels: 1
+
+encoder: id
+decoder: id
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.05
+
+loader:
+  batch_size: 16
+
+trainer:
+  max_epochs: 40
+
+scheduler:
+  num_training_steps: 200000
+
+train:
+  seed: 2222

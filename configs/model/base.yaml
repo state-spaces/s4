@@ -1,15 +1,21 @@
-# _target_: models.sequence.SequenceModel
 defaults:
   - layer: s4
+
 _name_: model
-prenorm: False
-transposed: False
+prenorm: true
+transposed: false
 n_layers: 4
 d_model: 256
 residual: R
 pool:
-  _name_: sample
-  pool: 1
+  _name_: pool
+  stride: 1
   expand: 1
 norm: layer
-dropout: 0.2
+dropout: 0.0
+tie_dropout: false
+track_norms: true # Logs to wandb
+
+# Optional encoder/decoder, e.g. add positional embeddings or padding masks
+encoder: null
+decoder: null

@@ -1,6 +1,6 @@
 """ Utilities to calculate the transitions of the HiPPO ODE x' = Ax + Bu and discrete-time recurrence approximation.
 
-Note that this logic was heavily used in the LSSL, but is no longed needed for S3.
+Note that these modules were heavily used in LSSL, but is no longed needed for S4.
 """
 
 import torch
@@ -575,6 +575,27 @@ class LegSTriDInverseAdaptiveTransition(TriDInverseAdaptiveTransition):
             c = - .5 * torch.ones(N)
 
         super().__init__(N, dl, d, du, p, p, c, torch.ones(N), **kwargs)
+        # print(self.A)
+
+
+class JacTriDInverseAdaptiveTransition(TriDInverseAdaptiveTransition):
+    def __init__(self, N, halve=False, double_B=True, **kwargs):
+        # print(diag_scale, kwargs)
+        p = torch.sqrt(2*torch.arange(N)+2)
+        dl = _diag(N, -1.)
+        du = _diag(N, 0.)
+        d = torch.ones(N)
+        if halve:
+            c = - .5 * torch.ones(N)
+        else:
+            c = 0.0 * torch.ones(N)
+
+        if double_B:
+            B = 2 * torch.ones(N)
+        else:
+            B = torch.ones(N)
+
+        super().__init__(N, dl, d, du, p, p, c, B, **kwargs)
         # print(self.A)
 
 

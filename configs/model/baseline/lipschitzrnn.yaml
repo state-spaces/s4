@@ -1,0 +1,11 @@
+_name_: lipschitzrnn
+d_model: 128
+eps: 0.03
+beta: .75
+gamma: .001
+gated: False
+init_std: 1
+alpha: 1
+model: LipschitzRNN
+solver: euler
+chunk: 1

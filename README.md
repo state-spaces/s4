@@ -2,6 +2,22 @@
 
 This repository provides implementations and experiments for the following papers.
 
+## S4D
+
+![S4D](assets/s4d.png "S4D: The diagonal variant of S4")
+> **On the Parameterization and Initialization of Diagonal State Space Models**\
+> Albert Gu, Ankit Gupta, Karan Goel, Christopher Ré\
+> Paper: https://arxiv.org/abs/2206.11893
+
+Other variants including [DSS](https://github.com/ag1988/dss) and [GSS](https://arxiv.org/abs/2206.13947) are also supported.
+
+## HTTYH
+
+![HTTYH](assets/httyh.png "Basis Functions for S4 Variants")
+> **How to Train Your HiPPO: State Spaces with Generalized Orthogonal Basis Projections**\
+> Albert Gu*, Isys Johnson*, Aman Timalsina, Atri Rudra, Christopher Ré\
+> Paper: https://arxiv.org/abs/2206.12037
+
 ## SaShiMi (ICML 2022 - Long Talk)
 
 ![SaShiMi](assets/sashimi.png "SaShiMi Architecture")
@@ -11,14 +27,14 @@ This repository provides implementations and experiments for the following paper
 
 ## S4 (ICLR 2022 - Outstanding Paper HM)
 
-![Structured State Spaces](assets/properties.png "Properties of Structured State Spaces")
+![Structured State Spaces](assets/s4.png "Properties of Structured State Spaces")
 > **Efficiently Modeling Long Sequences with Structured State Spaces**\
 > Albert Gu, Karan Goel, Christopher Ré\
 > Paper: https://arxiv.org/abs/2111.00396
 
 ## LSSL (NeurIPS 2021)
 
-![Linear State Space Layer](assets/splash.png "Properties of Sequential State Spaces")
+![Linear State Space Layer](assets/splash.png "Properties of State Spaces")
 > **Combining Recurrent, Convolutional, and Continuous-time Models with the Linear State Space Layer**\
 > Albert Gu, Isys Johnson, Karan Goel, Khaled Saab, Tri Dao, Atri Rudra, Christopher Ré\
 > Paper: https://arxiv.org/abs/2110.13985
@@ -31,282 +47,83 @@ This repository provides implementations and experiments for the following paper
 
 
 ## Table of Contents
-- [Repository Setup](#setup)
-- S4
-  - [Experiments](#s4-experiments)
-  - [Training](#training)
-  - [Models](#models)
-- [SaShiMi](sashimi/README.md#sashimi)
+- [Setup](#setup)
+- [Getting Started with S4](#getting-started-with-s4)
 - [Repository Structure](#overall-repository-structure)
+- [Experiments](#experiments)
+- [Training](#training)
+- [Generation](#generation)
+- [SaShiMi](sashimi/README.md#sashimi)
 - [Citation](#citation)
 
-## Changelog
+### Changelog
+[CHANGELOG](CHANGELOG.md)
 
-### 2022-05-01 - [V2.1]
-- Minor updates to S4 modules
-- New S4D (S4-diagonal) standalone model found at `src/models/sequence/ss/standalone/s4d.py`. Simple variant using diagonal SSMs that recovers S4's performance on most tasks. Can be run with any existing experiment config with the additional flag `model/layer=s4d` on the command line.
-- New [LRA configs](#long-range-arena-lra) for updated S4 code, with an average score of ~86
-
-### 2022-04-03
-By default, S4 no longer requires installing Pykeops or a custom CUDA kernel.
-
-### 2022-02-27 - [V2]
-Code release for SaShiMi audio model.
-
-### 2022-01-29
-Added configs for time series datasets from the Informer paper.
-
-### 2021-11-18 - [V1]
-First release of this repository containing the S4 module and configs to reproduce sCIFAR, Speech Commands, Long Range Arena, and WikiText-103 results.
+### Roadmap
+- More documentation for training from scratch using this repository
+- Compilation of S4 resources and implementations
+- pip package
 
 
 ## Setup
 
 ### Requirements
-This repository requires Python 3.8+ and Pytorch 1.9+.
-Other packages are listed in `requirements.txt`.
-
-### Data
-
-#### Datasets and Dataloaders
-All logic for creating and loading datasets is in `src/dataloaders`.
-This folder may include old and experimental datasets.
-The datasets that we consider core are located in `src/dataloaders/datasets.py`.
-
-
-#### Data
-The raw data should be organized as follows.
-The data path can be configured by the environment variable `DATA_PATH`, or defaults to `./data` by default, where `.` is the top level directory of this repository (e.g. 'state-spaces').
-
-Most of the dataloaders download their datasets automatically if not found.
-External datasets include Long Range Arena (LRA), which can be downloaded from their [GitHub page](https://github.com/google-research/long-range-arena),
-and the WikiText-103 language modeling dataset, which can be downloaded by the `getdata.sh` script from the [Transformer-XL codebase](https://github.com/kimiyoung/transformer-xl).
-These external datasets should be organized as follows:
-```
-DATA_PATH/
-  pathfinder/
-    pathfinder32/
-    pathfinder64/
-    pathfinder128/
-    pathfinder256/
-  aan/
-  listops/
-  wt103/
-```
-Fine-grained control over the data directory is allowed, e.g. if the LRA ListOps files are located in `/home/lra/listops-1000/`, you can pass in `+dataset.data_dir=/home/lra/listops-1000` on the command line
+This repository requires Python 3.8+ and Pytorch 1.10+.
+Other packages are listed in [requirements.txt](./requirements.txt).
 
 ### Cauchy Kernel
 
 A core operation of S4 is the "Cauchy kernel" described in the [paper](https://arxiv.org/abs/2111.00396).
-This is a very simple operation; a naive implementation of this operation can be found in `src/models/sequence/ss/standalone/s4.py` in the function `cauchy_slow`.
-As the paper describes, this has undesirable memory usage that currently requires a custom kernel to overcome.
+This is a very simple operation; a naive implementation of this operation can be found in `src/models/sequence/ss/standalone/s4.py` in the function `cauchy_naive`.
+As the paper describes, this has suboptimal memory usage that currently requires a custom kernel to overcome in PyTorch.
 
 Two methods are supported. The code will automatically detect if either of these is installed and call the appropriate kernel.
 
 #### Custom CUDA Kernel
 
-This version is faster but requires manual compilation on each machine.
+This version is faster but requires manual compilation for each machine environment.
 Run `python setup.py install` from the directory `extensions/cauchy/`.
 
 #### Pykeops
 
-This version is provided by the [pykeops library](https://www.kernel-operations.io/keops/index.html).
-Installation usually works out of the box with `pip install pykeops==1.5 cmake` which are provided in the requirements file.
+This version is provided by the [pykeops library](https://www.kernel-operations.io/keops/python/installation.html).
+Installation usually works out of the box with `pip install pykeops cmake` which are provided in the requirements file.
 
-Note that running in a Colab requires installing a different pip package; instructions can be found in the pykeops documentation.
 
-## S4 Experiments
+## Getting Started with S4
 
-This section describes how to use the latest S4 model and reproduce experiments immediately.
-More detailed descriptions of the infrastructure are in the subsequent sections.
+### S4 Module
 
-### Structured State Space (S4)
+Self-contained files for the S4 layer and variants can be found in [src/models/s4/](./src/models/s4/),
+which includes instructions for calling the module.
 
-The S4 module is found at
-`src/models/sequence/ss/s4.py`.
+### Example Train Script (External)
 
-For users who would like to import a single file that has the self-contained S4 layer,
-a standalone version can be found at `src/models/sequence/ss/standalone/s4.py`.
+[example.py](example.py) is a self-contained training script for MNIST and CIFAR that imports the standalone S4 file. The default settings `python example.py` reaches 88% accuracy on sequential CIFAR with a very simple S4D model of 200k parameters.
+This script can be used as an example for using S4 in external repositories.
 
-[2022-05-01] A simpler self-contained diagonal SSM called S4D can be found at  `src/models/sequence/ss/standalone/s4d.py`.
+### Training with this Repository (Internal)
 
-### Testing
+This repository aims to provide a very flexible framework for training sequence models. Many models and datasets are supported.
 
-For testing, we frequently use synthetic datasets or the Permuted MNIST dataset.
-This can be run with `python -m train wandb=null pipeline=mnist model=s4`, which should get to around 90% after 1 epoch which takes 1-3 minutes depending on GPU.
-
-### Long Range Arena (LRA)
-
-#### V1
-The configs for the original version of the S4 paper (ICLR 2022) can be run with the following commands.
+Basic usage is `python -m train`, or equivalently
 ```
-python -m train wandb=null experiment=s4-lra-listops
-python -m train wandb=null experiment=s4-lra-imdb
-python -m train wandb=null experiment=s4-lra-cifar
-python -m train wandb=null experiment=s4-lra-aan
-python -m train wandb=null experiment=s4-lra-pathfinder
-python -m train wandb=null experiment=s4-lra-pathx
+python -m train pipeline=mnist model=s4
 ```
-
-NOTE: These configs are meant for the first version of the S4 model, which is saved in a tag: `git checkout v1`
-
-#### V2
-
-After the SaShiMi release (February 2022), some options and defaults in the model changed.
-Updated configs have been released.
-```
-python -m train wandb=null experiment=s4-lra-listops-new
-python -m train wandb=null experiment=s4-lra-imdb-new
-python -m train wandb=null experiment=s4-lra-cifar-new
-python -m train wandb=null experiment=s4-lra-aan-new
-python -m train wandb=null experiment=s4-lra-pathfinder-new
-python -m train wandb=null experiment=s4-lra-pathx-new
-```
-
-To help reproduce results and sanity check, this table lists approximate final performance, intermediate performance, and timing information.
-For users attempting to reproduce these results, opening an issue confirming the results and timing information (or additional information on different hardware) is appreciated.
-
-
-|                        | listops  | imdb     | aan        | cifar     | pathfinder | pathx      |
-| ---                    | ---      | ---      | ---        | ---       | ---        | ---        |
-| **Final Accuracy**     | 59.5     | 86.5     | 91.0       | 88.5      | 94.0       | 96.0       |
-| **acc @ epoch**        | 50 @ 10  | 80 @ 10  | 80 @ 10    | 80 @ 20   | 90 @ 20    | 92 @ 10    |
-| **time / epoch (GPU)** | 15m (T4) | 17m (T4) | 23m (A100) | 2m (A100) | 7m (A100)  | 56m (A100) |
-
-### CIFAR-10
-
-```
-python -m train wandb=null experiment=s4-cifar
-```
-
-The above command line reproduces our best sequential CIFAR model. Decreasing the model size should yield close results, e.g. decreasing the hidden dimension and number of layers with `model.d_model=512 model.n_layers=4`.
-
-### Speech Commands
-
-The Speech Commands dataset that our [baselines](https://arxiv.org/abs/2005.08926) [use](https://arxiv.org/abs/2102.02611) is a modified smaller 10-way classification task.
-
-```
-python -m train wandb=null experiment=s4-sc
-```
-
-To use the original version with the full 35 classes, pass in `dataset.all_classes=true`
-
-### WikiText-103
-
-This config was tested with version V1 of the code.
-```
-python -m train wandb=null experiment=s4-wt103
-```
-
-The default settings require 8 GPUs with 32GB memory. Modifications can be made by decreasing batch size and accumulating gradients, e.g. `loader.batch_size=4 trainer.accumulate_grad_batches=2`
-
+which trains an S4 model on the Permuted MNIST dataset.
+This should get to around 90% after 1 epoch which takes 1-3 minutes depending on GPU.
 
 ### Optimizer Hyperparameters
 
-One notable difference in this codebase is that some S4 parameters use different optimizer hyperparameters. In particular, the SSM kernel is particularly sensitive to the A, B, and dt parameters, so the optimizer settings for these parameters are usually fixed to learning rate 0.001 and weight decay 0.
+One important feature of this codebase is supporting parameters that require different optimizer hyperparameters.
+In particular, the SSM kernel is particularly sensitive to the $(A, B)$ (and sometimes $\Delta$ parameters),
+so the learning rate on these parameters is sometimes lowered and the weight decay is always set to $0$.
 
-Our logic for setting these parameters can be found in the `OptimModule` class under `src/models/sequence/ss/kernel.py` and the corresponding optimizer hook in `SequenceLightningModule.configure_optimizers` under `train.py`.
+See the method `register` in the model (e.g. [s4d.py](src/models/s4/s4d.py)) and the function `setup_optimizer` in the training script (e.g. [example.py](example.py)) for an examples of how to implement this in external repos.
 
-## Training
-
-The core training infrastructure of this repository is based on [Pytorch-Lightning](https://pytorch-lightning.readthedocs.io/en/latest/) with a configuration scheme based on [Hydra](https://hydra.cc/docs/intro/).
-The structure of this integration largely follows the Lightning+Hydra integration template described in https://github.com/ashleve/lightning-hydra-template.
-
-The main experiment entrypoint is `train.py` and configs are found in `configs/`.
-In brief, the main config is found at `configs/config.yaml`, which is combined with other sets of configs that can be passed on the command line, to define an overall YAML config.
-Most config groups define one single Python object (e.g. a PyTorch nn.Module).
-The end-to-end training pipeline can broken down into the following rough groups, where group XX is found under `configs/XX/`:
-```
-model: the sequence-to-sequence model backbone (e.g. a src.models.sequence.SequenceModel)
-dataset: the raw dataset (data/target pairs) (e.g. a pytorch Dataset)
-loader: how the data is loaded (e.g. a pytorch DataLoader)
-encoder: defines a Module that interfaces between data and model backbone
-decoder: defines a Module that interfaces between model backbone and targets
-task: specifies loss and metrics
-```
-Default combinations of dataset+loader+encoder+decoder+task are further consolidated into groups called `pipelines`.
-
-A run can be performed by passing in a pipeline config, model config,
-and any additional arguments modifying the default configurations.
-A simple example experiment is
-```
-python -m train pipeline=mnist dataset.permute=True model=s4 model.n_layers=3 model.d_model=128 model.norm=batch model.prenorm=True wandb=null
-```
-This uses the permuted sequential MNIST task and uses an s4 model with a specified number of layers, backbone dimension, and normalization type.
-
-
-### Hydra
-
-It is recommended to read the Hydra documentation to fully understand the configuration framework. For help launching specific experiments, please file an Issue.
-
-### Registries
-
-This codebase uses a modification of the hydra `instantiate` utility that provides shorthand names of different classes, for convenience in configuration and logging.
-The mapping from shorthand to full path can be found in `src/utils/registry.py`.
-
-### WandB
-
-Logging with [WandB](https://wandb.ai/site) is built into this repository.
-In order to use this, simply set your `WANDB_API_KEY` environment variable, and change the `wandb.project` attribute of `configs/config.yaml` (or pass it on the command line `python -m train .... wandb.project=s4`).
-
-Set `wandb=null` to turn off WandB logging.
-
-
-## Models
-
-This repository provides a modular and flexible implementation of sequence models at large.
-
-#### SequenceModule
-SequenceModule `src/models/sequence/base.py` is the abstract interface that all sequence models adhere to.
-In this codebase, sequence models are defined as a sequence-to-sequence map of shape `(batch size, sequence length, input dimension)` to `(batch size, sequence length, output dimension)`.
-
-The SequenceModule comes with other methods such as `step` which is meant for autoregressive settings, and logic to carry optional hidden states (for stateful models such as RNNs or S4).
-
-#### SequenceModel
-SequenceModel `src/models/sequence/model.py` is the main backbone with configurable options for residual function, normalization placement and type, etc.
-SequenceModel accepts a black box config for a layer. Compatible layers are SequenceModules (i.e. composable sequence transformations) found under `src/models/sequence/`.
-
-### S4
-
-This is the main model of this repository.
-See instructions in [Getting Started](#-structured-state-space-(s4)).
-
-### LSSL
-
-The LSSL is the predecessor of S4. It is currently not recommended for use, but the model can be found at `src/models/sequence/ss/lssl.py`.
-
-It can be run with `model/layer=lssl` or `model/layer=lssl model.layer.learn=0` for the LSSL-fixed model which does not train A, B, or dt.
-
-### HiPPO
-
-HiPPO is the mathematical framework upon which the papers HiPPO, LSSL, and S4 are built on.
-The logic for HiPPO operators is found under `src/models/hippo/`.
-
-HiPPO-RNN cells from the original [paper](https://arxiv.org/abs/2008.07669) can be found under the [RNN cells](#-rnns)
-
-### RNNs
-
-This codebase contains a flexible and modular implementation of many RNN cells.
-
-Some examples include `model=rnn/hippo-legs` and `model=rnn/hippo-legt` for HiPPO variants from the original [paper](https://arxiv.org/abs/2008.07669), or `model=rnn/gru` for a GRU reimplementation, etc.
-
-An exception is `model=lstm` to use the PyTorch LSTM.
-
-Example command (reproducing the Permuted MNIST number from the HiPPO paper, which was SotA at the time):
-```
-python train.py pipeline=mnist model=rnn/hippo-legs model.cell_args.hidden_size=512 train.epochs=50 train.batch_size=100 train.lr=0.001
-```
-
-### Baselines
-Other sequence models are easily incorporated into this repository,
-and several other baselines have been ported.
-
-These include CNNs such as the [WaveGAN Discriminator](https://arxiv.org/abs/1802.04208) and [CKConv](https://arxiv.org/abs/2102.02611) and continuous-time/RNN models such as [UnICORNN](https://arxiv.org/abs/2102.02611) and [LipschitzRNN](https://arxiv.org/abs/2006.12070).
-
-```
-python -m train dataset=mnist model={ckconv,unicornn}
-```
-
+<!--
+Our logic for setting these parameters can be found in the `OptimModule` class under `src/models/sequence/ss/kernel.py` and the corresponding optimizer hook in `SequenceLightningModule.configure_optimizers` under `train.py`
+-->
 
 
 ## Overall Repository Structure
@@ -316,18 +133,138 @@ data/            default location of raw data
 extensions/      CUDA extension for Cauchy kernel
 src/             main source code for models, datasets, etc.
   callbacks/     training loop utilities (e.g. checkpointing)
-  dataloaders/   data loading logic
-  models/        model backbones
-    baselines/   misc. baseline models
-    functional/  mathematical utilities
-    nn/          standalone modules and components
-    hippo/       core HiPPO logic
-    sequence/    sequence model backbones and layers including RNNs and S4/LSSL
+  dataloaders/   dataset and dataloader definitions
+  models/        model definitions
   tasks/         encoder/decoder modules to interface between data and model backbone
   utils/
 sashimi/         SaShiMi README and additional code (generation, metrics, MTurk)
-train.py         training loop entrypoint
+example.py       Example training script for using S4 externally
+train.py         Training loop entrypoint for this repo
+generate.py      Generation script
 ```
+
+In addition to this top level README, several READMEs detailing the usage of this repository are organized in subdirectories.
+
+- [src/dataloaders/README.md](src/dataloaders/README.md)
+- [src/models/README.md](src/models/README.md)
+- [src/models/s4/README.md](src/models/s4/README.md)
+- [experiments.md](experiments.md)
+- [configs/README.md](configs/README.md)
+- [configs/model/README.md](configs/model/README.md)
+- [configs/experiment/README.md](configs/experiment/README.md)
+- [sashimi/README.md](sashimi/README.md)
+
+
+## Experiments
+
+Instructions for reproducing experiments from the papers can be found in [experiments.md](experiments.md).
+
+
+#### Data
+
+Basic datasets are auto-downloaded, including MNIST, CIFAR, and Speech Commands.
+All logic for creating and loading datasets is in [src/dataloaders](./src/dataloaders/) directory.
+The README inside this subdirectory documents how to download and organize other datasets.
+
+#### Models
+
+Models are defined in [src/models](src/models). See the README for usage.
+
+
+## Training
+
+The core training infrastructure of this repository is based on [Pytorch-Lightning](https://pytorch-lightning.readthedocs.io/en/latest/) with a configuration scheme based on [Hydra](https://hydra.cc/docs/intro/).
+
+The main entrypoint is `train.py` and configs are found in `configs/`.
+Pre-defined configs for many end-to-end experiments are provided (see [experiments.md](experiments.md)).
+
+Configs can also be easily modified through the command line.
+An example experiment is
+```
+python -m train pipeline=mnist dataset.permute=True model=s4 model.n_layers=3 model.d_model=128 model.norm=batch model.prenorm=True wandb=null
+```
+This uses the Permuted MNIST task with an S4 model with a specified number of layers, backbone dimension, and normalization type.
+
+See [configs/README.md](configs/README.md) for more detailed documentation about the configs.
+
+<!--
+### PyTorch Lightning
+
+
+Useful flags:
+`trainer.weights_summary=full` prints out every layer of the model with their parameter counts. Useful for debugging internals of models.
+`trainer.limit_{train,val}_batches={10,0.1}` trains/validates on only 10 batches / 0.1 fraction of all batches. Useful for testing the train loop
+-->
+
+### Hydra
+
+It is recommended to read the [Hydra documentation](https://hydra.cc/docs/intro/) to fully understand the configuration framework. For help launching specific experiments, please file an issue.
+
+### WandB
+
+Logging with [WandB](https://wandb.ai/site) is built into this repository.
+In order to use this, simply set your `WANDB_API_KEY` environment variable, and change the `wandb.project` attribute of [configs/config.yaml](configs/config.yaml) (or pass it on the command line e.g. `python -m train .... wandb.project=s4`).
+
+Set `wandb=null` to turn off WandB logging.
+
+<!--
+### Registries
+
+This codebase uses a modification of the hydra `instantiate` utility that provides shorthand names of different classes, for convenience in configuration and logging.
+The mapping from shorthand to full path can be found in `src/utils/registry.py`.
+-->
+
+
+## Generation
+
+Autoregressive generation can be performed with the [generate.py](generate.py) script.
+This script can be used in two ways after training a model using this codebase.
+
+### Option 1: Checkpoint Path
+The more flexible option requires the checkpoint path of the trained PyTorch Lightning model.
+The generation script accepts the same config options as the train script, with a few additional flags that are documented in [configs/generate.yaml](configs/generate.yaml).
+After training with `python -m train <train flags>`, generate with
+```
+python -m generate <train flags> checkpoint_path=<path/to/model.ckpt> <generation flags>
+```
+Any of the flags found in the config can be overridden.
+
+### Option 2: Experiment Path
+The second option for generation does not require passing in training flags again, and instead reads the config from the Hydra experiment folder.
+
+### Example 1 (Language)
+
+Download the WikiText-103 checkpoint, for example to `./checkpoints/wt103.ckpt`.
+This model was trained with the command `python -m train experiment=lm/s4-wt103`.
+To generate, run
+```
+python -m generate experiment=lm/s4-wt103 checkpoint_path=$PWD/checkpoints/wt103.ckpt n_samples=1 l_sample=16384 l_prefix=8192 decode=text
+```
+This generates a sample of length 16384 conditioned on a prefix of length 8192 (this model was trained with a receptive field of length 8192).
+
+### Example 2 (Audio)
+
+Let's train a small SaShiMi model on the SC09 dataset. We can also reduce the number of training and validation batches to get a checkpoint faster:
+```
+python -m train experiment=audio/sashimi-sc09 model.n_layers=2 trainer.limit_train_batches=0.1 trainer.limit_val_batches=0.1
+```
+
+After the first epoch completes, a message is printed indicating where the checkpoint is saved.
+```
+Epoch 0, global step 96: val/loss reached 3.71754 (best 3.71754), saving model to "<repository>/outputs/<date>/<time>/checkpoints/val/loss.ckpt"
+```
+
+Option 1:
+```
+python -m generate experiment=audio/sashimi-sc09 model.n_layers=2 checkpoint_path=<repository>/outputs/<date>/<time>/checkpoints/val/loss.ckpt n_samples=4 l_sample=16000
+```
+This option redefines the full config so that the model and dataset can be constructed.
+
+Option 2:
+```
+python -m generate experiment_path=<repository>/outputs/<date>/<time> checkpoint_path=checkpoints/val/loss.ckpt n_samples=4 l_sample=16000
+```
+This option only needs the path to the Hydra experiment folder and the desired checkpoint within.
 
 
 

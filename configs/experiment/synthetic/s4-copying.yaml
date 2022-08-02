@@ -1,0 +1,39 @@
+# @package _global_
+defaults:
+  - /pipeline: copying
+  - /model: s4
+
+dataset:
+  l_noise: 0
+  l_memorize: 1024
+  n_tokens: 64
+  n_train: 10000
+  n_eval: 1000
+
+model:
+  dropout: 0.0
+  n_layers: 4
+  d_model: 64
+  prenorm: true
+  layer:
+    rank: 2
+    measure: fourier
+    deterministic: true
+    dt_min: ${eval:${model.n_layers}/${dataset.l_memorize}} # 0.0008
+    dt_max: ${eval:${model.n_layers}/${dataset.l_memorize}} # 0.001
+    d_state: 256
+    lr: 0.0001
+    # shift: true
+
+loader:
+  batch_size: 8
+
+optimizer:
+  lr: 0.001
+  weight_decay: 0.00
+
+trainer:
+  max_epochs: 1000
+
+train:
+  seed: 1112

@@ -1,0 +1,7 @@
+_name_: ljspeech
+bits: 8
+sample_len: 161792 # (10.1s @ 16kHz rounded to nearest multiple of 1024)
+train_percentage: 0.88
+quantization: mu-law
+use_text: false
+__l_max: ${.sample_len}

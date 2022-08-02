@@ -1,0 +1,47 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: tbptt
+  - /dataset: youtubemix
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+  - /model: samplernn
+
+
+model:
+  bits: 8
+  quantization: mu-law
+  n_rnn: 1
+  frame_sizes:
+    - 8
+    - 2
+    - 2
+
+train:
+  monitor: val/loss # Needed for plateau scheduler
+  mode: min
+  state:
+    mode: tbptt
+
+loader:
+  chunk_len: 1024
+  overlap_len: 32 # this is model dependent (product of model.frame_sizes here)
+  batch_size: 128
+
+task:
+  metrics:
+    - bpb
+    - accuracy
+    - accuracy@3
+    - accuracy@5
+    - accuracy@10
+
+
+encoder: id
+decoder: id
+
+
+trainer:
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: value

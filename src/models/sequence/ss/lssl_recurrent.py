@@ -103,20 +103,3 @@ class RecurrentLSSL(SequenceModule):
     @property
     def state_to_tensor(self):
         return lambda state: state
-
-if __name__ == '__main__':
-    device = torch.device('cuda')
-
-    N = 8
-    B = 1
-    d = 5
-    L = 10
-    u = torch.randn(L, B, d).to(device)
-    measure = 'identity'
-    # measure = 'legt'
-    dt_min = 1e-3
-    dt_max = 1e0
-
-    hippo = RecurrentLSSL(d, N, measure=measure, dt_min=dt_min, dt_max=dt_max, init='constant').to(device)
-    y, _ = hippo(u)
-    print(y, y.shape)

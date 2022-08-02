@@ -1,4 +1,4 @@
-""" Neural Rough Differential Equations. """
+"""Neural Rough Differential Equations."""
 
 import torch
 from torch import nn
@@ -193,18 +193,3 @@ class _NRDEFunc(nn.Module):
 
     def forward(self, h):
         return self.net(h).view(-1, self.input_dim, self.logsig_dim)
-
-
-if __name__ == '__main__':
-    
-    B = 1
-    D = 256
-    LS = 512
-    L = 1024
-    nrde = NeuralRDE(1, LS, D, 1, hidden_hidden_dim=3 * D, num_layers=3)
-    x = torch.randn(B, 1)
-    logsig = torch.randn(B, L, LS)
-    import time
-    start_time = time.time()
-    print(nrde.forward((x, logsig)))
-    print(time.time() - start_time)

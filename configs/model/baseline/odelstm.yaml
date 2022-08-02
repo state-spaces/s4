@@ -1,0 +1,4 @@
+_name_: odelstm
+d_model: 64
+solver_type: dopri5
+return_sequences: true

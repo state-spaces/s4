@@ -1,0 +1,32 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: default
+  - /dataset: qautomusic
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+  - /model: baseline/wavenet
+
+train:
+  monitor: val/loss
+  mode: min
+
+task:
+  metrics:
+    - bpb
+    - accuracy
+    - accuracy@3
+    - accuracy@5
+    - accuracy@10
+
+encoder: embedding
+decoder:
+  _name_: sequence
+  mode: last
+
+scheduler:
+  patience: 5
+
+loader:
+  batch_size: 1

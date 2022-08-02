@@ -211,9 +211,7 @@ def variable_unroll_sequential(A, u, s=None, variable=True):
     outputs = []
     for (A_, u_) in zip(torch.unbind(A, dim=0), torch.unbind(u, dim=0)):
         # s = F.linear(s, A_) + u_
-        # print("shapes", A_.shape, s.shape, has_batch)
         s = batch_mult(A_.unsqueeze(0), s.unsqueeze(0), has_batch)[0]
-        # breakpoint()
         s = s + u_
         outputs.append(s)
 
@@ -314,11 +312,9 @@ def variable_unroll_toeplitz_sequential(A, u, s=None, variable=True, pad=False):
 
     if pad:
         n = A.shape[-1]
-        # print("shapes", A.shape, u.shape)
         A = F.pad(A, (0, n))
         u = F.pad(u, (0, n))
         s = F.pad(s, (0, n))
-        # print("shapes", A.shape, u.shape)
         ret = variable_unroll_general_sequential(A, u, s, triangular_toeplitz_multiply_padded, variable=True)
         ret = ret[..., :n]
         return ret
@@ -344,7 +340,7 @@ def variable_unroll_general(A, u, s, op, compose_op=None, sequential_op=None, va
         compose_op = op
 
     uneven = u.shape[0] % 2 == 1
-    has_batch = len(u.shape) >= len(A.shape)
+    # has_batch = len(u.shape) >= len(A.shape)
 
     u_0 = u[0::2, ...]
     u_1 = u[1::2, ...]
@@ -412,11 +408,9 @@ def variable_unroll_toeplitz(A, u, s=None, variable=True, recurse_limit=8, pad=F
 
     if pad:
         n = A.shape[-1]
-        # print("shapes", A.shape, u.shape)
         A = F.pad(A, (0, n))
         u = F.pad(u, (0, n))
         s = F.pad(s, (0, n))
-        # print("shapes", A.shape, u.shape)
         op = triangular_toeplitz_multiply_padded
         ret = variable_unroll_general(A, u, s, op, compose_op=op, variable=variable, recurse_limit=recurse_limit)
         ret = ret[..., :n]
@@ -425,185 +419,3 @@ def variable_unroll_toeplitz(A, u, s=None, variable=True, recurse_limit=8, pad=F
     op = triangular_toeplitz_multiply
     ret = variable_unroll_general(A, u, s, op, compose_op=op, variable=variable, recurse_limit=recurse_limit)
     return ret
-
-
-
-### Testing
-
-def test_correctness():
-    print("Testing Correctness\n====================")
-
-    # Test sequential unroll
-    L = 3
-    A = torch.Tensor([[1, 1], [1, 0]])
-    u = torch.ones((L, 2))
-    x = unroll(A, u)
-    assert torch.isclose(x, torch.Tensor([[1., 1.], [3., 2.], [6., 4.]])).all()
-
-    # Test utilities
-    assert torch.isclose(shift_up(x), torch.Tensor([[0., 0.], [1., 1.], [3., 2.]])).all()
-    assert torch.isclose(interleave(x, x), torch.Tensor([[1., 1.], [1., 1.], [3., 2.], [3., 2.], [6., 4.], [6., 4.]])).all()
-
-    # Test parallel unroll
-    x = parallel_unroll_recursive(A, u)
-    assert torch.isclose(x, torch.Tensor([[1., 1.], [3., 2.], [6., 4.]])).all()
-
-    # Powers
-    L = 12
-    A = torch.Tensor([[1, 0, 0], [2, 1, 0], [3, 3, 1]])
-    u = torch.ones((L, 3))
-    x = parallel_unroll_recursive(A, u)
-    print("recursive", x)
-    x = parallel_unroll_recursive_br(A, u)
-    print("recursive_br", x)
-    x = parallel_unroll_iterative(A, u)
-    print("iterative_br", x)
-
-
-    A = A.repeat((L, 1, 1))
-    s = torch.zeros(3)
-    print("A shape", A.shape)
-    x = variable_unroll_sequential(A, u, s)
-    print("variable_unroll", x)
-    x = variable_unroll(A, u, s)
-    print("parallel_variable_unroll", x)
-
-
-def generate_data(L, N, B=None, cuda=True):
-    A = torch.eye(N) + torch.normal(0, 1, size=(N, N)) / (N**.5) / L
-    u = torch.normal(0, 1, size=(L, B, N))
-
-
-    # device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-    device = torch.device('cuda:0') if cuda else torch.device('cpu')
-    A = A.to(device)
-    u = u.to(device)
-    return A, u
-
-def test_stability():
-    print("Testing Stability\n====================")
-    L = 256
-    N = L // 2
-    B = 100
-    A, u = generate_data(L, N, B)
-
-    x = unroll(A, u)
-    x1 = parallel_unroll_recursive(A, u)
-    x2 = parallel_unroll_recursive_br(A, u)
-    x3 = parallel_unroll_iterative(A, u)
-    print("norm error", torch.norm(x-x1))
-    print("norm error", torch.norm(x-x2))
-    print("norm error", torch.norm(x-x3))
-    # print(x-x1)
-    # print(x-x2)
-    # print(x-x3)
-    print("max error", torch.max(torch.abs(x-x1)))
-    print("max error", torch.max(torch.abs(x-x2)))
-    print("max error", torch.max(torch.abs(x-x3)))
-
-    A = A.repeat((L, 1, 1))
-    x = variable_unroll_sequential(A, u)
-    x_ = variable_unroll(A, u)
-    # x_ = variable_unroll_matrix_sequential(A, u)
-    x_ = variable_unroll_matrix(A, u)
-    print(x-x_)
-    abserr = torch.abs(x-x_)
-    relerr = abserr/(torch.abs(x)+1e-8)
-    print("norm abs error", torch.norm(abserr))
-    print("max abs error", torch.max(abserr))
-    print("norm rel error", torch.norm(relerr))
-    print("max rel error", torch.max(relerr))
-
-def test_toeplitz():
-    from model.toeplitz import construct_toeplitz
-    def summarize(name, x, x_, showdiff=False):
-        print(name, "stats")
-        if showdiff:
-            print(x-x_)
-        abserr = torch.abs(x-x_)
-        relerr = abserr/(torch.abs(x)+1e-8)
-        print("  norm abs error", torch.norm(abserr))
-        print("  max abs error", torch.max(abserr))
-        print("  norm rel error", torch.norm(relerr))
-        print("  max rel error", torch.max(relerr))
-
-    print("Testing Toeplitz\n====================")
-    L = 512
-    N = L // 2
-    B = 100
-    A, u = generate_data(L, N, B)
-
-    A = A[..., 0]
-    A = construct_toeplitz(A)
-
-    # print("SHAPES", A.shape, u.shape)
-
-    # Static A
-    x = unroll(A, u)
-    x_ = variable_unroll(A, u, variable=False)
-    summarize("nonvariable matrix original", x, x_, showdiff=False)
-    x_ = variable_unroll_matrix(A, u, variable=False)
-    summarize("nonvariable matrix general", x, x_, showdiff=False)
-    x_ = variable_unroll_toeplitz(A[..., 0], u, variable=False)
-    summarize("nonvariable toeplitz", x, x_, showdiff=False)
-
-    # Sequential
-    A = A.repeat((L, 1, 1))
-    for _ in range(1):
-        x_ = variable_unroll_sequential(A, u)
-        summarize("variable unroll sequential", x, x_, showdiff=False)
-        x_ = variable_unroll_matrix_sequential(A, u)
-        summarize("variable matrix sequential", x, x_, showdiff=False)
-        x_ = variable_unroll_toeplitz_sequential(A[..., 0], u, pad=True)
-        summarize("variable toeplitz sequential", x, x_, showdiff=False)
-
-    # Parallel
-    for _ in range(1):
-        x_ = variable_unroll(A, u)
-        summarize("variable matrix original", x, x_, showdiff=False)
-        x_ = variable_unroll_matrix(A, u)
-        summarize("variable matrix general", x, x_, showdiff=False)
-        x_ = variable_unroll_toeplitz(A[..., 0], u, pad=True, recurse_limit=8)
-        summarize("variable toeplitz", x, x_, showdiff=False)
-
-def test_speed(variable=False, it=1):
-    print("Testing Speed\n====================")
-    N = 256
-    L = 1024
-    B = 100
-    A, u = generate_data(L, N, B)
-    As = A.repeat((L, 1, 1))
-
-    u.requires_grad=True
-    As.requires_grad=True
-    for _ in range(it):
-        x = unroll(A, u)
-        x = torch.sum(x)
-        x.backward()
-
-        x = parallel_unroll_recursive(A, u)
-        x = torch.sum(x)
-        x.backward()
-
-        # parallel_unroll_recursive_br(A, u)
-        # parallel_unroll_iterative(A, u)
-
-    for _ in range(it):
-        if variable:
-            x = variable_unroll_sequential(As, u, variable=True, recurse_limit=16)
-            x = torch.sum(x)
-            x.backward()
-            x = variable_unroll(As, u, variable=True, recurse_limit=16)
-            x = torch.sum(x)
-            x.backward()
-        else:
-            variable_unroll_sequential(A, u, variable=False, recurse_limit=16)
-            variable_unroll(A, u, variable=False, recurse_limit=16)
-
-# TODO refactor using benchmark util
-
-if __name__ == '__main__':
-    # test_correctness()
-    test_stability()
-    # test_toeplitz()
-    # test_speed(variable=True, it=100)

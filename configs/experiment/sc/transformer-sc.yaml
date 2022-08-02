@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - /pipeline: sc
+  - /model: transformer
+  - override /model/layer: performer
+
+model:
+  dropout: 0.0
+  n_layers: 4
+  d_model: 128
+  prenorm: true
+
+optimizer:
+  lr: 0.001
+
+loader:
+  batch_size: 16
+
+trainer:
+  max_epochs: 200
+
+scheduler:
+  patience: 10
+
+train:
+  seed: 1112

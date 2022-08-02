@@ -11,11 +11,11 @@ from src.models.sequence.block import SequenceResidualBlock
 class Sashimi(SequenceModule):
     def __init__(
         self,
-        d_model, 
-        n_layers, 
-        pool=[], 
-        expand=1, 
-        ff=2, 
+        d_model,
+        n_layers,
+        pool=[],
+        expand=1,
+        ff=2,
         prenorm=False,
         dropout=0.0,
         dropres=0.0,
@@ -47,7 +47,7 @@ class Sashimi(SequenceModule):
         layer_cfg = layer.copy()
         layer_cfg['dropout'] = dropout
         layer_cfg['transposed'] = self.transposed
-        # layer_cfg['initializer'] = initializer
+        layer_cfg['initializer'] = initializer
         layer_cfg['l_max'] = L
 
         ff_cfg = {
@@ -65,6 +65,7 @@ class Sashimi(SequenceModule):
                 i,
                 prenorm=prenorm,
                 dropout=dropres,
+                transposed=self.transposed,
                 layer=layer,
                 residual=residual if residual is not None else 'R',
                 norm=norm,
@@ -102,7 +103,7 @@ class Sashimi(SequenceModule):
                 if ff > 0: block.append(_residual(H, i+1, ff_cfg))
 
             u_layers.append(nn.ModuleList(block))
-        
+
         self.u_layers = nn.ModuleList(u_layers)
 
         assert H == d_model
@@ -126,7 +127,7 @@ class Sashimi(SequenceModule):
     def d_output(self):
         return self.d_model
 
-    def forward(self, x, state=None):
+    def forward(self, x, state=None, **kwargs):
         """
         input: (batch, length, d_input)
         output: (batch, length, d_output)

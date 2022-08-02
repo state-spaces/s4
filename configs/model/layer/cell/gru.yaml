@@ -1,0 +1,6 @@
+_name_: gru
+d_model: 256
+hidden_activation: tanh
+gate: G
+reset: G
+orthogonal: False

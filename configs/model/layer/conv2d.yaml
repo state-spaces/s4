@@ -1,0 +1,12 @@
+_name_: conv2d
+# d_output: null
+depthwise: false
+kernel_size: 3
+stride: 1
+# padding: 1 # Determined by kernel_size
+dilation: 1
+# groups: 1 # Set automatically by depthwise flag
+bias: true
+padding_mode: zeros
+dropout: null
+transposed: true

@@ -55,7 +55,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         self.n_clusters = len(self.cutoffs) - 1
         self.head_size = self.shortlist_size + self.n_clusters
 
-        # [21-09-15 AG]: bake the first False into the definition, just as [0] is built into the cutoffs
+        # bake the first False into the definition, just as [0] is built into the cutoffs
         if tie_projs is None: tie_projs = []
         elif isinstance(tie_projs, bool): tie_projs = [tie_projs] * len(cutoffs)
         else: tie_projs = list(tie_projs)
@@ -89,7 +89,6 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                             nn.Parameter(torch.zeros(d_proj, d_embed))
                         )
             else:
-                # self.out_projs = [None] * len(self.cutoffs)
                 self.out_projs.append(None)
 
             self.out_layers_biases.append(
@@ -222,6 +221,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                     tail_logit_i = self._compute_logit(hidden_i, weight_i, bias_i, proj_i)
                     tail_logprob_i = F.log_softmax(tail_logit_i, dim=1)
 
+                    # First term accounts for cluster probabilities
                     logprob_i = head_logprob_i[:, -i] \
                         + tail_logprob_i.gather(1, target_i[:, None]).squeeze(1)
 
@@ -230,9 +230,71 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 else:
                     nll[offset:offset+logprob_i.size(0)].copy_(-logprob_i)
 
-                offset += logprob_i.size(0)
+                offset += logprob_i.size(0) # TODO This should be a bug in the original implementation; it should go into the continue case above as well
 
         return nll.mean() # TODO maybe cases for length or padding_mask
+
+    def compute_logits(self, hidden):
+        """Compute full vector of logits
+
+        Adapted from https://github.com/kimiyoung/transformer-xl/issues/88
+        """
+        hidden = hidden.reshape(-1, hidden.size(-1))
+
+        if self.n_clusters == 0:
+            logits = self._compute_logit(hidden, self.out_layers_weights[0],
+                                        self.out_layers_biases[0], self.get_out_proj(0))
+            return logits
+        else:
+            # construct weights and biases
+            weights, biases = [], []
+            for i in range(len(self.cutoffs)):
+                if self.div_val == 1:
+                    l_idx, r_idx = self.cutoff_ends[i], self.cutoff_ends[i + 1]
+                    weight_i = self.out_layers_weights[0][l_idx:r_idx]
+                    bias_i = self.out_layers_biases[0][l_idx:r_idx]
+                else:
+                    weight_i = self.out_layers_weights[i]
+                    bias_i = self.out_layers_biases[i]
+
+                if i == 0:
+                    weight_i = torch.cat(
+                        [weight_i, self.cluster_weight], dim=0)
+                    bias_i = torch.cat(
+                        [bias_i, self.cluster_bias], dim=0)
+
+                weights.append(weight_i)
+                biases.append(bias_i)
+
+            head_weight, head_bias, head_proj = weights[0], biases[0], self.get_out_proj(0)
+
+            head_logit = self._compute_logit(hidden, head_weight, head_bias, head_proj)
+            head_logprob = F.log_softmax(head_logit, dim=1)
+
+            out_full_logps = [head_logprob[:, :self.cutoffs[0]]]
+            offset = 0
+            cutoff_values = [0] + self.cutoffs
+
+            for i in range(1, len(cutoff_values) - 1):
+                l_idx, r_idx = cutoff_values[i], cutoff_values[i + 1]
+                head_logprob_i = head_logprob # .index_select(0, indices_i)
+
+                if i == 0:
+                    logprob_i = head_logprob_i
+                else:
+                    weight_i, bias_i, proj_i = weights[i], biases[i], self.get_out_proj(i)
+
+                    hidden_i = hidden # .index_select(0, indices_i)
+
+                    tail_logit_i = self._compute_logit(hidden_i, weight_i, bias_i, proj_i)
+                    tail_logprob_i = F.log_softmax(tail_logit_i, dim=1)
+                    logprob_i = head_logprob_i[:, -i].view(-1, 1) + tail_logprob_i
+
+                offset += logprob_i.size(0)
+                out_full_logps.append(logprob_i)
+            out_full_logps = torch.cat(out_full_logps, dim = 1)
+            # print(torch.sum(out_full_ps), out_full_ps.shape)
+            return out_full_logps
 
 
 class AdaptiveEmbedding(nn.Module):
@@ -277,7 +339,7 @@ class AdaptiveEmbedding(nn.Module):
                 # torch.nn.init.normal_(self.emb_projs[-1], mean=0, std=init_scale * 1./self.emb_scale)
                 _init_proj(self.emb_projs[-1], d_proj, init_scale)
 
-    def forward(self, inp, *args, **kwargs):
+    def forward(self, inp):
         if self.div_val == 1:
             embed = self.emb_layers[0](inp)
             embed = self.drop(embed)
@@ -285,9 +347,9 @@ class AdaptiveEmbedding(nn.Module):
                 embed = F.linear(embed, self.emb_projs[0])
         else:
             param = next(self.parameters())
-            inp_flat = inp.view(-1)
+            inp_flat = inp.reshape(-1)
 
-            # Changes
+            # Changes from original impl
             # emb_flat = torch.zeros([inp_flat.size(0), self.d_proj], dtype=param.dtype, device=param.device)
             embeddings = []
             indices = torch.zeros_like(inp_flat) # empty should work as long as cutoffs[-1] > max token
@@ -340,7 +402,3 @@ def _init_weight(weight, d : int, init_scale : Optional[float], default=None):
 
 _init_embed = functools.partial(_init_weight, default=0.02)
 _init_proj = functools.partial(_init_weight, default=0.01)
-
-### Just for this codebase, we need to squeeze the last dimension because inputs are always given as (B, L, D) instead of (B, L)
-import src.models.nn.utils as U
-# AdaptiveEmbedding = U.Squeeze(AdaptiveEmbedding)

@@ -1,0 +1,4 @@
+_name_: rnn
+d_model: 256
+hidden_activation: tanh
+orthogonal: False

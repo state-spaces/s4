@@ -1,0 +1,3 @@
+_name_: forecasting
+loss: mse
+metrics: null

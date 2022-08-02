@@ -1,0 +1,12 @@
+# @package _global_
+train:
+  interval: epoch
+  monitor: ??? # must be specified
+scheduler:
+  _name_: timm_cosine
+  t_initial: 300
+  lr_min: 1e-5
+  cycle_decay: 0.1 # changed from decay_rate in timm 0.5.4
+  warmup_lr_init: 1e-6
+  warmup_t: 10
+  cycle_limit: 1

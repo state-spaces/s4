@@ -1,4 +1,7 @@
-""" Implementations of several types of Discrete Sin/Cosine Transforms with various reductions to FFT. """
+"""Implementations of several types of Discrete Sin/Cosine Transforms with various reductions to FFT.
+
+Currently not used by S4
+"""
 
 import torch
 import torch.nn as nn
@@ -20,7 +23,7 @@ class DCT(nn.Module):
         self.register_buffer('P', P)
 
         # TODO take care of normalization
-        Q = np.exp(-1j * np.pi / (2 * self.N) * np.arange(self.N)) 
+        Q = np.exp(-1j * np.pi / (2 * self.N) * np.arange(self.N))
         Q = torch.tensor(Q, dtype=torch.cfloat)
         self.register_buffer('Q', Q) # half shift
 

@@ -123,41 +123,8 @@ class ComplexMul(torch.autograd.Function):
             grad_X = ComplexMul.apply(grad, conjugate(Y)).sum_to_size(*X.shape)
         if ctx.needs_input_grad[1]:
             grad_Y = ComplexMul.apply(grad, conjugate(X)).sum_to_size(*Y.shape)
-        # grad_X, grad_Y = ComplexMul.apply(grad, conjugate(Y)), ComplexMul.apply(grad, conjugate(X))
-        # # Need to sum over dimensions that were broadcasted
-        # grad_X = grad_X.sum_to_size(*X.shape)
-        # grad_Y = grad_Y.sum_to_size(*Y.shape)
-        # dims_to_sum_X = [-i for i in range(1, X.dim() + 1) if X.shape[-i] != grad.shape[-i]]
-        # dims_to_sum_Y = [-i for i in range(1, Y.dim() + 1) if Y.shape[-i] != grad.shape[-i]]
-        # if dims_to_sum_X:  # If empty list is passed to sum, it sums all the dimensions
-        #     grad_X = grad_X.sum(dim=dims_to_sum_X, keepdim=True)
-        # if dims_to_sum_Y:  # If empty list is passed to sum, it sums all the dimensions
-        #     grad_Y = grad_Y.sum(dim=dims_to_sum_Y, keepdim=True)
-        # if grad.dim() > X.dim():
-        #     grad_X = grad_X.sum(tuple(range(grad.dim() - X.dim())))
-        # if grad.dim() > Y.dim():
-        #     grad_Y = grad_Y.sum(tuple(range(grad.dim() - Y.dim())))
         return grad_X, grad_Y
 
 complex_mul = ComplexMul.apply if use_cupy else complex_mul_torch
 if use_pt_native:
     complex_mul = complex_mul_native
-
-# @profile
-# def complex_mul(X, Y):
-#     assert X.shape[-1] == 2 and Y.shape[-1] == 2, 'Last dimension must be 2'
-#     prod = X.unsqueeze(-1) * Y.unsqueeze(-2)
-#     real = prod[..., 0, 0] - prod[..., 1, 1]
-#     imag = prod[..., 0, 1] + prod[..., 1, 0]
-#     return torch.stack( (real, imag), dim=-1)
-
-# TODO maybe optimizations to be had by wrapping this into a function
-
-    # real = X.select(-1, 0) * Y.select(-1, 0) - X.select(-1, 1) * Y.select(-1, 1)
-    # imag = X.select(-1, 0) * Y.select(-1, 1) + X.select(-1, 1) * Y.select(-1, 0)
-    # return torch.stack( (real, imag), dim=-1)
-
-    # return torch.stack(
-    #     (X[..., 0] * Y[..., 0] - X[..., 1] * Y[..., 1],
-    #      X[..., 0] * Y[..., 1] + X[..., 1] * Y[..., 0]),
-    #     dim=-1)

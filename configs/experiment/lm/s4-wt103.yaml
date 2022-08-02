@@ -1,0 +1,47 @@
+# @package _global_
+defaults:
+  - /pipeline: wt103
+  - /model: s4
+  - override /model/layer: s4s4ff
+
+# Dataset
+dataset:
+  test_split: True
+loader:
+  batch_size: 1
+  l_max: 8192
+  n_context: 1
+  eval:
+    batch_size: null
+    l_max: null
+
+task:
+  div_val: 4
+  dropemb: 0.25
+  dropsoft: 0.25
+
+# Model
+model:
+  dropinp: 0.0
+  dropout: 0.25
+  prenorm: True
+  n_layers: 16
+  d_model: 1024
+  transposed: false # Saves memory
+  tie_dropout: false # More standard
+
+# Optimizer (adamw)
+optimizer:
+  lr: 5e-4
+  weight_decay: 0.1
+
+# Scheduler (cosine)
+trainer:
+  max_epochs: 1000
+
+scheduler:
+  num_warmup_steps: 1000
+  num_training_steps: 800000
+
+train:
+  seed: 1111

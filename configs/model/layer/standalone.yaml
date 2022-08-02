@@ -3,13 +3,16 @@ d_state: 64
 channels: 1
 bidirectional: false
 activation: gelu
-postact: null
+postact: glu
 dropout: ${..dropout} # Same as null
+mode: nplr
 measure: legs
 dt_min: 0.001
 dt_max: 0.1
-trainable: true
-lr: 0.001
-n_ssm: 1
+lr:
+  dt: 0.001
+  A: 0.001
+  B: 0.001
+n_ssm: null
 l_max: ${oc.select:dataset.__l_max,null} # Grab dataset length if exists, otherwise set to 1 and kernel will automatically resize
 verbose: true

@@ -120,11 +120,9 @@ class Gate(nn.Module):
 
     def backward_diff(self, x):
         return x / (1+x)
-        # return 1 / (1+1/x)
 
     def trapezoid(self, x):
         return x / (1 + x/2)
-        # return 1 / (.5 + 1/x)
 
     def zoh(self, x):
         return 1 - torch.exp(-x)

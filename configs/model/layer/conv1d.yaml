@@ -1,0 +1,12 @@
+_name_: conv1d
+d_output: null
+kernel_size: 25
+stride: 1
+padding: 12
+dilation: 1
+groups: 1
+bias: true
+padding_mode: zeros
+activation: gelu
+dropout: null
+transposed: True

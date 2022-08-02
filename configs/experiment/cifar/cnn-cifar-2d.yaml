@@ -1,0 +1,35 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar
+  - /model: s4
+  - override /model/layer: conv2d
+  - override /scheduler: cosine_warmup
+
+dataset:
+  permute: 2d
+  augment: true
+
+model:
+  dropout: 0.1
+  n_layers: 6
+  d_model: 512
+  prenorm: true
+  tie_dropout: true
+
+loader:
+  batch_size: 50
+  eval_resolutions: [1, 2]
+  img_size: 32
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.03
+
+trainer:
+  max_epochs: 100
+
+scheduler:
+  num_training_steps: 100000
+
+train:
+  seed: 2222

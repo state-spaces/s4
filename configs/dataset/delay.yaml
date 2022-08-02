@@ -1,0 +1,11 @@
+_name_: delay
+l_seq: 4000    # length of total sequence
+n_lag: 1       # number of lags to copy
+l_lag: 1000    # length of lag (default to l_seq / n_lag)
+dt: 0.00025
+freq: 1000.0
+seed: 0
+static: False  # Use a static dataset of size n_train, otherwise always use random data with n_train per epoch
+n_train: 16384 # Training samples per epoch (random)
+n_eval: 1024   # Evaluation samples per epoch (fixed)
+__l_max: ${.l_seq}

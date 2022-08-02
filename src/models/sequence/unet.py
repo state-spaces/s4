@@ -17,7 +17,6 @@ from src.models.sequence.pool import DownPool, UpPool
 from src.models.sequence.block import SequenceResidualBlock
 
 
-
 class SequenceUNet(SequenceModule):
     """
     layer is a Namespace that specifies '_name_', referring to a constructor, and a list of arguments to that layer constructor. This layer must subscribe to the interface (i) takes a hidden dimension H and sequence length L (ii) forward pass transforms input sequence of shape (B, H, L) to output (B, H, L)
@@ -35,6 +34,7 @@ class SequenceUNet(SequenceModule):
         initializer=None,
         l_max=-1,
         transposed=True,
+        act_pool=None,
     ):
         super().__init__()
         self.d_model = d_model
@@ -67,6 +67,7 @@ class SequenceUNet(SequenceModule):
                 i, # temporary placeholder for i_layer
                 prenorm=prenorm,
                 dropout=dropres,
+                transposed=self.transposed,
                 layer=layer,
                 residual=residual if residual is not None else 'R',
                 norm=norm,
@@ -81,7 +82,7 @@ class SequenceUNet(SequenceModule):
                 if ff > 0: d_layers.append(_residual(H, i+1, ff_cfg))
 
             # Add sequence downsampling and feature expanding
-            d_layers.append(DownPool(H, H*expand, pool=p, transposed=self.transposed)) # TODO take expansion argument instead
+            d_layers.append(DownPool(H, H*expand, stride=p, transposed=self.transposed, activation=act_pool))
             L //= p
             layer_cfg['l_max'] = L
             H *= expand
@@ -100,7 +101,7 @@ class SequenceUNet(SequenceModule):
             H //= expand
             L *= p
             layer_cfg['l_max'] = L
-            u_layers.append(UpPool(H*expand, H, pool=p, transposed=self.transposed)) # TODO
+            u_layers.append(UpPool(H*expand, H, stride=p, transposed=self.transposed, activation=act_pool))
 
             for i in range(n_layers):
                 u_layers.append(_residual(H, i+1, layer_cfg))
@@ -111,14 +112,11 @@ class SequenceUNet(SequenceModule):
 
         self.norm = nn.LayerNorm(H)
 
-    # @property
-    # def transposed(self):
-    #     return len(self.d_layers) > 0 and self.d_layers[0].transposed
     @property
     def d_output(self):
         return self.d_model
 
-    def forward(self, x, state=None):
+    def forward(self, x, state=None, **kwargs):
         """
         input: (batch, length, d_input)
         output: (batch, length, d_output)
@@ -198,53 +196,4 @@ class SequenceUNet(SequenceModule):
         next(modules)
         for layer in modules:
             if hasattr(layer, 'cache_all'): layer.cache_all()
-
-def prepare_generation(model):
-    model.eval()
-    if hasattr(model, 'cache_all'): model.cache_all()
-
-@torch.inference_mode()
-def generate_recurrent(model, batch_size=None, x=None):
-    from src.tasks.mixture import mixture_sample
-# TODO incorporate normalization function for dataset
-# TODO handle or document non-mixture case
-    """ generate remaining L-L' samples given x: (B, L', C) a context for the model """
-
-    if x is None:
-        assert batch_size is not None
-        x = torch.zeros(batch_size, model.d_model, device=device)
-        state = model.default_state(batch_size, device=device)
-    else: raise NotImplementedError("Conditional generation not implemented yet")
-
-    xs = []
-    for i in range(model.L):
-        print("pixel", i)
-        x, state = model.step(x, state)
-        x = mixture_sample(x)
-        # TODO postprocess: clamp, divide into buckets, renormalize
-        x = x.unsqueeze(-1)
-        xs.append(x)
-    sample = torch.stack(xs, dim=1)
-    print("recurrent sample shape", sample.shape)
-
-@torch.no_grad()
-def generate_global(model, batch_size=None, x=None, length=None):
-    from tasks.mixture import mixture_sample
-    """ generate remaining L-L' samples given x: (B, L', C) a context for the model """
-
-    if x is None:
-        assert batch_size is not None
-        x = torch.zeros(batch_size, model.L, model.d_input, device=device)
-    else: raise NotImplementedError("Conditional generation not implemented yet")
-
-    if length is None: length = model.L
-    for i in range(length):
-        print("pixel", i)
-        y = model(x)
-        y = torch.cat([y, y.new_zeros(batch_size, 1, model.d_output)], dim=1) # TODO handle sequence shape properly
-        z = mixture_sample(y[:, i, :])
-        # TODO postprocess: clamp, divide into buckets, renormalize
-        z = z.unsqueeze(-1)
-        x[:, i, :] = z
-    print("global sample shape", x.shape)
 

@@ -4,6 +4,7 @@
 checkpoint_callback: True
 default_root_dir: null
 gradient_clip_val: 0.0
+gradient_clip_algorithm: "norm" # norm, value
 process_position: 0
 num_nodes: 1
 num_processes: 1
@@ -34,7 +35,6 @@ weights_summary: "top"
 weights_save_path: null
 num_sanity_val_steps: 2
 truncated_bptt_steps: null
-resume_from_checkpoint: null
 profiler: null
 benchmark: False
 deterministic: False

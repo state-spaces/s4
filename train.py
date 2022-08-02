@@ -1,23 +1,121 @@
-from typing import List, Optional, Callable
+import copy
+import os
+import random
+import time
+from functools import partial, wraps
+from typing import Callable, List, Optional
+
+import hydra
 import numpy as np
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import pytorch_lightning as pl
+import wandb
+from hydra.utils import get_original_cwd
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.utilities import rank_zero_only
-import hydra
-from omegaconf import OmegaConf, DictConfig
-
-import src.utils as utils
-import src.utils.train
-from src.utils.optim.ema import build_ema_optimizer
-from src.utils import registry
-from src.tasks import encoders, decoders, tasks
-import src.models.nn.utils as U
-from src.dataloaders import SequenceDataset  # TODO make registry
+from pytorch_lightning.utilities import rank_zero_only, rank_zero_warn
 from tqdm.auto import tqdm
 
+import src.models.nn.utils as U
+import src.utils as utils
+import src.utils.train
+from src.dataloaders import SequenceDataset  # TODO make registry
+from src.tasks import decoders, encoders, tasks
+from src.utils import registry
+from src.utils.optim.ema import build_ema_optimizer
+from src.utils.optim_groups import add_optimizer_hooks
+
 log = src.utils.train.get_logger(__name__)
+
+# Turn on TensorFloat32 (speeds up large model training substantially)
+import torch.backends
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+
+
+# Lots of annoying hacks to get WandbLogger to continuously retry on failure
+class DummyExperiment:
+    """Dummy experiment."""
+
+    def nop(self, *args, **kw):
+        pass
+
+    def __getattr__(self, _):
+        return self.nop
+
+    def __getitem__(self, idx) -> "DummyExperiment":
+        # enables self.logger.experiment[0].add_image(...)
+        return self
+
+    def __setitem__(self, *args, **kwargs) -> None:
+        pass
+
+
+def rank_zero_experiment(fn: Callable) -> Callable:
+    """Returns the real experiment on rank 0 and otherwise the DummyExperiment."""
+
+    @wraps(fn)
+    def experiment(self):
+        @rank_zero_only
+        def get_experiment():
+            return fn(self)
+
+        return get_experiment() or DummyExperiment()
+
+    return experiment
+
+
+class CustomWandbLogger(WandbLogger):
+
+    def __init__(self, *args, **kwargs):
+        """Modified logger that insists on a wandb.init() call and catches wandb's error if thrown."""
+
+        super().__init__(*args, **kwargs)
+
+    @property
+    @rank_zero_experiment
+    def experiment(self):
+        r"""
+        Actual wandb object. To use wandb features in your
+        :class:`~pytorch_lightning.core.lightning.LightningModule` do the following.
+        Example::
+        .. code-block:: python
+            self.logger.experiment.some_wandb_function()
+        """
+        if self._experiment is None:
+            if self._offline:
+                os.environ["WANDB_MODE"] = "dryrun"
+
+            attach_id = getattr(self, "_attach_id", None)
+            if wandb.run is not None:
+                # wandb process already created in this instance
+                rank_zero_warn(
+                    "There is a wandb run already in progress and newly created instances of `WandbLogger` will reuse"
+                    " this run. If this is not desired, call `wandb.finish()` before instantiating `WandbLogger`."
+                )
+                self._experiment = wandb.run
+            elif attach_id is not None and hasattr(wandb, "_attach"):
+                # attach to wandb process referenced
+                self._experiment = wandb._attach(attach_id)
+            else:
+                # create new wandb process
+                while True:
+                    try:
+                        self._experiment = wandb.init(**self._wandb_init)
+                        break
+                    except Exception as e:
+                        print("wandb Exception:\n", e)
+                        t = random.randint(30, 60)
+                        print(f"Sleeping for {t} seconds")
+                        time.sleep(t)
+
+                # define default x-axis
+                if getattr(self._experiment, "define_metric", None):
+                    self._experiment.define_metric("trainer/global_step")
+                    self._experiment.define_metric("*", step_metric="trainer/global_step", step_sync=True)
+
+        return self._experiment
 
 
 class SequenceLightningModule(pl.LightningModule):
@@ -33,15 +131,9 @@ class SequenceLightningModule(pl.LightningModule):
         # Passing in config expands it one level, so can access by self.hparams.train instead of self.hparams.config.train
         self.save_hyperparameters(config, logger=False)
 
+        # Dataset arguments
         self.dataset = SequenceDataset.registry[self.hparams.dataset._name_](
-            **{
-                # Arguments for configuring dataloader when using TBPTT
-                "tbptt": self.hparams.train.state.mode == 'tbptt',
-                "chunk_len": self.hparams.train.state.chunk_len,
-                "overlap_len": self.hparams.train.state.overlap_len,
-                # Dataset arguments
-                **self.hparams.dataset, 
-            }
+            **self.hparams.dataset
         )
 
         # Check hparams
@@ -49,7 +141,8 @@ class SequenceLightningModule(pl.LightningModule):
 
         # PL has some bugs, so add hooks and make sure they're only called once
         self._has_setup = False
-        self._has_on_post_move_to_device = False
+
+        self.setup()  ## Added by KS
 
     def setup(self, stage=None):
         if not self.hparams.train.disable_dataset:
@@ -68,15 +161,21 @@ class SequenceLightningModule(pl.LightningModule):
         encoder_cfg = utils.to_list(self.hparams.encoder) + utils.to_list(
             self.hparams.model.pop("encoder", None)
         )
-        decoder_cfg = utils.to_list(self.hparams.model.pop("decoder", None)) + utils.to_list(self.hparams.decoder)
+        decoder_cfg = utils.to_list(
+            self.hparams.model.pop("decoder", None)
+        ) + utils.to_list(self.hparams.decoder)
 
         # Instantiate model
         self.model = utils.instantiate(registry.model, self.hparams.model)
+        if (name := self.hparams.train.post_init_hook['_name_']) is not None:
+            kwargs = self.hparams.train.post_init_hook.copy()
+            del kwargs['_name_']
+            for module in self.modules():
+                if hasattr(module, name):
+                    getattr(module, name)(**kwargs)
 
         # Instantiate the task
-        if "task" not in self.hparams:  # TODO maybe don't need this?
-            self.hparams.task = self.dataset.default_task
-        self.task = task = utils.instantiate(
+        self.task = utils.instantiate(
             tasks.registry, self.hparams.task, dataset=self.dataset, model=self.model
         )
 
@@ -85,17 +184,35 @@ class SequenceLightningModule(pl.LightningModule):
             encoder_cfg, dataset=self.dataset, model=self.model
         )
         decoder = decoders.instantiate(
-            self.hparams.decoder, model=self.model, dataset=self.dataset
+            decoder_cfg, model=self.model, dataset=self.dataset
         )
 
         # Extract the modules so they show up in the top level parameter count
-        self.encoder = U.TupleSequential(task.encoder, encoder)
-        self.decoder = U.TupleSequential(decoder, task.decoder)
-        self.loss = task.loss
-        self.metrics = task.metrics
+        self.encoder = U.PassthroughSequential(self.task.encoder, encoder)
+        self.decoder = U.PassthroughSequential(decoder, self.task.decoder)
+        self.loss = self.task.loss
+        self.loss_val = self.task.loss
+        if hasattr(self.task, 'loss_val'):
+            self.loss_val = self.task.loss_val
+        self.metrics = self.task.metrics
 
         # Handle state logic
         self._initialize_state()
+
+    def load_state_dict(self, state_dict, strict=True):
+        if self.hparams.train.pretrained_model_state_hook['_name_'] is not None:
+            model_state_hook = utils.instantiate(
+                registry.model_state_hook,
+                self.hparams.train.pretrained_model_state_hook.copy(),
+                partial=True,
+            )
+            # Modify the checkpoint['state_dict'] inside model_state_hook e.g. to inflate 2D convs to 3D convs
+            state_dict = model_state_hook(self.model, state_dict)
+
+        print("Custom load_state_dict function is running.")
+
+        # note, it needs to return something from the normal function we overrided
+        return super().load_state_dict(state_dict, strict=strict)
 
     def _check_config(self):
         assert self.hparams.train.state.mode in [None, "none", "null", "reset", "bptt", "tbptt"]
@@ -109,17 +226,14 @@ class SequenceLightningModule(pl.LightningModule):
             or isinstance(n, int)
             and n >= 0
         )
-        assert (
-            not (self.hparams.train.state.mode == 'tbptt') or 
-            (self.hparams.train.state.chunk_len is not None and 
-            self.hparams.train.state.overlap_len is not None)
-        ), "If tbptt is True, chunk_len and overlap_len must be specified."
 
     def _initialize_state(self):
+        """Called at model setup and start of epoch to completely reset state"""
         self._state = None
         self._memory_chunks = []
 
     def _reset_state(self, batch, device=None):
+        """Called to construct default_state when necessary, e.g. during BPTT"""
         device = device or batch[0].device
         self._state = self.model.default_state(*batch[0].shape[:1], device=device)
 
@@ -138,14 +252,14 @@ class SequenceLightningModule(pl.LightningModule):
             raise NotImplementedError
 
     def _process_state(self, batch, batch_idx, train=True):
-        """Handle logic for state context. This is unused for all current S3 experiments"""
-
+        """Handle logic for state context."""
         # Number of context steps
         key = "n_context" if train else "n_context_eval"
         n_context = self.hparams.train.state.get(key)
 
-        # Don't need to do anything if 0 context steps
+        # Don't need to do anything if 0 context steps. Make sure there is no state
         if n_context == 0 and self.hparams.train.state.mode not in ['tbptt']:
+            self._initialize_state()
             return
 
         # Reset state if needed
@@ -164,8 +278,8 @@ class SequenceLightningModule(pl.LightningModule):
             self._memory_chunks = self._memory_chunks[-n_context:]
 
         elif self.hparams.train.state.mode == 'tbptt':
-            _, _, *z = batch
-            reset = z[-1]  # if tbptt, last element of z should be whether to reset state!
+            _, _, z = batch
+            reset = z["reset"]
             if reset:
                 self._reset_state(batch)
             else:
@@ -177,52 +291,43 @@ class SequenceLightningModule(pl.LightningModule):
     def forward(self, batch):
         """Passes a batch through the encoder, backbone, and decoder"""
         # z holds arguments such as sequence length
-        x, y, *z = batch
-        # w can model-specific constructions such as key_padding_mask for transformers or state for RNNs
-        x, *w = self.encoder(x, *z)
-        x, state = self.model(x, *w, state=self._state)
+        x, y, *z = batch # z holds extra dataloader info such as resolution
+        if len(z) == 0:
+            z = {}
+        else:
+            assert len(z) == 1 and isinstance(z[0], dict), "Dataloader must return dictionary of extra arguments"
+            z = z[0]
+
+        x, w = self.encoder(x, **z) # w can model-specific constructions such as key_padding_mask for transformers or state for RNNs
+        x, state = self.model(x, **w, state=self._state)
         self._state = state
-        x, *w = self.decoder(x, state, *z)
-        return x, y, *w
+        x, w = self.decoder(x, state=state, **z)
+        return x, y, w
 
-    @torch.inference_mode()
-    def forward_recurrence(self, batch, k=1):
-        """This is a bit hacky; not part of the main train loop, only used to benchmark speed of recurrent view"""
-        x, y, *z = batch
-        T = x.shape[1]
-
-        if k > 1:
-            x = torch.cat([x] * k, dim=0)
-
-        self._state = self.model.default_state(*x.shape[:1], device="cuda")
-
-        x_all = []
-        w_all = []
-        for t in tqdm(range(T)):
-
-            x_t = x[:, t]
-            x_t = x_t.to("cuda")
-
-            x_t, *w_t = self.encoder(x_t)
-            x_t, state = self.model.step(x_t, state=self._state)
-            self._state = state
-            x_t, *w_t = self.decoder(x_t, state)
-
-            x_all.append(x_t)
-            w_all.append(w_t)
-        return torch.stack(x_all), y, *[torch.stack(w_) for w_ in zip(*w_all)]
+    def step(self, x_t):
+        x_t, *_ = self.encoder(x_t) # Potential edge case for encoders that expect (B, L, H)?
+        x_t, state = self.model.step(x_t, state=self._state)
+        self._state = state
+        # x_t = x_t[:, None, ...] # Dummy length
+        # x_t, *_ = self.decoder(x_t, state=state)
+        # x_t = x_t[:, 0, ...]
+        x_t, *_ = self.decoder.step(x_t, state=state)
+        return x_t
 
     def _shared_step(self, batch, batch_idx, prefix="train"):
 
         self._process_state(batch, batch_idx, train=(prefix == "train"))
 
-        x, y, *w = self.forward(batch)
+        x, y, w = self.forward(batch)
 
         # Loss
-        loss = self.loss(x, y, *w)
+        if prefix == 'train':
+            loss = self.loss(x, y, **w)
+        else:
+            loss = self.loss_val(x, y, **w)
 
         # Metrics
-        metrics = self.metrics(x, y)
+        metrics = self.metrics(x, y, **w)
         metrics["loss"] = loss
         metrics = {f"{prefix}/{k}": v for k, v in metrics.items()}
 
@@ -347,9 +452,14 @@ class SequenceLightningModule(pl.LightningModule):
 
     def configure_optimizers(self):
 
+        # Set zero weight decay for some params
+        if 'optimizer_param_grouping' in self.hparams.train:
+            add_optimizer_hooks(self.model, **self.hparams.train.optimizer_param_grouping)
+
         # Normal parameters
         all_params = list(self.parameters())
         params = [p for p in all_params if not hasattr(p, "_optim")]
+
 
         # Construct optimizer, add EMA if necessary
         if self.hparams.train.ema > 0.0:
@@ -361,27 +471,62 @@ class SequenceLightningModule(pl.LightningModule):
                 polyak=self.hparams.train.ema,
             )
         else:
-            optimizer = utils.instantiate(
-                registry.optimizer, self.hparams.optimizer, params
-            )
+            optimizer = utils.instantiate(registry.optimizer, self.hparams.optimizer, params)
 
         del self.hparams.optimizer._name_
 
         # Add parameters with special hyperparameters
         hps = [getattr(p, "_optim") for p in all_params if hasattr(p, "_optim")]
         hps = [
-            dict(s) for s in set(frozenset(hp.items()) for hp in hps)
+            # dict(s) for s in set(frozenset(hp.items()) for hp in hps)
+            dict(s) for s in sorted(list(dict.fromkeys(frozenset(hp.items()) for hp in hps)))
+            # dict(s) for s in dict.fromkeys(frozenset(hp.items()) for hp in hps)
         ]  # Unique dicts
+        print("Hyperparameter groups", hps)
         for hp in hps:
             params = [p for p in all_params if getattr(p, "_optim", None) == hp]
             optimizer.add_param_group(
                 {"params": params, **self.hparams.optimizer, **hp}
             )
 
+        ### Layer Decay ###
+
+        if self.hparams.train.layer_decay['_name_'] is not None:
+            get_num_layer = utils.instantiate(
+                registry.layer_decay,
+                self.hparams.train.layer_decay['_name_'],
+                partial=True,
+            )
+
+            # Go through all parameters and get num layer
+            layer_wise_groups = {}
+            num_max_layers = 0
+            for name, p in self.named_parameters():
+                # Get layer id for each parameter in the model
+                layer_id = get_num_layer(name)
+
+                # Add to layer wise group
+                if layer_id not in layer_wise_groups:
+                    layer_wise_groups[layer_id] = {
+                        'params': [],
+                        'lr': None,
+                        'weight_decay': self.hparams.optimizer.weight_decay
+                    }
+                layer_wise_groups[layer_id]['params'].append(p)
+
+                if layer_id > num_max_layers: num_max_layers = layer_id
+
+            # Update lr for each layer
+            for layer_id, group in layer_wise_groups.items():
+                group['lr'] = self.hparams.optimizer.lr * (self.hparams.train.layer_decay.decay ** (num_max_layers - layer_id))
+
+            # Reset the torch optimizer's param groups
+            optimizer.param_groups = []
+            for layer_id, group in layer_wise_groups.items():
+                optimizer.add_param_group(group)
+
         # Print optimizer info for debugging
-        keys = set(
-            [k for hp in hps for k in hp.keys()]
-        )  # Get the set of special hparams
+        keys = set([k for hp in hps for k in hp.keys()])  # Special hparams
         utils.train.log_optimizer(log, optimizer, keys)
 
         # Configure scheduler
@@ -430,7 +575,12 @@ class SequenceLightningModule(pl.LightningModule):
             test_loader_names += [name + "/ema" for name in test_loader_names]
             test_loaders = test_loaders + test_loaders
 
-        return val_loader_names + test_loader_names, val_loaders + test_loaders
+        # adding option to only have val loader at eval (eg if test is duplicate)
+        if self.hparams.train.get("remove_test_loader_in_eval", None) is not None:
+            return val_loader_names, val_loaders
+        # default behavior is to add test loaders in eval
+        else:
+            return val_loader_names + test_loader_names, val_loaders + test_loaders
 
     def val_dataloader(self):
         val_loader_names, val_loaders = self._eval_dataloaders()
@@ -443,8 +593,7 @@ class SequenceLightningModule(pl.LightningModule):
         return test_loaders
 
 
-### pytorch-lightning utils and entrypoint
-
+### pytorch-lightning utils and entrypoint ###
 
 def create_trainer(config, **kwargs):
     callbacks: List[pl.Callback] = []
@@ -456,7 +605,7 @@ def create_trainer(config, **kwargs):
         # Can pass in config_exclude_keys='wandb' to remove certain groups
         import wandb
 
-        logger = WandbLogger(
+        logger = CustomWandbLogger(
             config=utils.to_dict(config, recursive=True),
             settings=wandb.Settings(start_method="fork"),
             **config.wandb,
@@ -473,6 +622,7 @@ def create_trainer(config, **kwargs):
 
     # Configure ddp automatically
     if config.trainer.gpus > 1:
+        print("ddp automatically configured, more than 1 gpu used!")
         kwargs["plugins"] = [
             pl.plugins.DDPPlugin(
                 find_unused_parameters=True,
@@ -480,6 +630,14 @@ def create_trainer(config, **kwargs):
             )
         ]
         kwargs["accelerator"] = "ddp"
+
+    # Add ProgressiveResizing callback
+    if config.callbacks.get("progressive_resizing", None) is not None:
+        num_stages = len(config.callbacks.progressive_resizing.stage_params)
+        print(f"Progressive Resizing: {num_stages} stages")
+        for i, e in enumerate(config.callbacks.progressive_resizing.stage_params):
+            # Stage params are resolution and epochs, pretty print
+            print(f"\tStage {i}: {e['resolution']} @ {e['epochs']} epochs")
 
     kwargs.update(config.trainer)
     trainer = pl.Trainer(
@@ -495,43 +653,20 @@ def train(config):
         pl.seed_everything(config.train.seed, workers=True)
     trainer = create_trainer(config)
     model = SequenceLightningModule(config)
-    trainer.fit(model)
+
+    # Run initial validation epoch (useful for debugging, finetuning)
+    if config.train.validate_at_start:
+        print("Running validation before training")
+        trainer.validate(model)
+
+    if config.train.ckpt is not None:
+        trainer.fit(model, ckpt_path=config.train.ckpt)
+    else:
+        trainer.fit(model)
     if config.train.test:
         trainer.test(model)
 
 
-def benchmark_step(config):
-    """Utility function to benchmark speed of 'stepping', i.e. recurrent view. Unused for main train logic"""
-    pl.seed_everything(config.train.seed, workers=True)
-
-    model = SequenceLightningModule(config)
-    model.setup()
-    model.to("cuda")
-    print("Num Parameters: ", sum(p.numel() for p in model.parameters()))
-    print(
-        "Num Trainable Parameters: ",
-        sum(p.numel() for p in model.parameters() if p.requires_grad),
-    )
-    model._on_post_move_to_device()
-
-    for module in model.modules():
-        if hasattr(module, "setup_step"):
-            module.setup_step()
-    model.eval()
-
-    val_dataloaders = model.val_dataloader()
-    dl = val_dataloaders[0] if utils.is_list(val_dataloaders) else val_dataloaders
-
-    import benchmark
-
-    for batch in dl:
-        benchmark.utils.benchmark(
-            model.forward_recurrence,
-            batch,
-            config.train.benchmark_step_k,
-            T=config.train.benchmark_step_T,
-        )
-        break
 
 
 @hydra.main(config_path="configs", config_name="config.yaml")
@@ -545,10 +680,6 @@ def main(config: OmegaConf):
 
     # Pretty print config using Rich library
     utils.train.print_config(config, resolve=True)
-
-    if config.train.benchmark_step:
-        benchmark_step(config)
-        exit()
 
     train(config)
 

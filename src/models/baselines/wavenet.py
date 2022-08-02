@@ -17,7 +17,6 @@ def mu_law_expansion(data, mu):
     s = np.sign(data) * (np.exp(np.abs(data) * np.log(mu + 1)) - 1) / mu
     return s
 
-# def dilate(x, dilation, init_dilation=1, pad_start=True):
 def dilate(x, dilation, init_dilation=1):
     """
     :param x: Tensor of size (N, C, L), where N is the input dilation, C is the number of channels, and L is the input length
@@ -35,7 +34,6 @@ def dilate(x, dilation, init_dilation=1):
     new_l = int(np.ceil(l / dilation_factor) * dilation_factor)
     if new_l != l:
         l = new_l
-        # x = constant_pad_1d(x, new_l, dimension=2, pad_start=pad_start)
         x = constant_pad_1d(x, new_l)
 
     l_old = int(round(l / dilation_factor))
@@ -94,7 +92,7 @@ class DilatedQueue:
 def constant_pad_1d(
     input,
     target_size,
-):  
+):
     cp1d = torch.nn.ConstantPad1d((target_size - input.size(-1), 0), 0)
     return cp1d(input)
 
@@ -124,7 +122,7 @@ class WaveNetModel(SequenceModule):
 
     def default_state(self, *batch_shape, device=None):
         return None
-    
+
     def __init__(
         self,
         layers=10,
@@ -222,6 +220,17 @@ class WaveNetModel(SequenceModule):
 
         self.receptive_field = receptive_field
 
+        # print("Receptive field: {}".format(self.receptive_field))
+
+        ### TODO
+        # This piece of code used to go in the generation script to set up the WaveNet in autoregressive mode
+        # Instead of being in the generation script, it should go as part of this __init__ or default_state()
+        # if isinstance(model.model, WaveNetModel) and not benchmark:
+        #     l_prefix += model.model.receptive_field
+        #     T += model.model.receptive_field
+        #     if x.shape[1] == 1:
+        #         x = x.repeat(1, l_prefix + 1)
+        #########
 
     def wavenet(self, input, dilation_func):
 
@@ -280,15 +289,15 @@ class WaveNetModel(SequenceModule):
         queue.enqueue(input)
         x = queue.dequeue(num_deq=self.kernel_size,
                           dilation=dilation)
-        
+
         return x
 
-    def forward(self, input, state=None):
+    def forward(self, input, state=None, **kwargs):
         # BLD -> BDL
         input = input.transpose(1, 2).contiguous()
 
         x = self.wavenet(
-            input, 
+            input,
             dilation_func=self.wavenet_dilate,
         )
 
@@ -302,7 +311,7 @@ class WaveNetModel(SequenceModule):
             x = x.unsqueeze(1).unsqueeze(1)
         elif len(x.shape) == 2:
             x = x.unsqueeze(1)
-        
+
         if state is None:
             # Reset dilated queues
             for queue in self.dilated_queues:
@@ -313,37 +322,3 @@ class WaveNetModel(SequenceModule):
         x = x.transpose(1, 2).contiguous()
 
         return x, self.dilated_queues
-
-def test_wavenet():
-    wavenet = WaveNetModel(
-        layers=10,
-        blocks=4,
-        dilation_channels=32,
-        residual_channels=32,
-        skip_channels=256,
-        end_channels=256,
-        classes=256,
-        # output_length=16000,
-        kernel_size=2,
-    ).cuda()
-
-    print(wavenet)
-    print(wavenet.parameter_count())
-    print(wavenet.receptive_field)
-    # BLD
-    x = torch.randn(7, 4093 + 16, 256).cuda()
-    y, _ = wavenet(x)
-    print(y.shape)
-
-    with torch.no_grad():
-        state = None
-        ys = []
-        for i in range(x.shape[1]):
-            y_i, state = wavenet.step(x[:, i, :], state)
-            ys.append(y_i)
-        y_ = torch.stack(ys).squeeze().transpose(0, 1)
-    breakpoint()
-    # assert y.shape == (8, 16000, 256)
-
-if __name__ == "__main__":
-    test_wavenet()

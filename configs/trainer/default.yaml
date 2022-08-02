@@ -11,4 +11,3 @@ limit_val_batches: 1.0  # train on full dataset, can be used to toggle quick run
 weights_summary: top # Set to 'full' to see every layer
 progress_bar_refresh_rate: 1
 track_grad_norm: -1 # Set to 2 to track norms of gradients
-resume_from_checkpoint: null

@@ -1,53 +1,101 @@
-""" Utility wrappers around modules to let them handle Tuples and extra arguments """
+""" Utility wrappers around modules to let them handle Args and extra arguments """
 
-# import torch
+import inspect
+from functools import wraps
+import torch
 from torch import nn
 
-
-def TupleModule(module):
-    """ Wrap a nn.Module class with two features:
-        - discard extra arguments in the forward pass
-        - return a tuple
+def wrap_kwargs(f):
     """
-    # TODO maybe possible with functools.wraps
-    class WrappedModule(module):
-        def forward(self, x, *args, **kwargs):
-            y = super().forward(x)
-            return y if isinstance(y, tuple) else (y,)
-    # https://stackoverflow.com/questions/5352781/how-to-set-class-names-dynamically
-    WrappedModule.__name__ = module.__name__
-    return WrappedModule
+    Given a callable f that can consume some named arguments,
+    wrap it with a kwargs that passes back any unused args
 
-def Squeeze(module, dim=-1):
-    """ Wrap a nn.Module to squeeze a dimension.
-    Use for e.g. Embeddings, because our sequence API assumes a feature dimension while nn.Embedding does not
+    EXAMPLES
+    --------
+
+    Basic usage:
+    def foo(x, y=None):
+        return x
+
+    wrap_kwargs(foo)(0, y=1, z=2) == (0, {'z': 2})
+
+    --------
+
+    The wrapped function can return its own argument dictionary,
+    which gets merged with the new kwargs.
+    def foo(x, y=None):
+        return x, {}
+    wrap_kwargs(foo)(0, y=1, z=2) == (0, {'z': 2})
+
+    def foo(x, y=None):
+        return x, {"y": y, "z": None}
+    wrap_kwargs(foo)(0, y=1, z=2) == (0, {'y': 1, 'z': 2})
+
+    --------
+
+    The wrapped function can have its own kwargs parameter:
+    def foo(x, y=None, **kw_args):
+        return x, {}
+    wrap_kwargs(foo)(0, y=1, z=2) == (0, {})
+
+    --------
+
+    Partial functions and modules work automatically:
+    class Module:
+        def forward(self, x, y=0):
+            return x, {"y": y+1}
+
+    m = Module()
+
+    wrap_kwargs(m.forward)(0, y=1, z=2) == (0, {'y': 2, 'z': 2})
+
     """
-    class WrappedModule(module):
-        def forward(self, x, *args, **kwargs):
-            assert x.size(dim) == 1
-            x = x.squeeze(dim)
-            y = super().forward(x)
-            return y
-    # https://stackoverflow.com/questions/5352781/how-to-set-class-names-dynamically
-    WrappedModule.__name__ = module.__name__
-    return WrappedModule
+    sig = inspect.signature(f)
+    # Check if f already has kwargs
+    has_kwargs = any([
+        param.kind == inspect.Parameter.VAR_KEYWORD
+        for param in sig.parameters.values()
+    ])
+    if has_kwargs:
+        @wraps(f)
+        def f_kwargs(*args, **kwargs):
+            y = f(*args, **kwargs)
+            if isinstance(y, tuple) and isinstance(y[-1], dict):
+                return y
+            else:
+                return y, {}
+    else:
+        param_kwargs = inspect.Parameter("kwargs", kind=inspect.Parameter.VAR_KEYWORD)
+        sig_kwargs = inspect.Signature(parameters=list(sig.parameters.values())+[param_kwargs])
+        @wraps(f)
+        def f_kwargs(*args, **kwargs):
+            bound = sig_kwargs.bind(*args, **kwargs)
+            if "kwargs" in bound.arguments:
+                kwargs = bound.arguments.pop("kwargs")
+            else:
+                kwargs = {}
+            y = f(**bound.arguments)
+            if isinstance(y, tuple) and isinstance(y[-1], dict):
+                return *y[:-1], {**y[-1], **kwargs}
+            else:
+                return y, kwargs
+    return f_kwargs
 
-# TODO maybe call these TupleIdentity etc. instead?
-Identity = TupleModule(nn.Identity)
-Embedding = TupleModule(nn.Embedding)
-# Embedding = TupleModule(Squeeze(nn.Embedding))
-Linear = TupleModule(nn.Linear)
+def discard_kwargs(f):
+    if f is None: return None
+    f_kwargs = wrap_kwargs(f)
+    @wraps(f)
+    def f_(*args, **kwargs):
+        return f_kwargs(*args, **kwargs)[0]
+    return f_
 
-def TupleSequential(*modules):
-    """ Similar to TupleModule:
-    - Discard extra arguments in forward pass
-    - Return a Tuple
+def PassthroughSequential(*modules):
+    """Special Sequential module that chains kwargs.
 
     Semantics are the same as nn.Sequential, with extra convenience features:
     - Discard None modules
     - Flatten inner Sequential modules
-    - Discard extra Identity modules
-    - If only one Module, extract it to top level
+    - In case with 0 or 1 Module, rename the class for ease of inspection
     """
     def flatten(module):
         if isinstance(module, nn.Sequential):
@@ -56,34 +104,21 @@ def TupleSequential(*modules):
             return [module]
 
     modules = flatten(nn.Sequential(*modules))
-    modules = [module for module in modules if module if not None and not isinstance(module, nn.Identity)]
+    modules = [module for module in modules if module if not None]
 
     class Sequential(nn.Sequential):
-        def forward(self, x, *args, **kwargs):
-            # layer_args = []
-            x = x,
+        def forward(self, x, **kwargs):
             for layer in self:
-                x = layer(*(x + args), **kwargs) # Always a tuple
-                # args = tuple(layer_args) + args
-            return x # Returns a tuple
+                x, kwargs = wrap_kwargs(layer.forward)(x, **kwargs)
+            return x, kwargs
+
+        def step(self, x, **kwargs):
+            for layer in self:
+                x, kwargs = wrap_kwargs(layer.step)(x, **kwargs)
+            return x, kwargs
 
     if len(modules) == 0:
-        return Identity()
+        Sequential.__name__ = "Identity"
     elif len(modules) == 1:
-        return modules[0]
-    else:
-        return Sequential(*modules)
-
-def Transpose(module_cls):
-    class TransposedModule(module_cls):
-        def __init__(self, *args, transposed=False, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.transposed = transposed
-
-        def forward(self, x, *args, **kwargs):
-            if self.transposed: x = x.transpose(-1, -2)
-            y, *z = super().forward(x, *args, **kwargs)
-            if self.transposed: y = y.transpose(-1, -2)
-            return y, *z
-    TransposedModule.__name__ = module_cls.__name__
-    return TransposedModule
+        Sequential.__name__ = type(modules[0]).__name__
+    return Sequential(*modules)

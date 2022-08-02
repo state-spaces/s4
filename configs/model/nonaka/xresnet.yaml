@@ -1,0 +1,15 @@
+_name_: nonaka/xresnet50
+input_channels: 3
+num_classes: 1000
+stem_szs: [32, 32, 64]
+kernel_size: 5
+kernel_size_stem: 5
+widen: 1.0
+sa: False
+# act_cls: nn.ReLU
+lin_ftrs_head: null
+ps_head: 0.5
+bn_final_head: False
+bn_head: True
+act_head: "relu"
+concat_pooling: True

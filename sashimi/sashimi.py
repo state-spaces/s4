@@ -2,11 +2,11 @@
 SaShiMi backbone.
 
 Use this backbone in your own models. You'll also need to copy over the
-standalone S4 layer, which can be found at 
+standalone S4 layer, which can be found at
 `state-spaces/src/models/sequence/ss/standalone/s4.py`.
 
 It's Raw! Audio Generation with State-Space Models
-Karan Goel, Albert Gu, Chris Donahue, Christopher Re. 
+Karan Goel, Albert Gu, Chris Donahue, Christopher Re.
 """
 import sys
 sys.path.append('../')
@@ -17,7 +17,7 @@ import torch.nn.functional as F
 
 from einops import rearrange
 
-from src.models.sequence.ss.standalone.s4 import LinearActivation, S4
+from src.models.s4.s4 import LinearActivation, S4
 
 class DownPool(nn.Module):
     def __init__(self, d_input, expand, pool):
@@ -29,7 +29,6 @@ class DownPool(nn.Module):
             d_input * pool,
             self.d_output,
             transposed=True,
-            weight_norm=True,
         )
 
     def forward(self, x):
@@ -67,15 +66,14 @@ class UpPool(nn.Module):
             d_input,
             self.d_output * pool,
             transposed=True,
-            weight_norm=True,
         )
 
     def forward(self, x, skip=None):
         x = self.linear(x)
-        
+
         x = F.pad(x[..., :-1], (1, 0)) # Shift to ensure causality
         x = rearrange(x, '... (h s) l -> ... h (l s)', s=self.pool)
-    
+
         if skip is not None:
             x = x + skip
         return x, None
@@ -116,7 +114,7 @@ class FFBlock(nn.Module):
         super().__init__()
 
         input_linear = LinearActivation(
-            d_model, 
+            d_model,
             d_model * expand,
             transposed=True,
             activation='gelu',
@@ -125,7 +123,7 @@ class FFBlock(nn.Module):
         dropout = nn.Dropout2d(dropout) if dropout > 0.0 else nn.Identity()
         output_linear = LinearActivation(
             d_model * expand,
-            d_model, 
+            d_model,
             transposed=True,
             activation=None,
             activate=False,
@@ -151,8 +149,8 @@ class FFBlock(nn.Module):
 class ResidualBlock(nn.Module):
 
     def __init__(
-        self, 
-        d_model, 
+        self,
+        d_model,
         layer,
         dropout=0.0,
     ):
@@ -176,10 +174,10 @@ class ResidualBlock(nn.Module):
         Input x is shape (B, d_input, L)
         """
         z = x
-        
+
         # Prenorm
         z = self.norm(z.transpose(-1, -2)).transpose(-1, -2)
-        
+
         # Apply layer: we ignore the state input and output for training
         z, _ = self.layer(z)
 
@@ -212,34 +210,34 @@ class ResidualBlock(nn.Module):
 class Sashimi(nn.Module):
     def __init__(
         self,
-        d_model=64, 
-        n_layers=8, 
-        pool=[4, 4], 
-        expand=2, 
-        ff=2, 
+        d_model=64,
+        n_layers=8,
+        pool=[4, 4],
+        expand=2,
+        ff=2,
         bidirectional=False,
         glu=True,
         unet=False,
         dropout=0.0,
     ):
         """
-        SaShiMi model backbone. 
+        SaShiMi model backbone.
 
         Args:
             d_model: dimension of the model. We generally use 64 for all our experiments.
-            n_layers: number of (Residual (S4) --> Residual (FF)) blocks at each pooling level. 
-                We use 8 layers for our experiments, although we found that increasing layers even further generally 
+            n_layers: number of (Residual (S4) --> Residual (FF)) blocks at each pooling level.
+                We use 8 layers for our experiments, although we found that increasing layers even further generally
                 improves performance at the expense of training / inference speed.
-            pool: pooling factor at each level. Pooling shrinks the sequence length at lower levels. 
+            pool: pooling factor at each level. Pooling shrinks the sequence length at lower levels.
                 We experimented with a pooling factor of 4 with 1 to 4 tiers of pooling and found 2 tiers to be best.
                 It's possible that a different combination of pooling factors and number of tiers may perform better.
             expand: expansion factor when pooling. Features are expanded (i.e. the model becomes wider) at lower levels of the architecture.
                 We generally found 2 to perform best (among 2, 4).
             ff: expansion factor for the FF inverted bottleneck. We generally found 2 to perform best (among 2, 4).
-            bidirectional: use bidirectional S4 layers. Bidirectional layers are suitable for use with non-causal models 
+            bidirectional: use bidirectional S4 layers. Bidirectional layers are suitable for use with non-causal models
                 such as diffusion models like DiffWave.
             glu: use gated linear unit in the S4 layers. Adds parameters and generally improves performance.
-            unet: use a unet-like architecture, adding (Residual (S4) --> Residual (FF)) layers before downpooling. 
+            unet: use a unet-like architecture, adding (Residual (S4) --> Residual (FF)) layers before downpooling.
                 All else fixed, this slows down inference (and slightly slows training), but generally improves performance.
                 We use this variant when dropping in SaShiMi into diffusion models, and this should generally be preferred
                 for non-autoregressive models.
@@ -251,21 +249,12 @@ class Sashimi(nn.Module):
 
         def s4_block(dim):
             layer = S4(
-                d_model=dim, 
+                d_model=dim,
                 d_state=64,
                 bidirectional=bidirectional,
                 postact='glu' if glu else None,
                 dropout=dropout,
                 transposed=True,
-                # hurwitz=True, # use the Hurwitz parameterization for stability
-                # tie_state=True, # tie SSM parameters across d_state in the S4 layer
-                trainable={
-                    'dt': True,
-                    'A': True,
-                    'P': True,
-                    'B': True,
-                }, # train all internal S4 parameters
-                    
             )
             return ResidualBlock(
                 d_model=dim,
@@ -297,13 +286,13 @@ class Sashimi(nn.Module):
             # Add sequence downsampling and feature expanding
             d_layers.append(DownPool(H, expand, p))
             H *= expand
-        
+
         # Center block
         c_layers = []
         for _ in range(n_layers):
             c_layers.append(s4_block(H))
             if ff > 0: c_layers.append(ff_block(H))
-        
+
         # Up blocks
         u_layers = []
         for p in pool[::-1]:
@@ -316,7 +305,7 @@ class Sashimi(nn.Module):
                 if ff > 0: block.append(ff_block(H))
 
             u_layers.append(nn.ModuleList(block))
-        
+
         self.d_layers = nn.ModuleList(d_layers)
         self.c_layers = nn.ModuleList(c_layers)
         self.u_layers = nn.ModuleList(u_layers)
@@ -433,42 +422,12 @@ class Sashimi(nn.Module):
         Convert the SaShiMi model to a RNN for autoregressive generation.
 
         Args:
-            mode: S4 recurrence mode. Using `diagonal` can speed up generation by 10-20%. 
-                `linear` should be faster theoretically but is slow in practice since it 
+            mode: S4 recurrence mode. Using `diagonal` can speed up generation by 10-20%.
+                `linear` should be faster theoretically but is slow in practice since it
                 dispatches more operations (could benefit from fused operations).
                 Note that `diagonal` could potentially be unstable if the diagonalization is numerically unstable
                 (although we haven't encountered this case in practice), while `dense` should always be stable.
         """
         assert mode in ['dense', 'diagonal', 'linear']
         for module in self.modules():
-            if hasattr(module, 'setup_step'): module.setup_step(mode)
-
-
-if __name__ == '__main__':
-    from tqdm.auto import tqdm
-
-    model = Sashimi(n_layers=2).cuda()
-    # Print parameter count
-    print(sum(p.numel() for p in model.parameters()))
-
-    model.eval()
-
-    with torch.no_grad():
-        # Forward in convolutional mode: used for training SaShiMi
-        x = torch.randn(3, 10240, 64).cuda()
-        y, _ = model(x)
-        
-        # Setup the SaShiMi RNN
-        model.setup_rnn('diagonal')
-
-        # Forward in recurrent mode: used for autoregressive generation at inference time
-        ys = []
-        state = model.default_state(*x.shape[:1], device='cuda')
-        for i in tqdm(range(10240)):
-            y_, state = model.step(x[:, i], state)
-            ys.append(y_.detach().cpu())
-        
-        ys = torch.stack(ys, dim=1)
-        breakpoint()
-
-        print(y.shape, ys.shape)
+            if hasattr(module, 'setup_step'): module.setup_step(mode=mode)

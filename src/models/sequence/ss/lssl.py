@@ -1,4 +1,4 @@
-""" Implementation of LSSL module. Succeeded by S3. """
+"""Implementation of LSSL module. Succeeded by S4."""
 
 import math
 import torch
@@ -11,7 +11,7 @@ from src.models.nn import Activation
 from src.models.functional.krylov import krylov
 from src.models.hippo import transition, hippo
 from src.models.functional.toeplitz import causal_convolution
-from src.models.sequence.base import SequenceModule
+from src.models.sequence.base import SequenceModule, TransposedModule
 import src.models.nn.utils as U
 
 def linear_system_from_krylov(u, C, D, k):
@@ -303,7 +303,6 @@ class Platypus(SequenceModule):
 
         if self.ff:
             y = self.output_linear(y) # (L, B, H)
-            # y = self.drop(y) # moved to residual
         y = y.transpose(0, 1) # Back to (B, L, H) as expected
         return y, next_state
 
@@ -338,21 +337,4 @@ class Platypus(SequenceModule):
     def state_to_tensor(self):
         return lambda state: state
 
-LSSL = U.Transpose(Platypus)
-
-if __name__ == '__main__':
-    device = torch.device('cuda')
-
-    N = 8
-    B = 1
-    d = 5
-    L = 10
-    u = torch.randn(L, B, d).to(device)
-    measure = 'identity'
-    # measure = 'legt'
-    dt_min = 1e-3
-    dt_max = 1e0
-
-    platypus = Platypus(d, N, measure=measure, init='constant').to(device)
-    y, _ = platypus(u)
-    print(y, y.shape)
+LSSL = TransposedModule(Platypus)

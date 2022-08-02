@@ -1,0 +1,34 @@
+# @package _global_
+defaults:
+  - /pipeline: adding
+  - /model: baseline/ckconv
+  - override /dataset: bidmc
+  - override /scheduler: multistep
+
+dataset:
+  target: SpO2 # 'RR' | 'HR' | 'SpO2'
+
+model:
+  d_input: 2
+  d_output: 1
+  dropout: 0.0
+
+encoder: id
+decoder: id
+
+loader:
+  batch_size: 32
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.00
+
+trainer:
+  max_epochs: 500
+
+scheduler:
+  milestones: [100,200,300,400,500]
+  gamma: 0.5
+
+train:
+  seed: 1112

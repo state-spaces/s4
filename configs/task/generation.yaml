@@ -1,8 +1,0 @@
-_target_: tasks.tasks.GeneralTask
-encoder:
-  _name_: embedding
-decoder:
-  _name_: sequence
-loss: cross_entropy
-metrics:
-  - bpb

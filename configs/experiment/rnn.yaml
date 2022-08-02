@@ -1,0 +1,26 @@
+# @package _global_
+# Basic rnn experiment
+# Override model/layer/cell for different RNN cells, e.g. `python -m train experiment=rnn model/layer/cell=hippo-legs
+defaults:
+  - /pipeline: mnist
+  - /model: s4
+  - override /model/layer: rnn
+
+# Different default settings for model backbone
+model:
+  prenorm: False
+  transposed: False
+  n_layers: 1
+  d_model: 256
+  residual: N
+  pool: null
+  norm: none
+  dropout: 0.0
+  tie_dropout: false
+  # In the 1 layer case, memory optimization by not returning outputs
+  track_norms: false
+  layer:
+    return_output: false
+
+# Decode using the end state
+decoder: state

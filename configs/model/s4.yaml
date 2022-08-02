@@ -1,15 +1,6 @@
-# _target_: models.sequence.SequenceModel
 defaults:
-  - layer: s4
-_name_: model
-prenorm: False
-transposed: True
-n_layers: 4
-d_model: 256
-residual: R
-pool:
-  _name_: sample
-  stride: 1
-  expand: 1
-norm: layer
-dropout: 0.0
+  - base
+  - override layer: s4
+
+transposed: false # Actually faster than "true"
+tie_dropout: true

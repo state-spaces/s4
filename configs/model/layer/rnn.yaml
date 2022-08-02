@@ -1,1 +1,5 @@
+defaults:
+  - cell: rnn
+
 _name_: rnn
+return_output: true

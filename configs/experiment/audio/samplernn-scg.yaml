@@ -1,0 +1,38 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: tbptt
+  - /dataset: scg
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+  - /model: baseline/samplernn
+
+dataset:
+  discrete_input: true
+
+model:
+  bits: 8
+  quantization: mu-law
+
+train:
+  monitor: val/loss # Needed for plateau scheduler
+  mode: min
+  state:
+    mode: tbptt
+
+loader:
+  chunk_len: 1024
+  overlap_len: 64 # this is model dependent
+  batch_size: 128
+
+task:
+  metrics: bpb
+
+encoder: id
+decoder: id
+
+
+trainer:
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: value

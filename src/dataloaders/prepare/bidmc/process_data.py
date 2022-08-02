@@ -4,11 +4,10 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 import sktime
-from sktime.utils.data_io import load_from_tsfile_to_dataframe
+from sktime.datasets import load_from_tsfile_to_dataframe
 import data_loader as data
 
 DATA_PATH = "data/"
-# DATASET = 'RR'
 
 
 def split_data(
@@ -39,12 +38,12 @@ def _to_numpy(X):
 
 def process_data(DATASET, shuffle=True, seed=0):
     X_train_orig, y_train_orig = data.load_from_tsfile_to_dataframe(
-        os.path.join(f"{DATA_PATH}/{DATASET}/BIDMC32{DATASET}_TRAIN.ts"),
+        os.path.join(f"{DATASET}/BIDMC32{DATASET}_TRAIN.ts"),
         replace_missing_vals_with="NaN",
     )
 
     X_test_orig, y_test_orig = data.load_from_tsfile_to_dataframe(
-        os.path.join(f"{DATA_PATH}/{DATASET}/BIDMC32{DATASET}_TEST.ts"),
+        os.path.join(f"{DATASET}/BIDMC32{DATASET}_TEST.ts"),
         replace_missing_vals_with="NaN",
     )
 
@@ -53,7 +52,7 @@ def process_data(DATASET, shuffle=True, seed=0):
     )
 
     split = "reshuffle" if shuffle else "original"
-    data_dir = os.path.join(DATA_PATH, DATASET, split)
+    data_dir = os.path.join(DATASET, split)
     os.makedirs(data_dir, exist_ok=True)
     np.save(os.path.join(data_dir, "trainx.npy"), _to_numpy(X_train))
     np.save(os.path.join(data_dir, "trainy.npy"), y_train)
@@ -63,7 +62,7 @@ def process_data(DATASET, shuffle=True, seed=0):
     np.save(os.path.join(data_dir, "testy.npy"), y_test)
 
     for f in ["trainx", "trainy", "validx", "validy", "testx", "testy"]:
-        df = np.load(f"{DATA_PATH}/{DATASET}/{split}/{f}.npy")
+        df = np.load(f"{DATASET}/{split}/{f}.npy")
         print(f, df.shape, df.dtype)
 
 

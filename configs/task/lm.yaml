@@ -1,8 +1,5 @@
-_target_: tasks.tasks.GeneralTask
-encoder:
-  _name_: linear
-decoder:
-  _name_: feature
-loss: cross_entropy
-metrics:
-  - accuracy
+_name_: lm
+tied: false
+rescale: true
+# loss: cross_entropy # Handled by task: cross entropy loss
+metrics: bpb # Bits per byte

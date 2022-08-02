@@ -1,0 +1,16 @@
+defaults:
+  - config
+
+
+experiment_path: null                      # Path to state-spaces experiment folder
+checkpoint_path: checkpoints/val/loss.ckpt # Relative path to checkpoint in state-spaces experiment folder. Uses checkpoints/val/loss.ckpt by default.
+l_sample: 16000                            # Sample length
+n_samples: 32                              # Number of distinct conditioning samples drawn from dataset
+n_reps: 1                                  # Number of times to replicate each sample
+l_prefix: 0                                # Prefix length: num steps to use for conditioning
+top_p: 1.                                  # Nucleus sampling
+temp: 1.                                   # Temperature
+split: val                                 # If conditioning, which split of the data to use ['val' | 'test']
+save_dir: sashimi/samples                  # Save directory. Pass in 'null' (None) to save in Hydra directory to ensure that samples are not overridden
+load_data: true                            # Load the dataset (set to false to disable if not conditioning)
+decode: audio                              # Decoding mode ['audio' | 'text' | None]. The pretrained WikiText-103 model currently does not generate correctly

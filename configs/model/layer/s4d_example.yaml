@@ -1,0 +1,7 @@
+# Config for standalone example s4d file
+_name_: s4d
+d_state: 64
+dropout: ${..dropout} # Same as null
+dt_min: 0.001
+dt_max: 0.1
+lr: 0.001

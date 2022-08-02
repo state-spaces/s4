@@ -1,0 +1,8 @@
+_name_: lmu
+d_model: 256
+memory_size: 1
+memory_order: -1
+dt: 1.0
+theta: 784
+discretization: zoh
+gate: N

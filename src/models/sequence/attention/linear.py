@@ -10,7 +10,7 @@ from einops import rearrange
 from fast_transformers.feature_maps import elu_feature_map
 from fast_transformers.masking import TriangularCausalMask
 
-from models.sequence.base import SequenceModule
+from models.sequence.base import SequenceModule, TransposedModule
 import src.models.nn.utils as U
 
 try:
@@ -125,6 +125,7 @@ class LinearAttention(nn.Module):
         out = rearrange(out, 'b h s d -> b s (h d)')
         return out, attn
 
+@TransposedModule
 class Performer(SequenceModule):
     """ [21-09-29] TODO the MHA class should take options for attention like full, performer, etc. Currently this is essentially duplicated from MultiheadAttention class """
     def __init__(self, d_model, n_heads, *args, causal=True, **kwargs):
@@ -145,5 +146,3 @@ class Performer(SequenceModule):
 
     def step(self, x, state):
         raise NotImplementedError
-
-Performer = U.Transpose(Performer)

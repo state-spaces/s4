@@ -1,0 +1,12 @@
+# Example of composing our RNN classes to build more advanced models,
+# such as the Gated Orthogonal Recurrent Unit
+# https://arxiv.org/abs/1706.02761
+_name_: gru
+d_model: 256
+hidden_activation: modrelu
+gate: G
+reset: G
+orthogonal: True
+ortho_args:
+  method: dtriv # 'cayley' | 'exprnn' | 'dtriv'
+  init: cayley # 'henaff' | 'cayley'

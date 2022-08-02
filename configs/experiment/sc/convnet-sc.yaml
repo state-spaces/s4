@@ -1,0 +1,29 @@
+# @package _global_
+defaults:
+  - /pipeline: sc
+  - /model: convnet_1d
+  - override /scheduler: cosine_warmup
+
+dataset:
+  length: 16384
+
+encoder:
+  _name_: conv1d
+  kernel_size: 25
+  stride: 1
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.05
+
+loader:
+  batch_size: 16
+
+trainer:
+  max_epochs: 40
+
+scheduler:
+  num_training_steps: 200000
+
+train:
+  seed: 2222

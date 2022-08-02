@@ -1,0 +1,16 @@
+_name_: nonaka/resnet18
+num_classes: 2 # Set to d_input
+input_channels: 3 # Set to d_output
+kernel_size: 3
+inplanes: 64
+fix_feature_dim: True
+kernel_size_stem : null
+stride_stem: 2
+pooling_stem: True
+stride: 2
+lin_ftrs_head: null
+ps_head: 0.5
+bn_final_head: False
+bn_head: True
+act_head: relu
+concat_pooling: True

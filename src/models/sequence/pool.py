@@ -1,4 +1,4 @@
-""" Implements downsampling and upsampling on sequences """
+"""Implements downsampling and upsampling on sequences."""
 
 import torch
 from torch import nn
@@ -14,24 +14,20 @@ stride: Subsample on the layer dimension
 expand: Repeat on the feature dimension
 """
 
-def downsample(x, stride=1, expand=1, average=False, transposed=False):
+def downsample(x, stride=1, expand=1, transposed=False):
     if x is None: return None
     if stride > 1:
-        # TODO higher dimension stuff
+        assert x.ndim == 3, "Downsampling with higher-dimensional inputs is currently not supported. It is recommended to use average or spectral pooling instead."
         if transposed:
-            # einops appears slower than F
-            # if average: x = reduce(x, '... (l s) -> ... l', 'mean', s=stride)
-            if average: x = F.avg_pool1d(x, stride, stride)
-            else: x = x[..., 0::stride]
+            x = x[..., 0::stride]
         else:
-            if average: x = reduce(x, '... (l s) h -> ... l h', 'mean', s=stride)
-            else: x = x[..., 0::stride, :]
+            x = x[..., 0::stride, :]
 
     if expand > 1:
         if transposed:
-            x = repeat(x, '... d l -> ... (d e) l', e=expand)
+            x = repeat(x, 'b d ... -> b (d e) ...', e=expand)
         else:
-            x = repeat(x, '... d -> ... (d e)', e=expand)
+            x = repeat(x, 'b ... d -> b ... (d e)', e=expand)
 
     return x
 
@@ -55,7 +51,6 @@ class DownSample(SequenceModule):
         self.d_input = d_input
         self.stride = stride
         self.expand = expand
-        # self.average = average
         self.transposed = transposed
 
     def forward(self, x):
@@ -76,11 +71,67 @@ class DownAvgPool(SequenceModule):
         self.d_input = d_input
         self.stride = stride
         self.expand = expand
-        # self.average = average
         self.transposed = transposed
 
     def forward(self, x):
-        return downsample(x, self.stride, self.expand, True, self.transposed)
+        if not self.transposed:
+            x = rearrange(x, 'b ... d -> b d ...')
+        # einops appears slower than F
+        if x.ndim == 3:
+            x = F.avg_pool1d(x, self.stride, self.stride)
+        elif x.ndim == 4:
+            x = F.avg_pool2d(x, self.stride, self.stride)
+        else:
+            # Reduction string e.g. "b d (l1 2) (l2 2) -> b d l1 l2"
+            reduce_str = "b d " + " ".join([f"(l{i} {self.stride})" for i in range(x.ndim-2)]) \
+                    + " -> b d " + " ".join([f"l{i}" for i in range(x.ndim-2)])
+            x = reduce(x, reduce_str, 'mean')
+
+        if self.expand > 1:
+            x = repeat(x, 'b d ... -> b (d e) ...', e=self.expand)
+        if not self.transposed:
+            x = rearrange(x, 'b d ... -> b ... d')
+        return x
+
+    def step(self, x, state, **kwargs):
+        if self.stride > 1 or self.expand > 1:
+            raise NotImplementedError
+        return x, state
+
+    @property
+    def d_output(self):
+        return self.d_input * self.expand
+
+class DownSpectralPool(SequenceModule):
+    def __init__(self, d_input, stride=1, expand=1, transposed=True):
+        super().__init__()
+        self.d_input = d_input
+        self.stride = stride
+        self.expand = expand
+        self.transposed = transposed
+
+    def forward(self, x):
+        """
+        x: (B, L..., D)
+        """
+        if not self.transposed:
+            x = rearrange(x, 'b ... d -> b d ...')
+        shape = x.shape[2:]
+        x_f = torch.fft.ifftn(x, s=shape)
+
+        for axis, l in enumerate(shape):
+            assert l % self.stride == 0, 'input length must be divisible by stride'
+            new_l = l // self.stride
+            idx = torch.cat([torch.arange(0, new_l-new_l//2), l+torch.arange(-new_l//2, 0)]).to(x_f.device)
+            x_f = torch.index_select(x_f, 2+axis, idx)
+        x = torch.fft.ifftn(x_f, s=[l//self.stride for l in shape])
+        x = x.real
+
+        if self.expand > 1:
+            x = repeat(x, 'b d ... -> b (d e) ...', e=self.expand)
+        if not self.transposed:
+            x = rearrange(x, 'b d ... -> b ... d')
+        return x
 
     def step(self, x, state, **kwargs):
         if self.stride > 1 or self.expand > 1:
@@ -124,10 +175,6 @@ class DownLinearPool(SequenceModule):
             d_input * stride,
             d_input * expand,
             transposed=transposed,
-            # initializer=initializer,
-            # weight_norm = weight_norm,
-            # activation=activation,
-            # activate=True if activation is not None else False,
         )
 
     def forward(self, x):
@@ -168,13 +215,16 @@ class DownPool2d(SequenceModule):
         if self.transposed:
             x = self.pool(x)
 
+# TODO DownPool/UpPool are currently used by unet/sashimi backbones
+# DownLinearPool is used by the registry (for isotropic backbone)
+# DownPool is essentially the same as DownLinearPool. These should be consolidated
 class DownPool(SequenceModule):
     def __init__(self, d_input, d_output=None, expand=None, stride=1, transposed=True, weight_norm=True, initializer=None, activation=None):
         super().__init__()
         assert (d_output is None) + (expand is None) == 1
         if d_output is None: d_output = d_input * expand
 
-        self._d_output = d_output
+        self.d_output = d_output
         self.stride = stride
         self.transposed = transposed
 
@@ -212,14 +262,11 @@ class DownPool(SequenceModule):
         else:
             return None, state
 
-    def default_state(self, *args, **kwargs):
+    def default_state(self, *batch_shape, device=None):
         return []
 
-    @property
-    def d_output(self): return self._d_output
 
-
-class UpPool(SequenceModule): # TODO subclass SequenceModule
+class UpPool(SequenceModule):
     def __init__(self, d_input, d_output, stride, transposed=True, weight_norm=True, initializer=None, activation=None):
         super().__init__()
 
@@ -279,21 +326,5 @@ registry = {
     'sample': DownSample,
     'pool': DownAvgPool,
     'linear': DownLinearPool,
-    # 'pool': DownPool,
+    'spectral': DownSpectralPool,
 }
-
-if __name__ == '__main__':
-    from benchmark import utils
-
-    a = torch.ones(50, 256, 1024)
-    a, = utils.convert_data(a)
-    stride = 4
-
-    y0 = downsample(a, stride=stride, average=True, transposed=True)
-    y1 = F.avg_pool1d(a, stride, stride)
-
-    print(y0.shape, y1.shape)
-    print(y0 - y1)
-
-    utils.benchmark(downsample, a, stride, 1, True, True, repeat=100, desc='einops')
-    utils.benchmark(F.avg_pool1d, a, stride, stride, repeat=100, desc='torch')
