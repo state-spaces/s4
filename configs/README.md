@@ -36,13 +36,22 @@ Default combinations of dataset+loader+encoder+decoder+task are further consolid
 
 ## Helpful Tips
 
+### Inspect the Config
 - At the beginning of running `train.py`, the full Hydra config is printed. This is very useful for making sure all flags were passed in as intended. Try running `python -m train` and inspecting the full base config.
 
+### Class Instantiation
 - Generally, most dictionaries in the config correspond exactly to the arguments passed into a Python class. For example, the configs in `model/`, `dataset/`, `loader/`, `optimizer/`, `scheduler/`, `trainer/` define dictionaries which each instantiate exactly one object (a PyTorch `nn.Module`, `SequenceDataset`, PyTorch [DataLoader](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html), PyTorch optimizer, PyTorch scheduler, and [PyTorch LightningTrainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html)).
 
-- The file `src/utils/registry.py` maps the shorthand names found in these configs (wherever a `_name_` attribute appears) to the corresponding class.
+### Registries
+- Instantiating objects is controlled by the very useful Hydra [instantiate](https://hydra.cc/docs/advanced/instantiate_objects/overview/) utility.
+- In this codebase, instead of defining a `_target_=<path>.<to>.<module>`, we use shorthand names for each desired class (wherever a `_name_` attribute appears). The file `src/utils/registry.py` lists these shorthand names found in these configs to the full class path.
 
-- It is recommended to read the overview in `src/README.md` to fully understand how models, datasets, tasks, and pipelines are put together.
+### Source Code Documentation
+- Check READMEs for the source code. For example, the configs in [configs/model](model) correspond to classes in [src/models](../src/models), the configs in [configs/dataset](dataset) correspond to classes in [src/dataloaders](../src/dataloaders).
+
+<!--
+It is recommended to read the overview in `src/README.md` to fully understand how models, datasets, tasks, and pipelines are put together.
+-->
 
 
 ## Example
@@ -142,4 +151,4 @@ decoder:
 
 An experiment combines every type of config into a complete end-to-end experiment.
 Generally, this consists of a pipeline and model, together with training details such as the optimizer and scheduler.
-See `experiment/README.md`.
+See [experiment/README.md](experiment/).

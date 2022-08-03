@@ -1,7 +1,5 @@
 import math
 import torch
-import timm
-import timm.loss
 import torch.nn.functional as F
 from sklearn.metrics import f1_score, roc_auc_score
 from functools import partial
@@ -192,7 +190,6 @@ output_metric_fns = {
     "roc_auc_macro": roc_auc_macro,
     "roc_auc_micro": roc_auc_micro,
     "soft_cross_entropy": soft_cross_entropy,  # only for pytorch 1.10+
-    "timm_soft_cross_entropy": timm.loss.SoftTargetCrossEntropy(),  # allows back compatability for pytorch 1.9
     "student_t": student_t_loss,
     "gaussian_ll": gaussian_ll_loss,
 }

@@ -1,5 +1,8 @@
 This README provides configs for various experiments in the S4 papers.
+
 As documented in the main README, adding `wandb=null` to any command line turns off logging.
+
+Some of these datasets may require downloading and preparing data, documented in the [src/dataloaders](./src/dataloaders/) subdirectory.
 
 ## Long Range Arena (LRA)
 
@@ -75,6 +78,15 @@ python -m train experiment=lm/s4-wt103
 The default settings require 8 GPUs with 40GB memory. Modifications can be made by decreasing batch size and accumulating gradients, e.g. add `loader.batch_size=4 trainer.accumulate_grad_batches=2` to the command line.
 
 Autoregressive generation can be performed with this checkpoint following the instructions in the main [README](README.md#generation)
+
+## Time Series Forecasting
+
+The ETTH, ETTM, Weather, and ECL experiments originally from the [Informer]() paper are supported.
+Download the [data](https://drive.google.com/file/d/1XqpxE6cthIxKYviSmR703yU45vdQ1oHT/view?usp=sharing) to `./data`, and unzip `informer.zip` inside that folder.
+
+```
+python -m train experiment=forecasting/s4-informer-{etth,ettm,ecl,weather}
+```
 
 ## S4D Ablations
 

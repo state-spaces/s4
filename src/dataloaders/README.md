@@ -4,8 +4,8 @@ Basic datasets including MNIST, CIFAR, and Speech Commands will auto-download. S
 
 By default, data is downloaded to `./data/`  by default, where `.` is the top level directory of this repository (e.g. 'state-spaces').
 
-[Data Preparation](#data-preparation) - Instructions for downloading other datasets
-[Adding a Dataset](#adding-a-dataset-wip) - Basic instructions for adding new datasets
+- [Data Preparation](#data-preparation) - Instructions for downloading other datasets
+- [Adding a Dataset](#adding-a-dataset-wip) - Basic instructions for adding new datasets
 
 ## Advanced Usage
 

@@ -47,17 +47,24 @@ Other variants including [DSS](https://github.com/ag1988/dss) and [GSS](https://
 
 
 ## Table of Contents
+
+Setting up the environment and porting S4 to external codebases:
 - [Setup](#setup)
 - [Getting Started with S4](#getting-started-with-s4)
-- [Repository Structure](#overall-repository-structure)
+
+Reproducing experiments from the papers:
 - [Experiments](#experiments)
+- [SaShiMi](sashimi/)
+
+Using this repository for training models:
 - [Training](#training)
 - [Generation](#generation)
-- [SaShiMi](sashimi/README.md#sashimi)
+- [Repository Structure](#overall-repository-structure)
+- [READMEs](#readmes)
 - [Citation](#citation)
 
 ### Changelog
-[CHANGELOG](CHANGELOG.md)
+See [CHANGELOG.md](CHANGELOG.md)
 
 ### Roadmap
 - More documentation for training from scratch using this repository
@@ -87,7 +94,7 @@ Run `python setup.py install` from the directory `extensions/cauchy/`.
 #### Pykeops
 
 This version is provided by the [pykeops library](https://www.kernel-operations.io/keops/python/installation.html).
-Installation usually works out of the box with `pip install pykeops cmake` which are provided in the requirements file.
+Installation usually works out of the box with `pip install pykeops cmake` which are also listed in the requirements file.
 
 
 ## Getting Started with S4
@@ -97,12 +104,14 @@ Installation usually works out of the box with `pip install pykeops cmake` which
 Self-contained files for the S4 layer and variants can be found in [src/models/s4/](./src/models/s4/),
 which includes instructions for calling the module.
 
-### Example Train Script (External)
+See [notebooks/](notebooks/) for visualizations explaining some concepts behind HiPPO and S4.
+
+### Example Train Script (External Usage)
 
 [example.py](example.py) is a self-contained training script for MNIST and CIFAR that imports the standalone S4 file. The default settings `python example.py` reaches 88% accuracy on sequential CIFAR with a very simple S4D model of 200k parameters.
 This script can be used as an example for using S4 in external repositories.
 
-### Training with this Repository (Internal)
+### Training with this Repository (Internal Usage)
 
 This repository aims to provide a very flexible framework for training sequence models. Many models and datasets are supported.
 
@@ -112,6 +121,8 @@ python -m train pipeline=mnist model=s4
 ```
 which trains an S4 model on the Permuted MNIST dataset.
 This should get to around 90% after 1 epoch which takes 1-3 minutes depending on GPU.
+
+More examples of using this repository can be found in [Experiments](#experiments) and [Training](#training).
 
 ### Optimizer Hyperparameters
 
@@ -125,50 +136,21 @@ See the method `register` in the model (e.g. [s4d.py](src/models/s4/s4d.py)) and
 Our logic for setting these parameters can be found in the `OptimModule` class under `src/models/sequence/ss/kernel.py` and the corresponding optimizer hook in `SequenceLightningModule.configure_optimizers` under `train.py`
 -->
 
-
-## Overall Repository Structure
-```
-configs/         config files for model, data pipeline, training loop, etc.
-data/            default location of raw data
-extensions/      CUDA extension for Cauchy kernel
-src/             main source code for models, datasets, etc.
-  callbacks/     training loop utilities (e.g. checkpointing)
-  dataloaders/   dataset and dataloader definitions
-  models/        model definitions
-  tasks/         encoder/decoder modules to interface between data and model backbone
-  utils/
-sashimi/         SaShiMi README and additional code (generation, metrics, MTurk)
-example.py       Example training script for using S4 externally
-train.py         Training loop entrypoint for this repo
-generate.py      Generation script
-```
-
-In addition to this top level README, several READMEs detailing the usage of this repository are organized in subdirectories.
-
-- [src/dataloaders/README.md](src/dataloaders/README.md)
-- [src/models/README.md](src/models/README.md)
-- [src/models/s4/README.md](src/models/s4/README.md)
-- [experiments.md](experiments.md)
-- [configs/README.md](configs/README.md)
-- [configs/model/README.md](configs/model/README.md)
-- [configs/experiment/README.md](configs/experiment/README.md)
-- [sashimi/README.md](sashimi/README.md)
-
-
 ## Experiments
 
 Instructions for reproducing experiments from the papers can be found in [experiments.md](experiments.md).
 
 
-#### Data
+### Data
 
 Basic datasets are auto-downloaded, including MNIST, CIFAR, and Speech Commands.
 All logic for creating and loading datasets is in [src/dataloaders](./src/dataloaders/) directory.
 The README inside this subdirectory documents how to download and organize other datasets.
 
-#### Models
+### Models
 
-Models are defined in [src/models](src/models). See the README for usage.
+Models are defined in [src/models](src/models). See the README in this subdirectory for an overview.
+
 
 
 ## Training
@@ -176,6 +158,8 @@ Models are defined in [src/models](src/models). See the README for usage.
 The core training infrastructure of this repository is based on [Pytorch-Lightning](https://pytorch-lightning.readthedocs.io/en/latest/) with a configuration scheme based on [Hydra](https://hydra.cc/docs/intro/).
 
 The main entrypoint is `train.py` and configs are found in `configs/`.
+
+### Configs and Hyperparameters
 Pre-defined configs for many end-to-end experiments are provided (see [experiments.md](experiments.md)).
 
 Configs can also be easily modified through the command line.
@@ -185,20 +169,41 @@ python -m train pipeline=mnist dataset.permute=True model=s4 model.n_layers=3 mo
 ```
 This uses the Permuted MNIST task with an S4 model with a specified number of layers, backbone dimension, and normalization type.
 
-See [configs/README.md](configs/README.md) for more detailed documentation about the configs.
+See [configs/README.md](configs/) for more detailed documentation about the configs.
 
-<!--
-### PyTorch Lightning
-
-
-Useful flags:
-`trainer.weights_summary=full` prints out every layer of the model with their parameter counts. Useful for debugging internals of models.
-`trainer.limit_{train,val}_batches={10,0.1}` trains/validates on only 10 batches / 0.1 fraction of all batches. Useful for testing the train loop
--->
-
-### Hydra
+#### Hydra
 
 It is recommended to read the [Hydra documentation](https://hydra.cc/docs/intro/) to fully understand the configuration framework. For help launching specific experiments, please file an issue.
+
+<!--
+#### Registries
+
+This codebase uses a modification of the hydra `instantiate` utility that provides shorthand names of different classes, for convenience in configuration and logging.
+The mapping from shorthand to full path can be found in `src/utils/registry.py`.
+-->
+
+
+### Resuming
+
+Each experiment will be logged to its own directory (generated by Hydra) of the form `./outputs/<date>/<time>/`. Checkpoints will be saved here inside this folder and printed to console whenever a new checkpoint is created.
+To resume training, simply point to the desired `.ckpt` file (a PyTorch Lightning checkpoint, e.g. `./outputs/<date>/<time>/checkpoints/val/loss.ckpt`) and append the flag `train.ckpt=<path>/<to>/<checkpoint>.ckpt` to the original training command.
+
+### PyTorch Lightning Trainer
+
+The PTL [Trainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html) class controls the overall training loop and also provides many useful pre-defined flags. Some useful examples are explained below.
+The full list of allowable flags can be found in the PTL documentation, as well as our [trainer configs](configs/trainer/). See the default trainer config [configs/trainer/default.yaml](configs/trainer/default.yaml) for the most useful options.
+
+#### Multi-GPU training
+
+Simply pass in `trainer.gpus=2` to train with 2 GPUs.
+
+#### Inspect model layers
+
+`trainer.weights_summary=full` prints out every layer of the model with their parameter counts. Useful for debugging internals of models.
+
+#### Data subsampling
+`trainer.limit_{train,val}_batches={10,0.1}` trains (validates) on only 10 batches (0.1 fraction of all batches). Useful for testing the train loop without going through all the data.
+
 
 ### WandB
 
@@ -206,13 +211,6 @@ Logging with [WandB](https://wandb.ai/site) is built into this repository.
 In order to use this, simply set your `WANDB_API_KEY` environment variable, and change the `wandb.project` attribute of [configs/config.yaml](configs/config.yaml) (or pass it on the command line e.g. `python -m train .... wandb.project=s4`).
 
 Set `wandb=null` to turn off WandB logging.
-
-<!--
-### Registries
-
-This codebase uses a modification of the hydra `instantiate` utility that provides shorthand names of different classes, for convenience in configuration and logging.
-The mapping from shorthand to full path can be found in `src/utils/registry.py`.
--->
 
 
 ## Generation
@@ -267,10 +265,55 @@ python -m generate experiment_path=<repository>/outputs/<date>/<time> checkpoint
 This option only needs the path to the Hydra experiment folder and the desired checkpoint within.
 
 
+## Overall Repository Structure
+```
+configs/         config files for model, data pipeline, training loop, etc.
+data/            default location of raw data
+extensions/      CUDA extension for Cauchy kernel
+src/             main source code for models, datasets, etc.
+  callbacks/     training loop utilities (e.g. checkpointing)
+  dataloaders/   dataset and dataloader definitions
+  models/        model definitions
+  tasks/         encoder/decoder modules to interface between data and model backbone
+  utils/
+sashimi/         SaShiMi README and additional code (generation, metrics, MTurk)
+example.py       Example training script for using S4 externally
+train.py         Training entrypoint for this repo
+generate.py      Autoregressive generation script
+```
+
+## READMEs
+In addition to this top level README, several READMEs detailing the usage of this repository are organized in subdirectories.
+
+- [src/dataloaders/README.md](src/dataloaders/)
+- [src/models/README.md](src/models/)
+- [src/models/s4/README.md](src/models/s4/)
+- [experiments.md](experiments.md)
+- [configs/README.md](configs/)
+- [configs/model/README.md](configs/model/)
+- [configs/experiment/README.md](configs/experiment/)
+- [sashimi/README.md](sashimi/)
+
+
+
 
 ## Citation
 If you use this codebase, or otherwise found our work valuable, please cite:
 ```
+@article{gu2022s4d,
+  title={On the Parameterization and Initialization of Diagonal State Space Models},
+  author={Gu, Albert and Gupta, Ankit and Goel, Karan and R\'e, Christopher},
+  journal={arXiv preprint arXiv:2206.11893},
+  year={2022}
+}
+
+@article{gu2022hippo,
+  title={How to Train Your HiPPO: State Space Models with Generalized Basis Projections},
+  author={Gu, Albert and Johnson, Isys and Timalsina, Aman and Rudra, Atri and R\'e, Christopher},
+  journal={arXiv preprint arXiv:2206.12037},
+  year={2022}
+}
+
 @article{goel2022sashimi,
   title={It's Raw! Audio Generation with State-Space Models},
   author={Goel, Karan and Gu, Albert and Donahue, Chris and R{\'e}, Christopher},

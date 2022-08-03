@@ -7,6 +7,7 @@
 
 ## Table of Contents
 - [Standalone Implementation](#standalone-implementation)
+- [SaShiMi+DiffWave](#diffwave)
 - [Datasets](#datasets)
 - [Model Training](#model-training)
 - [Audio Generation](#audio-generation)
@@ -60,6 +61,9 @@ with torch.no_grad():
     ys = torch.stack(ys, dim=1) # ys.shape == x.shape
 ```
 
+## DiffWave
+
+The DiffWave and DiffWave+SaShiMi experiments used an alternative pipeline to handle diffusion logic, and is supported in another codebase located here: https://github.com/albertfgu/diffwave-sashimi
 
 ## Datasets
 You can download the Beethoven, YouTubeMix and SC09 datasets from the following links on the Huggingface Hub. Details about the datasets can be found in the README files on the respective dataset pages.
