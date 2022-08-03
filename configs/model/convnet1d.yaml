@@ -1,0 +1,11 @@
+defaults:
+  - base
+  - override layer: conv1d
+
+transposed: true
+n_repeat: 3
+d_model: 64
+pool:
+  stride: 4
+  expand: 2
+norm: batch

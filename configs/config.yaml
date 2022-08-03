@@ -5,14 +5,14 @@ defaults:
   # - model: s4 # Model backbone
   # - pipeline: cifar # Specifies collection of configs, equivalent to next 5 lines
   # Pipelines should specify /loader, /dataset, /task, /encoder, /decoder (ideally in that order)
-  # # - loader: torch # Dataloader (e.g. handles batches)
+  # # - loader: default # Dataloader (e.g. handles batches)
   # # - dataset: cifar # Defines the data (x and y pairs)
   # # - task: multiclass_classification # Defines loss and metrics
   # # - encoder: null # Interface between data and model
   # # - decoder: null # Interface between model and targets
-  - callbacks:
-      - base
-      - checkpoint
+  - callbacks: # Extra pytorch-lightning features
+    - base
+    - checkpoint
 
 # Additional arguments used to configure the training loop
 # Most of these set combinations of options in the PL trainer, add callbacks, or add features to the optimizer
@@ -27,26 +27,36 @@ train:
   test: False # Test after training
   debug: False # Special settings to make debugging more convenient
   ignore_warnings: False # Disable python warnings
-  # These control state
+
+  # These control state passing between batches
   state:
     mode: null # [ None | 'none' | 'reset' | 'bptt' | 'tbptt' ]
-    chunk_len: null  # [ None | int ] chunk length for tbptt (used by TBPTTDataLoader)
-    overlap_len: null # [ None | int ] overlap length for tbptt (used by TBPTTDataLoader)
     n_context: 0 # How many steps to use as memory context. Must be >= 0 or None (null), meaning infinite context
-    n_context_eval: ${.n_context}
+    n_context_eval: ${.n_context} # Context at evaluation time
   # Convenience keys to allow grouping runs
-  sweep: null
-  group: null
 
-  benchmark_step: False # Whether to benchmark the step function
-  benchmark_step_k: 1 # Multipler for loader.batch_size when benchmarking step function with large batch sizes than the dataset
-  benchmark_step_T: 1 # Number of additional repeats to benchmark the step function
-  checkpoint_path: null # Path to checkpoint file: only used for visualization at the moment
-  visualizer: 'filters' # Which visualizer to use: [ 'filters' | 'forecasting' ]
+  ckpt: null # Resume training
+
   disable_dataset: False # Disable dataset loading
+  validate_at_start: false
 
-# We primarily use wandb so this is moved to top level for convenience
-# Set ~wandb or wandb=null or wandb.mode=disabled to disable logging
+  pretrained_model_path: null # Path to pretrained model
+  pretrained_model_strict_load: true # Whether to load the pretrained model even if the model is not compatible
+  pretrained_model_state_hook: # Hook called on the loaded model's state_dict
+    _name_: null
+  post_init_hook: # After initializing model, call method on model
+    _name_: null
+
+  layer_decay: # Used for ImageNet finetuning
+    _name_: null
+    decay: 0.7
+
+tolerance: # fault tolerance for training on preemptible machines
+  logdir: ./resume
+  id: null # must be set to resume training on preemption
+
+# We primarily use wandb so this is moved to top level in the config for convenience
+# Set `~wandb` or `wandb=null` or `wandb.mode=disabled` to disable logging
 # If other loggers are added, it would make sense to put this one level lower under train/ or logger/
 wandb:
   project: hippo
@@ -61,3 +71,7 @@ wandb:
   # prefix: ""
   # job_type: "train"
   # tags: []
+
+hydra:
+  run:
+    dir: ./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S-%f}

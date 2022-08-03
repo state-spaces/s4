@@ -1,11 +1,10 @@
-""" Compute a Krylov function efficiently. (S3 renames the Krylov function to a "state space kernel")
+""" Compute a Krylov function efficiently. (S4 renames the Krylov function to a "state space kernel")
 
 A : (N, N)
 b : (N,)
 c : (N,)
 Return: [c^T A^i b for i in [L]]
 """
-
 
 import torch
 import torch.nn.functional as F
@@ -92,6 +91,7 @@ def krylov(L, A, b, c=None, return_power=False):
     else:
         return x
 
+@torch.no_grad()
 def power(L, A, v=None):
     """ Compute A^L and the scan sum_i A^i v_i
 
@@ -108,7 +108,10 @@ def power(L, A, v=None):
         L //= 2
         if L == 0: break
         l *= 2
-        powers.append(powers[-1] @ powers[-1])
+        if v is None:
+            powers = [powers[-1] @ powers[-1]]
+        else:
+            powers.append(powers[-1] @ powers[-1])
 
     if v is None: return I
 

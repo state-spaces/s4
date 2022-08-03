@@ -1,11 +1,12 @@
 """ Implementation of FFN block in the style of Transformers """
 
+from functools import partial
 from torch import nn
 from src.models.sequence.base import SequenceModule
-from src.models.nn import LinearActivation
+from src.models.nn import LinearActivation, DropoutNd
 
 class FF(SequenceModule):
-    def __init__(self, d_input, expand=2, d_output=None, transposed=False, activation='gelu', initializer=None, dropout=0.0):
+    def __init__(self, d_input, expand=2, d_output=None, transposed=False, activation='gelu', initializer=None, dropout=0.0, tie_dropout=False):
         super().__init__()
         self.d_output = d_input if d_output is None else d_output
         self.transposed = transposed
@@ -18,7 +19,8 @@ class FF(SequenceModule):
             initializer=initializer,
             activate=True,
         )
-        dropout_cls = nn.Dropout2d if self.transposed else nn.Dropout
+        dropout_cls = partial(DropoutNd, transposed=self.transposed) if tie_dropout else nn.Dropout
+        # dropout_cls = nn.Dropout2d if self.transposed else nn.Dropout
         drop = dropout_cls(dropout) if dropout > 0.0 else nn.Identity()
 
         linear2 = LinearActivation(
@@ -38,7 +40,7 @@ class FF(SequenceModule):
     def forward(self, x, *args, **kwargs):
         return self.ff(x), None
 
-    def step(self, x, state):
+    def step(self, x, state, **kwargs):
         # x: [batch, d_input]
         if self.transposed:
             # expects: [batch, d_input, seq_len]

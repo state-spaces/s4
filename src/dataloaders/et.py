@@ -17,7 +17,7 @@ from torch.utils.data import Dataset, DataLoader
 import warnings
 warnings.filterwarnings("ignore")
 
-from src.dataloaders.datasets import SequenceDataset, default_data_path
+from src.dataloaders.base import SequenceDataset, default_data_path
 
 
 class TimeFeature:
@@ -266,6 +266,7 @@ class InformerDataset(Dataset):
         self.cols = cols
         self.eval_stamp = eval_stamp
         self.eval_mask = eval_mask
+        self.forecast_horizon = self.pred_len
 
         self.root_path = root_path
         self.data_path = data_path
@@ -485,13 +486,7 @@ class InformerSequenceDataset(SequenceDataset):
     def _get_data_filename(self, variant):
         return self.variants[variant]
 
-    @staticmethod
-    def collate_fn(batch, resolution):
-        x, y, *z = zip(*batch)
-        x = torch.stack(x, dim=0)[:, ::resolution]
-        y = torch.stack(y, dim=0)
-        z = [torch.stack(e, dim=0)[:, ::resolution] for e in z]
-        return x, y, *z
+    _collate_arg_names = ["mark", "mask"] # Names of the two extra tensors that the InformerDataset returns
 
     def setup(self):
         self.data_dir = self.data_dir or default_data_path / 'informer' / self._name_

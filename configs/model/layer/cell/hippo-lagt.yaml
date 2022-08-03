@@ -1,0 +1,9 @@
+# Config for the HiPPO-LagT (Translated Laguerre) cell
+_name_: lagt
+d_model: 256
+memory_size: 1
+memory_order: -1
+dt: 1.0 # Effective at different dt than HiPPO-LegT, explained in HTTYH paper
+discretization: bilinear
+measure_args:
+  beta: 1.0

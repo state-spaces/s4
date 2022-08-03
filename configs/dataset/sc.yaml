@@ -2,5 +2,5 @@ _name_: sc
 mfcc: False
 dropped_rate: 0.
 length: 16000
-all_classes: false # Use original dataset or 10-way version
+all_classes: true # Use original dataset or 10-way version
 __l_max: ${.length}

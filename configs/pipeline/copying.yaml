@@ -3,3 +3,5 @@ defaults:
   - adding
   - override /dataset: copying
   - override /task: multiclass_classification
+
+encoder: embedding

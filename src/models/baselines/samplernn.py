@@ -4,9 +4,9 @@ from torch.nn import init
 import math
 import numpy as np
 
+from src.models.baselines.lstm import TorchLSTM
+from src.models.baselines.gru import TorchGRU
 from src.models.sequence.base import SequenceModule
-from src.models.sequence.rnns.lstm import TorchLSTM
-from src.models.sequence.rnns.gru import TorchGRU
 from src.models.sequence.ss.s4 import S4
 from src.dataloaders.audio import mu_law_decode, linear_decode, q_zero
 
@@ -24,10 +24,10 @@ class StackedRNN(SequenceModule):
         return self.d_model if self.output_linear else self.d_hidden
 
     def __init__(
-        self, 
+        self,
         d_model,
         d_hidden,
-        n_layers, 
+        n_layers,
         learn_h0=False,
         rnn_type='gru',
         skip_connections=False,
@@ -43,7 +43,7 @@ class StackedRNN(SequenceModule):
         self.learn_h0 = learn_h0
         self.skip_connections = skip_connections
         self.weight_norm = torch.nn.utils.weight_norm if weight_norm else lambda x: x
-        
+
         self.output_linear = output_linear
         self.rnn_layers = torch.nn.ModuleList()
         self.lin_layers = torch.nn.ModuleList()
@@ -72,7 +72,7 @@ class StackedRNN(SequenceModule):
                     self.rnn_layers.append(
                         RNN(d_model=d_hidden, d_hidden=d_hidden, n_layers=1, learn_h0=learn_h0),
                     )
-            
+
             if skip_connections:
                 self.lin_layers.append(self.weight_norm(torch.nn.Linear(d_hidden, d_hidden)))
             else:
@@ -94,13 +94,13 @@ class StackedRNN(SequenceModule):
             for name, module in rnn.named_modules():
                 if isinstance(module, torch.nn.Linear):
                     setattr(rnn, name, self.weight_norm(module))
-        
+
         # Use orthogonal initialization for W_hn if using GRU (weight_hh_l[0])
         if rnn_type == 'gru':
             for rnn in self.rnn_layers:
                 torch.nn.init.orthogonal_(rnn.weight_hh_l0[2 * d_hidden:].data)
 
-    
+
     def default_state(self, *batch_shape, device=None):
         return [
             rnn.default_state(*batch_shape, device=device)
@@ -135,7 +135,7 @@ class StackedRNN(SequenceModule):
         out = self.output_layer(out)
 
         return out, next_states
-        
+
 
 class StackedRNNBaseline(SequenceModule):
     """
@@ -144,11 +144,11 @@ class StackedRNNBaseline(SequenceModule):
     Marked as the "one_tier" model in the codebase.
     https://github.com/soroushmehr/sampleRNN_ICLR2017/blob/master/models/one_tier/one_tier.py
 
-    Discrete Input (Q_LEVELS) --> 
-    Embedding (EMB_SIZE) --> 
+    Discrete Input (Q_LEVELS) -->
+    Embedding (EMB_SIZE) -->
 
     ----------- (start) this module implements the RNN + Linear Layers backbone -----------
-    StackedRNN (N_RNN \in [5], FRAME_SIZE, DIM, LEARNED_H0, WEIGHT_NORM, SKIP_CONNECTIONS) --> 
+    StackedRNN (N_RNN \in [5], FRAME_SIZE, DIM, LEARNED_H0, WEIGHT_NORM, SKIP_CONNECTIONS) -->
     Linear (DIM, DIM) + ReLU -->
     Linear (DIM, DIM) + ReLU -->
     Linear (DIM, DIM) + ReLU -->
@@ -201,10 +201,10 @@ class StackedRNNBaseline(SequenceModule):
             self.lin1 = torch.nn.utils.weight_norm(self.lin1)
             self.lin2 = torch.nn.utils.weight_norm(self.lin2)
             self.lin3 = torch.nn.utils.weight_norm(self.lin3)
-    
+
     def default_state(self, *batch_shape, device=None):
         return self.rnn.default_state(*batch_shape, device=device)
-    
+
     def forward(self, inputs, *args, state=None, **kwargs):
         outputs = inputs
         outputs, state = self.rnn(outputs, state)
@@ -264,13 +264,13 @@ class SampleRNN(SequenceModule):
         return self.d_hidden
 
     def __init__(
-        self, 
+        self,
         frame_sizes=(16, 4),
-        n_rnn=2, 
-        d_hidden=1024, 
+        n_rnn=2,
+        d_hidden=1024,
         bits=8,
-        learn_h0=True, 
-        d_model=256, 
+        learn_h0=True,
+        d_model=256,
         weight_norm=True,
         reproduce=True,
         quantization='linear',
@@ -298,12 +298,12 @@ class SampleRNN(SequenceModule):
         ns_frame_samples = map(int, np.cumprod(frame_sizes))  # e.g. (16, 4) -> (16, 64)
         self.frame_level_rnns = torch.nn.ModuleList([
             FrameLevelRNN(
-                frame_size=frame_size, 
-                n_frame_samples=n_frame_samples, 
+                frame_size=frame_size,
+                n_frame_samples=n_frame_samples,
                 d_model=d_model,
-                n_rnn=n_rnn, 
-                d_hidden=d_hidden, 
-                learn_h0=learn_h0, 
+                n_rnn=n_rnn,
+                d_hidden=d_hidden,
+                learn_h0=learn_h0,
                 weight_norm=weight_norm,
                 reproduce=reproduce,
                 layer=layer,
@@ -312,10 +312,10 @@ class SampleRNN(SequenceModule):
         ])
 
         self.sample_level_mlp = SampleLevelMLP(
-            frame_size=frame_sizes[0], 
-            d_hidden=d_hidden, 
+            frame_size=frame_sizes[0],
+            d_hidden=d_hidden,
             bits=bits,
-            d_model=d_model, 
+            d_model=d_model,
             weight_norm=weight_norm,
             reproduce=reproduce,
         )
@@ -332,10 +332,10 @@ class SampleRNN(SequenceModule):
             state = self.default_state(batch_size, device=x.device)
             self._frame_level_outputs = [None for _ in self.frame_level_rnns]
             self._window = torch.zeros(
-                batch_size, 
+                batch_size,
                 self.lookback,
-                x.shape[1] if len(x.shape) == 2 else x.shape[2], 
-                dtype=x.dtype, 
+                x.shape[1] if len(x.shape) == 2 else x.shape[2],
+                dtype=x.dtype,
                 device=x.device,
             ) + q_zero(bits=self.bits)
             self._step_idx = self.lookback
@@ -348,15 +348,15 @@ class SampleRNN(SequenceModule):
             # Update window (but on the first step)
             self._window[:, :-1] = self._window[:, 1:].clone()
             self._window[:, -1] = x
-        
+
         new_states = []
-        
+
         for (i, rnn), state_ in zip(reversed(list(enumerate(self.frame_level_rnns))), reversed(state)):
             if self._step_idx % rnn.n_frame_samples != 0:
                 # Don't need to process this rnn
                 new_states.append(state_)
                 continue
-            
+
             # prev_samples shape: (B, CHUNK_SIZE, D) e.g. (16, 16384, 1)
             prev_samples = self._window[:, -rnn.n_frame_samples:]
 
@@ -374,7 +374,7 @@ class SampleRNN(SequenceModule):
                 prev_samples = self.encoder(prev_samples)
                 prev_samples = prev_samples.contiguous()
                 prev_samples = prev_samples.view(batch_size, -1, rnn.n_frame_samples, self.d_model)
-            
+
             # upper_tier_conditioning shape: None -> (B, M, D_HIDDEN) [first rnn]
             # (B, M_{i-1}, D_HIDDEN) -> (B, M_i, D_HIDDEN) [second rnn]
             if i == len(self.frame_level_rnns) - 1:
@@ -444,7 +444,7 @@ class SampleRNN(SequenceModule):
                 prev_samples = self.encoder(prev_samples)
                 prev_samples = prev_samples.contiguous()
                 prev_samples = prev_samples.view(batch_size, -1, rnn.n_frame_samples, self.d_model)
-            
+
             # upper_tier_conditioning shape: None -> (B, M, D_HIDDEN) [first rnn]
             # (B, M_{i-1}, D_HIDDEN) -> (B, M_i, D_HIDDEN) [second rnn]
             upper_tier_conditioning, new_state = rnn(prev_samples, upper_tier_conditioning, state_)
@@ -482,13 +482,13 @@ def concat_init(tensor, inits):
 class FrameLevelRNN(torch.nn.Module):
 
     def __init__(
-        self, 
-        frame_size, 
-        n_frame_samples, 
+        self,
+        frame_size,
+        n_frame_samples,
         d_model,
-        n_rnn, 
+        n_rnn,
         d_hidden,
-        learn_h0=True, 
+        learn_h0=True,
         weight_norm=True,
         reproduce=False,
         layer='gru',
@@ -573,7 +573,7 @@ class FrameLevelRNN(torch.nn.Module):
                 stride=frame_size,
                 bias=True,
             )
-        
+
 
         if weight_norm and reproduce:
             self.input_expand = torch.nn.utils.weight_norm(self.input_expand)
@@ -595,7 +595,7 @@ class FrameLevelRNN(torch.nn.Module):
         """
         if not self.reproduce:
             # Use strided convolutions to get frame embeddings
-            # This generalizes the SampleRNN operation to handle non-1D signals 
+            # This generalizes the SampleRNN operation to handle non-1D signals
             # This reshapes from (B, M_i, FRAME, D_MODEL) -> (B, M_i, D_HIDDEN)
             prev_samples = prev_samples.view(prev_samples.shape[0], -1, self.d_model)
             input = self.input_expand(prev_samples.permute(0, 2, 1)).permute(0, 2, 1)
@@ -625,11 +625,11 @@ class FrameLevelRNN(torch.nn.Module):
 class SampleLevelMLP(torch.nn.Module):
 
     def __init__(
-        self, 
+        self,
         frame_size,
         d_hidden,
         bits=8,
-        d_model=256, 
+        d_model=256,
         weight_norm=True,
         embedding=True,
         reproduce=False,
@@ -652,7 +652,7 @@ class SampleLevelMLP(torch.nn.Module):
             kernel_size=frame_size,
             bias=False,
         )
-        
+
         if self.reproduce:
             self.hidden = torch.nn.Conv1d(
                 in_channels=d_hidden,
@@ -661,7 +661,7 @@ class SampleLevelMLP(torch.nn.Module):
             )
         else:
             self.hidden = torch.nn.Linear(d_hidden, d_hidden)
-        
+
         if self.reproduce:
             self.output = torch.nn.Conv1d(
                 in_channels=d_hidden,
@@ -707,71 +707,8 @@ class SampleLevelMLP(torch.nn.Module):
             # Take (B, L', D_MODEL), (B, L, D_HIDDEN) -> (B, D_HIDDEN, L)
             x = F.relu(self.input(prev_samples) + upper_tier_conditioning)
             # x: (B, D_HIDDEN, L) -> (B, L, D_HIDDEN)
-            x = x.permute(0, 2, 1)  
+            x = x.permute(0, 2, 1)
             x = F.relu(self.hidden(x))
             x = self.output(x)
 
         return x.contiguous()
-
-
-def test_stacked_rnn():
-    rnn = StackedRNN(
-        d_model=256,
-        d_hidden=32,
-        n_layers=4,
-        skip_connections=True,
-        dropout=0.0,
-        output_linear=False,
-    )
-    x = torch.randn(8, 100, 256)
-    y, states = rnn(x)
-    assert y.shape == (8, 100, 32)
-    assert len(states) == 4
-
-def test_rnn_baseline():
-    rnn = StackedRNNBaseline(
-        d_model=256,
-        d_hidden=32,
-        n_layers=4,
-        learned_h0=True,
-        weight_norm=True,
-        skip_connections=True,
-        dropout=0.0,
-    )
-    x = torch.randn(8, 100, 256)
-    y, states = rnn(x)
-    assert y.shape == (8, 100, 256)
-    assert len(states) == 4
-
-def test_sample_rnn():
-    rnn = SampleRNN(
-        frame_sizes=(16, 4),
-        n_rnn=1,
-        d_hidden=1024,
-        bits=8,
-        learn_h0=True,
-        d_model=256,
-        weight_norm=True,
-        reproduce=True,
-        quantization='linear',
-    ).cuda()
-    x = torch.randint(0, 255, (2, 1023, 1), dtype=torch.long).cuda()
-    y, states = rnn(x)
-    # assert y.shape == (8, 960, 256)
-    # assert len(states) == 4
-    
-    with torch.no_grad():
-        y_i, state = rnn.step(x[:, :rnn.lookback, :], state=None)
-        ys = [y_i]
-        for i in range(rnn.lookback, x.shape[1]):
-            x_i = x[:, i, :]
-            y_i, state = rnn.step(x_i, state)
-            ys.append(y_i)
-        y_ = torch.stack(ys).squeeze().transpose(0, 1)
-    breakpoint()
-
-if __name__ == "__main__":
-    # test_stacked_rnn()
-    # test_rnn_baseline()
-    test_sample_rnn()
-    pass

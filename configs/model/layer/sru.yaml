@@ -1,0 +1,10 @@
+# @package model
+# Run with python -m train model/layer=sru
+_name_: model
+layer:
+  _name_: sru
+  d_model: 256
+  return_output: true
+  feedback: true
+n_layers: 3
+residual: H

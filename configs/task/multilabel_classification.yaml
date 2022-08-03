@@ -1,0 +1,9 @@
+# _target_:
+_name_: base
+loss: binary_cross_entropy
+metrics: null
+torchmetrics:
+  - AUROC
+  - Precision
+  - Recall
+  - F1

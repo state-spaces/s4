@@ -1,0 +1,6 @@
+progressive_resizing:
+  stage_params:
+    - resolution: null
+      epochs: null
+    - resolution: null
+      epochs: null

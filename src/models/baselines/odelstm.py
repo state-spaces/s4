@@ -5,23 +5,23 @@ import torch
 import torch.nn as nn
 from torchdyn.models import NeuralDE
 import pytorch_lightning as pl
-from pytorch_lightning.metrics.functional import accuracy
+from torchmetrics.functional import accuracy
 
 
 class ODELSTMCell(nn.Module):
-    def __init__(self, d_input, d_model, solver_type="dopri5"):
+    def __init__(self, d_model, d_hidden, solver_type="dopri5"):
         super(ODELSTMCell, self).__init__()
         self.solver_type = solver_type
         self.fixed_step_solver = solver_type.startswith("fixed_")
-        self.lstm = nn.LSTMCell(d_input, d_model)
+        self.lstm = nn.LSTMCell(d_model, d_hidden)
         # 1 hidden layer NODE
         self.f_node = nn.Sequential(
-            nn.Linear(d_model, d_model),
+            nn.Linear(d_hidden, d_hidden),
             nn.Tanh(),
-            nn.Linear(d_model, d_model),
+            nn.Linear(d_hidden, d_hidden),
         )
-        self.d_input = d_input
         self.d_model = d_model
+        self.d_hidden = d_hidden
         if not self.fixed_step_solver:
             self.node = NeuralDE(self.f_node, solver=solver_type)
         else:
@@ -77,30 +77,30 @@ class ODELSTMCell(nn.Module):
 class ODELSTM(nn.Module):
     def __init__(
         self,
-        d_input,
-        d_output,
         d_model,
+        d_output=None,
+        d_hidden=None,
         return_sequences=True,
         solver_type="dopri5",
-        l_output=None,
-        l_max=None,
     ):
         super(ODELSTM, self).__init__()
-        self.d_input = d_input
+        d_output = d_output or d_model
+        d_hidden = d_hidden or d_model
         self.d_model = d_model
+        self.d_hidden = d_hidden
         self.d_output = d_output
         self.return_sequences = return_sequences
 
-        self.rnn_cell = ODELSTMCell(d_input, d_model, solver_type=solver_type)
-        self.fc = nn.Linear(self.d_model, self.d_output)
+        self.rnn_cell = ODELSTMCell(d_model, d_hidden, solver_type=solver_type)
+        self.fc = nn.Linear(self.d_hidden, self.d_output)
 
-    def forward(self, x, timespans=None, mask=None):
+    def forward(self, x, state=None, timespans=None, mask=None):
         device = x.device
         batch_size = x.size(0)
         seq_len = x.size(1)
         hidden_state = [
-            torch.zeros((batch_size, self.d_model), device=device),
-            torch.zeros((batch_size, self.d_model), device=device),
+            torch.zeros((batch_size, self.d_hidden), device=device),
+            torch.zeros((batch_size, self.d_hidden), device=device),
         ]
         outputs = []
         last_output = torch.zeros((batch_size, self.d_output), device=device)
@@ -123,7 +123,7 @@ class ODELSTM(nn.Module):
             outputs = torch.stack(outputs, dim=1)  # return entire sequence
         else:
             outputs = last_output  # only last item
-        return outputs
+        return outputs, hidden_state
 
 
 class IrregularSequenceLearner(pl.LightningModule):

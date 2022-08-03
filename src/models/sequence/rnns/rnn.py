@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-# from utils.config import instantiate_name
 import src.utils as utils
 from src.models.sequence.rnns.cells import CellBase
 from src.models.sequence import SequenceModule
@@ -72,7 +70,6 @@ class RNN(SequenceModule):
     @property
     def state_to_tensor(self):
         """ Convert state into a single tensor output """
-        # return self.cell.state_to_tensor(state)
         return self.cell.state_to_tensor
 
 

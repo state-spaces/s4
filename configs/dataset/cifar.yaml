@@ -7,4 +7,4 @@ cutout: False
 random_erasing: False
 val_split: 0.1
 seed: 42 # For validation split
-__l_max: 1024
+# __l_max: 1024

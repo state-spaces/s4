@@ -1,8 +1,10 @@
-""" Deprecated optimizers. These have been superceded by various wrappers from torch and huggingface """
+"""Custom learning rate schedulers"""
 
 import math
 import warnings
 import torch
+
+from timm.scheduler import CosineLRScheduler
 
 
 # https://pytorch.org/docs/stable/_modules/torch/optim/lr_scheduler.html
@@ -58,3 +60,28 @@ def Constant(optimizer, warmup_step):
             return 1. if step > warmup_step else (step + 1) / warmup_step
 
     return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+
+
+class TimmCosineLRScheduler(CosineLRScheduler, torch.optim.lr_scheduler._LRScheduler):
+    """ Wrap timm.scheduler.CosineLRScheduler so we can call scheduler.step() without passing in epoch.
+    It supports resuming as well.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._last_epoch = -1
+        self.step(epoch=0)
+
+    def step(self, epoch=None):
+        if epoch is None:
+            self._last_epoch += 1
+        else:
+            self._last_epoch = epoch
+        # We call either step or step_update, depending on whether we're using the scheduler every
+        # epoch or every step.
+        # Otherwise, lightning will always call step (i.e., meant for each epoch), and if we set
+        # scheduler interval to "step", then the learning rate update will be wrong.
+        if self.t_in_epochs:
+            super().step(epoch=self._last_epoch)
+        else:
+            super().step_update(num_updates=self._last_epoch)

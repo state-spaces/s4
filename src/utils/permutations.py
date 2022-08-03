@@ -178,11 +178,3 @@ def binary2gray(binary, axis=-1):
   gray = np.logical_xor(binary, shifted)
 
   return gray
-
-if __name__ == '__main__':
-    print(snake_permutation(4, 5))
-    print(transpose_permutation(4, 5))
-
-    # perm = decode(list(range(16)), 2, 2)
-    # print(perm)
-    print(hilbert_permutation(4))

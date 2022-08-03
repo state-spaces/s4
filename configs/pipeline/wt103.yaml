@@ -11,7 +11,6 @@ train:
   mode: min
 
 task:
-  # _target_: tasks.tasks.AdaptiveLMTask
   _name_: adaptivelm
   init_scale: 0.5 # null to get transformer-xl init
   bias_scale: 1.0

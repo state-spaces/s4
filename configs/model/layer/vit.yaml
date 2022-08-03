@@ -1,0 +1,7 @@
+_name_: vit
+num_heads: 8
+qkv_bias: False
+qk_scale: null
+attn_drop: 0.0
+packed_linear: true
+linear_cfg: null

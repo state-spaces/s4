@@ -6,7 +6,6 @@
   add_zero_attn: False
   kdim: null
   vdim: null
-  batch_first: True
 - _name_: ff
   expand: 4
   activation: gelu

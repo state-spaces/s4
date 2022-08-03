@@ -10,6 +10,7 @@ Blood Oxygen Saturation:
 https://zenodo.org/record/4001464/files/BIDMC32SpO2_TRAIN.ts
 https://zenodo.org/record/4001464/files/BIDMC32SpO2_TEST.ts
 
-0. Working directory `datasets/healthcare`
-1. Download the above datasets into `data/RR`, `data/HR`, `data/SpO2`
-2. Run `python process_data.py`
+1. Create folder `data/bidmc` (relative to repo base)
+2. Download the above datasets into `data/bidmc/RR`, `data/bidmc/HR`, `data/bidmc/SpO2`
+3. Copy processing scripts `cp src/dataloaders/prepare/bidmc/{process_data.py,data_loader.py} data/bidmc`
+4. Run script `cd data/bidmc && python process_data.py`

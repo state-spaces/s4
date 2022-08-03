@@ -1,0 +1,4 @@
+# _target_: models.sequence.SequenceModel
+defaults:
+  - convnet1d
+  - override layer: conv2d

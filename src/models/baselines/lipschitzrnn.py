@@ -1,4 +1,7 @@
-""" LipschitzRNN https://github.com/erichson/LipschitzRNN """
+"""Adapted from LipschitzRNN https://github.com/erichson/LipschitzRNN.
+
+Original code left as comments
+"""
 
 import numpy as np
 import torch
@@ -9,10 +12,6 @@ from src.models.sequence.base import SequenceModule
 
 from copy import deepcopy
 
-# from tools import *
-
-# import torchdiffeq
-#from torchdiffeq import odeint_adjoint as odeint
 from torchdiffeq import odeint as odeint
 
 def gaussian_init_(n_units, std=1):
@@ -208,4 +207,4 @@ class RnnModels(SequenceModule): #(nn.Module):
 
         return h.unsqueeze(1), None
 
-    
+

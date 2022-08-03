@@ -1,6 +1,6 @@
 """ Implements variant of HiPPO-RNN that doesn't feed the hidden and memory states into each other time-wise, instead using simpler linear recurrences in time and letting them interact depthwise.
 
-[21-10-22] AG: This was old experimental code. It should still work (perhaps with some minimal modifications), but there is no reason to use this now. This was the initial step toward "deep linear parallelizable" versions of the HiPPO RNN which culminated in LSSL and S3.
+[21-10-22] AG: This was old experimental code. It should still work (perhaps with some minimal modifications), but there is not much reason to use this now. This was the initial step toward "deep linear parallelizable" versions of the HiPPO RNN which culminated in LSSL and S3.
 """
 
 import torch
@@ -28,7 +28,6 @@ class MemoryProjection(nn.Module):
         A, B, _, _, _ = signal.cont2discrete((A, B, C, D), dt=dt, method=discretization)
 
 
-        # self.register_buffer('A', torch.Tensor(A-np.eye(self.order)))
         self.register_buffer('A', torch.Tensor(A))
         self.register_buffer('B', torch.Tensor(B))
 

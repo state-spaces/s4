@@ -7,6 +7,7 @@
 
 ## Table of Contents
 - [Standalone Implementation](#standalone-implementation)
+- [SaShiMi+DiffWave](#diffwave)
 - [Datasets](#datasets)
 - [Model Training](#model-training)
 - [Audio Generation](#audio-generation)
@@ -33,7 +34,7 @@
 Samples of SaShiMi and baseline audio can be found [online](https://hazyresearch.stanford.edu/sashimi-examples).
 
 ## Standalone Implementation
-We provide a standalone PyTorch implementation of the SaShiMi architecture backbone in `state-spaces/sashimi/sashimi.py`, which you can use in your own code. Note that you'll need to also copy over the standalone S4 layer implementation, which can be found at `state-spaces/src/models/sequence/ss/standalone/s4.py`.
+We provide a standalone PyTorch implementation of the SaShiMi architecture backbone in `state-spaces/sashimi/sashimi.py`, which you can use in your own code. Note that you'll need to also copy over the standalone S4 layer implementation, which can be found at `state-spaces/src/models/s4/s4.py`.
 
 You can treat the SaShiMi module as a sequence-to-sequence map taking `(batch, seq, dim)` inputs to `(batch, seq, dim)` outputs i.e.
 ```python
@@ -60,6 +61,9 @@ with torch.no_grad():
     ys = torch.stack(ys, dim=1) # ys.shape == x.shape
 ```
 
+## DiffWave
+
+The DiffWave and DiffWave+SaShiMi experiments used an alternative pipeline to handle diffusion logic, and is supported in another codebase located here: https://github.com/albertfgu/diffwave-sashimi
 
 ## Datasets
 You can download the Beethoven, YouTubeMix and SC09 datasets from the following links on the Huggingface Hub. Details about the datasets can be found in the README files on the respective dataset pages.
@@ -76,23 +80,23 @@ Details about the training-validation-test splits used are also included in the 
 SaShiMi models rely on the same training framework as S4 (see the [README](../README.md) for details). To reproduce our results or train new SaShiMi models, you can use the following commands:
 ```bash
 # Train SaShiMi models on YouTubeMix, Beethoven and SC09
-python -m train experiment=sashimi-youtubemix wandb=null
-python -m train experiment=sashimi-beethoven wandb=null
-python -m train experiment=sashimi-sc09 wandb=null
+python -m train experiment=audio/sashimi-youtubemix wandb=null
+python -m train experiment=audio/sashimi-beethoven wandb=null
+python -m train experiment=audio/sashimi-sc09 wandb=null
 ```
 If you encounter GPU OOM errors on either Beethoven or YouTubeMix, we recommend reducing the sequence length used for training by setting `dataset.sample_len` to a lower value e.g. `dataset.sample_len=120000`. For SC09, we recommend reducing batch size if GPU memory is an issue, by setting `loader.batch_size` to a lower value.
 
 We also include implementations of SampleRNN and WaveNet models, which can be trained easily using the following commands:
 ```bash
 # Train SampleRNN models on YouTubeMix, Beethoven and SC09
-python -m train experiment=samplernn-youtubemix wandb=null
-python -m train experiment=samplernn-beethoven wandb=null
-python -m train experiment=samplernn-sc09 wandb=null
+python -m train experiment=audio/samplernn-youtubemix wandb=null
+python -m train experiment=audio/samplernn-beethoven wandb=null
+python -m train experiment=audio/samplernn-sc09 wandb=null
 
 # Train WaveNet models on YouTubeMix, Beethoven and SC09
-python -m train experiment=wavenet-youtubemix wandb=null
-python -m train experiment=wavenet-beethoven wandb=null
-python -m train experiment=wavenet-sc09 wandb=null
+python -m train experiment=audio/wavenet-youtubemix wandb=null
+python -m train experiment=audio/wavenet-beethoven wandb=null
+python -m train experiment=audio/wavenet-sc09 wandb=null
 ```
 Audio generation models are generally slow to train, e.g. YouTubeMix SaShiMi models take up to a week to train on a single V100 GPU.
 
@@ -100,20 +104,23 @@ Audio generation models are generally slow to train, e.g. YouTubeMix SaShiMi mod
 
 ## Audio Generation
 
+To generate audio, use the `state-spaces/generation.py` script.
+More instructions can be found in the main [README](../README.md#generation).
+
 ### Download Checkpoints
 We provide checkpoints for SaShiMi, SampleRNN and WaveNet on YouTubeMix and SC09 on the [Huggingface Hub](https://huggingface.co/krandiash/sashimi-release). The checkpoint files are named `checkpoints/<model>_<dataset>.pt` and are provided for use with our generation script at `state-spaces/sashimi/generation.py`.
 
 ### Unconditional Generation
-To generate audio, you can use the `state-spaces/sashimi/generation.py` script. First, put the checkpoints you downloaded at `state-spaces/sashimi/checkpoints/`. 
+First, put the checkpoints you downloaded at `state-spaces/checkpoints/`. 
 
-Then, run the following command to generate audio (see the `--help` flag for more details):
+Then, run the following command to generate audio
 ```bash
-python -m sashimi.generation --model <model> --dataset <dataset> --sample_len <sample_len_in_steps>
+python -m generate experiment=<model>-<dataset> l_sample=<sample_len_in_steps> load_data=false
 ```
 
 For example, to generate 32 unconditional samples of 1 second 16kHz audio from the SaShiMi model on YouTubeMix, run the following command:
 ```bash
-python -m sashimi.generation --model sashimi --dataset youtubemix --n_samples 32 --sample_len 16000
+python -m generate experiment=sashimi-youtubemix n_samples=32 l_sample=16000 load_data=false
 ```
 The generated `.wav` files will be saved to `sashimi/samples/`. You can generate audio for all models and datasets in a similar way.
 
@@ -124,7 +131,7 @@ The generated `.wav` files will be saved to `sashimi/samples/`. You can generate
 ### Conditional Generation
 You can also generate conditional samples, e.g. to generate 32 samples conditioned on 0.5 seconds of audio from the SaShiMi model on YouTubeMix, run the following command:
 ```bash
-python -m sashimi.generation --model sashimi --dataset youtubemix --n_samples 8 --n_reps 4 --sample_len 16000 --prefix 8000 --load_data
+python -m generate experiment=sashimi-youtubemix n_samples=8 n_reps=4 l_sample=16000 l_prefix=8000
 ```
 The `prefix` flag specifies the number of steps to condition on. The script selects the first `n_samples` examples of the specified `split` (defaults to `val`) of the dataset. `n_reps` specifies how many generated samples will condition on a prefix from a single example (i.e. the total number of generated samples is `n_samples x n_reps`). 
 

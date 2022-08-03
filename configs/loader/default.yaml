@@ -1,0 +1,4 @@
+batch_size: 50
+num_workers: 4
+pin_memory: True
+drop_last: True # We set this to true because of the recurrent state mechanism

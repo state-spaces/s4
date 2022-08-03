@@ -1,4 +1,5 @@
-# Adapted from https://github.com/idiap/fast-transformers/blob/master/fast_transformers/feature_maps/fourier_features.py
+# Adapted from https://github.com/HazyResearch/zoo
+# in turn adapted from https://github.com/idiap/fast-transformers/blob/master/fast_transformers/feature_maps/fourier_features.py
 import math
 import torch
 
@@ -6,10 +7,6 @@ from einops import rearrange, repeat
 
 from fast_transformers.feature_maps.base import FeatureMap
 
-# from src.models.modules.attention.performer_utils import (
-#     gaussian_orthogonal_random_matrix,
-#     softmax_kernel
-# )
 def orthogonal_matrix_chunk(cols, device=None):
     unstructured_block = torch.randn((cols, cols), device=device)
     q, r = torch.linalg.qr(unstructured_block)

@@ -1,0 +1,14 @@
+_name_: sru
+d_model: 256
+residual: H
+
+# Below illustrates creating a full model using the SRURNN layer instead of SRU cell
+
+# # @package model
+# _name_: model
+# layer:
+#   _name_: sru
+#   d_model: 256
+#   feedback: True
+# n_layers: 3
+# residual: H

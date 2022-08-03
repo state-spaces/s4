@@ -1,0 +1,13 @@
+_name_: ckconv
+d_model: 30 # taken from Table 8
+num_blocks: 2 # always 2 blocks
+kernelnet_hidden_channels: 32
+kernelnet_activation_function: Sine
+kernelnet_norm_type: LayerNorm
+dim_linear: 1 # 1 / 2
+bias: True # False / True
+omega_0: 40.0 # good values in [0, 70.]
+dropout: 0.2
+weight_dropout: 0.0
+pool: False # always set to False by CKConv
+wd: 0.

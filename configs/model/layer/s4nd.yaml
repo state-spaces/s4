@@ -1,0 +1,26 @@
+_name_: s4nd
+d_state: 64
+channels: 1
+bidirectional: true
+activation: gelu
+postact: glu
+initializer: null
+weight_norm: false
+hyper_act: null
+trank: 1
+dropout: ${..dropout} # Same as null
+tie_dropout: ${..tie_dropout}
+measure: legs
+rank: 1
+dt_min: 0.001
+dt_max: 0.1
+lr:
+  dt: 0.001
+  A: 0.001
+  B: 0.001
+n_ssm: 1
+deterministic: false # Special C init
+l_max: ${oc.select:dataset.__l_max,null} # Grab dataset length if exists, otherwise set to 1 and kernel will automatically resize
+verbose: true
+linear: false
+# linear_output: True

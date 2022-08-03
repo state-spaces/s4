@@ -14,7 +14,6 @@ from src.utils.config import omegaconf_filter_keys
 
 
 # Copied from https://docs.python.org/3/howto/logging-cookbook.html#using-a-context-manager-for-selective-logging
-# [21-09-17 AG] doesn't appear to be used
 class LoggingContext:
     def __init__(self, logger, level=None, handler=None, close=True):
         self.logger = logger
@@ -53,7 +52,6 @@ def get_logger(name=__name__, level=logging.INFO) -> logging.Logger:
     return logger
 
 
-# def extras(config: DictConfig) -> None:
 def process_config(config: DictConfig) -> DictConfig: # TODO because of filter_keys, this is no longer in place
     """A couple of optional utilities, controlled by main config file:
     - disabling warnings
@@ -79,13 +77,11 @@ def process_config(config: DictConfig) -> DictConfig: # TODO because of filter_k
         log.info("Disabling python warnings! <config.ignore_warnings=True>")
         warnings.filterwarnings("ignore")
 
-    # set <config.trainer.fast_dev_run=True> if <config.debug=True>
     if config.get("debug"):
         log.info("Running in debug mode! <config.debug=True>")
         config.trainer.fast_dev_run = True
 
-    # # force debugger friendly configuration if <config.trainer.fast_dev_run=True>
-    # if config.trainer.get("fast_dev_run"):
+        # force debugger friendly configuration
         log.info("Forcing debugger friendly configuration! <config.trainer.fast_dev_run=True>")
         # Debuggers don't like GPUs or multiprocessing
         if config.trainer.get("gpus"):
@@ -103,16 +99,8 @@ def process_config(config: DictConfig) -> DictConfig: # TODO because of filter_k
 @rank_zero_only
 def print_config(
     config: DictConfig,
-    # fields: Sequence[str] = (
-    #     "trainer",
-    #     "model",
-    #     "datamodule",
-    #     "train",
-    #     "callbacks",
-    #     "logger",
-    #     "seed",
-    # ),
     resolve: bool = True,
+    save_cfg=True,
 ) -> None:
     """Prints content of DictConfig using Rich library and its tree structure.
     Args:
@@ -138,8 +126,9 @@ def print_config(
 
     rich.print(tree)
 
-    with open("config_tree.txt", "w") as fp:
-        rich.print(tree, file=fp)
+    if save_cfg:
+        with open("config_tree.txt", "w") as fp:
+            rich.print(tree, file=fp)
 
 def log_optimizer(logger, optimizer, keys):
     """ Log values of particular keys from the optimizer's param groups """
@@ -150,64 +139,3 @@ def log_optimizer(logger, optimizer, keys):
             f"Optimizer group {i}",
             f"{len(g['params'])} tensors",
         ] + [f"{k} {v}" for k, v in group_hps.items()]))
-        # print(f"Optimizer group {i} | {len(g['params'])} tensors | lr {g['lr']} | wd {g.get('weight_decay', None)}")
-
-
-
-""" Old code """
-
-def resume(config):
-    pl.seed_everything(config.train.seed, workers=True) # TODO what happens if None?
-
-    trainer = create_trainer(config)
-    # Because we do model creation in setup(), we have to create model manually again
-    # model = SequenceLightningModule.load_from_checkpoint(path)
-    model = create_model(config, SequenceLightningModule)
-
-    # [21-09-18]
-    # The order that PL calls its hooks is frustratingly opaque
-    # (1) If resuming from checkpoint, configure_optimizers() is not called
-    #     So we need to manually create the model, move it to device, and call the hook
-    # (2) However, for some incredibly bizarre reason, it seems that if on_post_move_to_device is called, the model also calls configure_optimizers
-    #     hopefully this doesn't mess with the optimizer checkpoint
-    #     This currently doesn't seem to break anything, but is very annoying to reason about and who knows if it'll change in future versions
-    model.setup()
-    model = model.to('cuda')
-    model.on_post_move_to_device()
-    # My best guess to the order of hooks is something like:
-    # (1) .setup()
-    # (2) .to(device) / .configure_optimizers()
-    # (3) .load_state_dict (note that checkpoint tensors know their device)
-    # (4) .validate() or .train()
-    # Unfortunately, I can't find a hook in between .to(device) and .load_state_dict where we can call the submodule processing
-    # (since PL is not properly calling the post_move_to_device hook as of 1.4.7)
-
-    trainer.fit(model)
-
-def resume_manual(config):
-    ### Alternatively to the Trainer(resume_from_checkpoint=) argument, we can explicitly restore trainer and model state
-    trainer = pl.Trainer(resume_from_checkpoint=path)
-    ### Model
-    import pathlib
-    path = Path(__file__).absolute().parent / config.train.resume
-    checkpoint = torch.load(path)
-    # Move to device explicitly so we can set up submodules (e.g. Krylov) and load the saved model
-    model = model.to('cuda')
-    model.setup()
-    for module in model.modules():
-        if hasattr(module, 'setup'): module.setup()
-
-    model.load_state_dict(checkpoint['state_dict'])
-    # delattr(model, 'setup') # Trick to prevent model from being set up multiple times, but runs into a Python bug LOL https://discuss.python.org/t/why-do-setattr-and-delattr-raise-an-attributeerror-in-this-case/7836/4
-
-    ### Optimizers
-    optimizers, lr_schedulers, _ = trainer.init_optimizers(model) # third arg is optimizer_frequencies https://github.com/PyTorchLightning/pytorch-lightning/blob/c66d30a4aa9615cf1b81e76e416c162bf9d2f0a3/pytorch_lightning/trainer/optimizers.py#L28
-    for optimizer, optimizer_state in zip(optimizers, checkpoint['optimizer_states']):
-        optimizer.load_state_dict(optimizer_state)
-
-    trainer.model = model
-    trainer.optimizers = optimizers
-    trainer.lr_schedulers = lr_schedulers
-    # trainer.restore_training_state(checkpoint) # Found in https://github.com/PyTorchLightning/pytorch-lightning/issues/2613 but doesn't work anymore
-
-    trainer.test(trainer.model)

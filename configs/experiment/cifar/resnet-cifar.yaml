@@ -1,0 +1,28 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar
+  - /model: baseline/resnet2d
+
+model:
+  variant: resnet18
+
+encoder: null
+decoder: nd
+
+dataset:
+  permute: 2d
+
+train:
+  seed: 1111
+
+optimizer:
+  lr: 0.01
+
+loader:
+  batch_size: 50
+
+trainer:
+  max_epochs: 100
+
+scheduler:
+  patience: 10

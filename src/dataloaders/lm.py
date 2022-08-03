@@ -34,12 +34,10 @@ import src.utils.train
 log = src.utils.train.get_logger(__name__)
 
 
-from src.dataloaders.datasets import SequenceDataset, default_data_path
-from src.dataloaders.vocabulary import OpenAIVocab, Vocab
+from src.dataloaders.base import SequenceDataset, default_data_path
+from src.dataloaders.utils.vocabulary import OpenAIVocab, Vocab
 import src.utils as utils
-# from tasks.legacy.tasks import LMPerplexity, LMBPC
 
-# TODO: create a package so we don't have to mess with sys.path?
 project_root = Path(__file__).parent.parent.absolute()
 data_path = Path(__file__).absolute().parent / 'data'
 
@@ -54,10 +52,6 @@ class LMOrderedIterator:
         batch_size,
         l_max,
         batch_first=True,
-        # device="cpu",
-        # mem_len=None,
-        # ext_len=None,
-        # warmup=True,
         n_context=1,
         n_epoch_double=0,
         pad_last=False,
@@ -73,16 +67,11 @@ class LMOrderedIterator:
         self.batch_size = batch_size
         self.l_max = l_max
         self.batch_first = batch_first
-        # self.ext_len = ext_len if ext_len is not None else 0
-        # self.mem_len = mem_len
-        # self.warmup = warmup
         self.pad_last = pad_last
         self.roll_seed = roll_seed
         self.n_context = n_context
         self.n_epoch_double = n_epoch_double
 
-        # self.device = device
-        # self.last_iter = None # AG: this isn't in original repo and doesn't appear to be used
         self.epoch = -1
 
         # DDP
@@ -127,18 +116,15 @@ class LMOrderedIterator:
             row = torch.cat((row[shift:], row[:shift]))
             self.data[i, :] = row
 
-    def get_batch(self, i, l_max=None):
+    def get_batch(self, i):
         """ Get batch starting at token index i """
-        # if l_max is None: l_max = self.l_max
-        # seq_len = min(l_max, self.data.size(0) - 1 - i)
 
         end_idx = min(i + self.l_inc, self.data.size(-1)-1)
-        # beg_idx = max(0, i - self.ext_len)
-        beg_idx = max(0, end_idx - self.l_max)
+        beg_idx = max(0, i + self.l_inc - self.l_max)
         seq_len = end_idx - i
 
-        data = self.data[..., beg_idx:end_idx] # .to(self.device, non_blocking=True)
-        target = self.data[..., i+1 : end_idx+1] # .to( self.device, non_blocking=True)
+        data = self.data[..., beg_idx:end_idx]
+        target = self.data[..., i+1 : end_idx+1]
 
         if self.pad_last and seq_len < self.l_inc:
             data = F.pad(data, (0, self.l_inc - seq_len)) # (batch_size, l_inc)
@@ -149,19 +135,16 @@ class LMOrderedIterator:
             data = data.transpose(0, 1).contiguous() # (n_batch, l_sequence)
             target = target.transpose(0, 1).contiguous()
 
-        # [21-09-19] Unsqueeze the last dimension so that shape is always (n_batch, l_seq, d_input)
-        data = data
-        target = target
-        return data, target, seq_len
+        return data, target, {"l_output": seq_len} # Return length of desired output
 
-    def get_fixlen_iter(self, start=0): # AG: Don't see start ever used?
+    def get_fixlen_iter(self, start=0):
         if start != 0:
             start += self.l_max
         for i in range(start, self.data.size(-1) - 1, self.l_inc):
             self.last_iter = i
             yield self.get_batch(i)
 
-    def get_varlen_iter(self, start=0, std=5, min_len=5, max_deviation=3):
+    def get_varlen_iter(self, start=0, std=5, min_len=5, max_deviation=3): # NOTE: NOT TESTED
         l_max = self.l_max + max_deviation * std
         i = start
         while True:
@@ -191,6 +174,7 @@ class LMOrderedIterator:
 
 
 class LMShuffledIterator(object):
+    # NOTE: Not tested
     def __init__(
         self, data, batch_size, l_max, device="cpu", ext_len=None, shuffle=False
     ):
@@ -279,6 +263,7 @@ class LMShuffledIterator(object):
 
 
 class LMMultiFileIterator(LMShuffledIterator):
+    # NOTE: Not tested
     def __init__(
         self,
         paths,
@@ -319,7 +304,6 @@ class LMMultiFileIterator(LMShuffledIterator):
                 yield batch
 
 
-# class WikiText2(LightningDataModule):
 class WikiText2(SequenceDataset):
     _name_ = "wt2"
 
@@ -327,87 +311,17 @@ class WikiText2(SequenceDataset):
     vocab_kwargs = {"special": ["<eos>"], "lower_case": False}
     encode_kwargs = {"ordered": True}
 
-    # Embedding arguments (adaptive softmax / word embeddings)
-    # default_task = {
-    #     'adaptive': False,
-    #     'div_val': 1,
-    #     'cutoffs': [],
-    #     'tie_weights': False,
-    #     'tie_projs': [False],
-    # }
-    @property
-    def default_task(self):
-        return {
-            '_target_': 'tasks.tasks.LMTask',
-            'tied': False,
-            'rescale': True,
-            # init_cfg,
-            'metrics': ['ppl'],
-            'init_cfg': {
-                'init': 'normal',  # Parameter initializer to use
-                'init_range': 0.01,  # Parameters initialized by U(-init_range, init_range)
-                'init_std': 0.02,  # Parameters initialized by N(0, init_std)
-                'proj_init_std': 0.01, # Separate std for projection params
-            }
-        }
-
-    # Task class / constructor
-    # task_cls = LMPerplexity
-
-    # @property
-    # def l_output(self):
-    #     return self.l_max
-
     init_defaults = {
         # Dataset arguments
         'l_max': 512,
         'bpe': False,
         'roll_seed': 42,
         'test_split': True,
-        # Task / Embedding arguments
-        # 'task': None,
     }
 
     @property
     def n_tokens(self):
         return len(self.vocab)
-
-    # def __init__(
-    #     self,
-    #     data_dir,
-    #     d_embed, init_cfg, task=None, # Task / Embedding arguments
-    #     bpe=False,
-    #     l_max=None,
-    #     pad_last=False,
-    #     roll_seed=42,
-    #     eval={
-    #         'l_max': None,
-    #         'pad_last': False,
-    #         'roll_seed': None,
-    #     },
-    #     **kwargs,
-    #     # TODO kwargs is here to absorb things like 'num_workers' and 'pin_memory' which should really be part of every dataset
-    # ):
-    #     super().__init__()
-        # if data_dir is None: self.data_dir = Path(data_dir) / self._name_
-        # # self.d_embed = d_embed
-        # # self.init_cfg = init_cfg
-        # if bpe:
-        #     self.vocab = OpenAIVocab()
-        # else:
-        #     self.vocab = Vocab(**self.vocab_kwargs)
-
-        # # Loader arguments
-        # assert l_max is not None
-        # self.l_max = l_max
-        # self.pad_last = pad_last
-        # self.roll_seed = roll_seed
-
-        # self.eval = DictConfig(eval)
-        # if self.eval.l_max is None: self.eval.l_max = self.l_max
-
-        # if task is not None:
-        #     self.task.update(task)
 
     def prepare_data(self):
         # [21-09-23] probably broken
@@ -423,8 +337,6 @@ class WikiText2(SequenceDataset):
 
     def setup(self, stage=None): # [21-09-10 AG]: TODO shouldn't this tokenization happen in the prepare_data? since we're caching it it doesn't really matter, but still
         if self.data_dir is None: self.data_dir = default_data_path / self._name_
-        # self.d_embed = d_embed
-        # self.init_cfg = init_cfg
         if self.bpe:
             self.vocab = OpenAIVocab()
         else:
@@ -452,8 +364,6 @@ class WikiText2(SequenceDataset):
 
         # Define task
         print("Vocab size:", len(self.vocab))
-        # self.task = self.task_cls(len(self.vocab), self.d_embed, init_cfg=self.init_cfg, **self.task_args)
-        # self.d_input = self.d_output = self.d_embed
 
     def _vocab_count(self):
         self.vocab.count_file(self.data_dir / "train.txt")
@@ -511,15 +421,6 @@ class WikiText2(SequenceDataset):
 
     def val_dataloader(self, **kwargs):
         return self._eval_dataloader(self.valid, **kwargs)
-        # return LMOrderedIterator(
-        #     self.valid,
-        #     batch_size,
-        #     **self.eval,
-        # )
-        # for k in train_args:
-        #     if eval_args.get(k, None) is None:
-        #         eval_args[k] = v
-        # return LMOrderedIterator(self.valid, **eval_args)
 
     def test_dataloader(self, **kwargs):
         return self._eval_dataloader(self.test, **kwargs)
@@ -527,23 +428,6 @@ class WikiText2(SequenceDataset):
 
 class WikiText103(WikiText2):
     _name_ = "wt103"
-
-    @property
-    def default_task(self):
-        return {
-            # 'adaptive': True,
-            '_target_': 'tasks.tasks.AdaptiveLMTask',
-            'div_val': 1,
-            'cutoffs': [19997, 39997, 199997],
-            'tie_weights': True,
-            'tie_projs': [False] + [True, True, True], # * len(cutoffs),
-            'init_cfg': {
-                'init': 'normal',  # Parameter initializer to use
-                'init_range': 0.01,  # Parameters initialized by U(-init_range, init_range)
-                'init_std': 0.02,  # Parameters initialized by N(0, init_std)
-                'proj_init_std': 0.01, # Separate std for projection params
-            }
-        }
 
     def _vocab_count(self):
         print(self.data_dir)
@@ -555,35 +439,16 @@ class PennTreeBank(WikiText2):
     _name_ = "ptb"
     vocab_kwargs = {"special": ["<eos>"], "lower_case": True}
 
-    # task_cls = LMBPC
-
 class EnWik8(WikiText2):
     _name_ = "enwik8"
 
     vocab_kwargs = {}
     encode_kwargs = {"ordered": True, "add_eos": False}
 
-    # task_cls = LMBPC
-    @property
-    def default_task(self):
-        return {
-            '_target_': 'tasks.tasks.LMTask',
-            'tied': False,
-            'rescale': True,
-            # init_cfg,
-            'metrics': ['ppl'],
-            # 'init_cfg': {
-            #     'init': 'normal',  # Parameter initializer to use
-            #     'init_range': 0.01,  # Parameters initialized by U(-init_range, init_range)
-            #     'init_std': 0.02,  # Parameters initialized by N(0, init_std)
-            #     'proj_init_std': 0.01, # Separate std for projection params
-            # }
-        }
 
 class Text8(EnWik8):
 
     _name_ = "text8"
-    # task_cls = LMBPC
 
 
 class LM1B(WikiText2):
@@ -640,158 +505,3 @@ class LM1B(WikiText2):
 
     def test_dataloader(self, *args, **kwargs):
         return LMShuffledIterator(self.test, *args, **kwargs)
-
-
-
-class Corpus(object):
-    # AG: only used in get_lm_corpus which is only called in the unit test
-    def __init__(self, path, dataset, vocab, *args, **kwargs):
-        self.dataset = dataset
-        if vocab == "word":
-            self.vocab = Vocab(*args, **kwargs)
-        elif vocab == "bpe":
-            self.vocab = OpenAIVocab()
-        else:
-            raise RuntimeError("Unsupported vocab")
-
-        if self.dataset in ["ptb", "wt2", "enwik8", "text8"]:
-            self.vocab.count_file(os.path.join(path, "train.txt"))
-            self.vocab.count_file(os.path.join(path, "valid.txt"))
-            self.vocab.count_file(os.path.join(path, "test.txt"))
-        elif self.dataset == "wt103":
-            self.vocab.count_file(os.path.join(path, "train.txt"))
-        elif self.dataset == "lm1b":
-            train_path_pattern = os.path.join(
-                path,
-                "1-billion-word-language-modeling-benchmark-r13output",
-                "training-monolingual.tokenized.shuffled",
-                "news.en-*",
-            )
-            train_paths = glob.glob(train_path_pattern)
-            # the vocab will load from file when build_vocab() is called
-
-        self.vocab.build_vocab()
-
-        if self.dataset in ["ptb", "wt2", "wt103"]:
-            self.train = self.vocab.encode_file(
-                os.path.join(path, "train.txt"), ordered=True
-            )
-            self.valid = self.vocab.encode_file(
-                os.path.join(path, "valid.txt"), ordered=True
-            )
-            self.test = self.vocab.encode_file(
-                os.path.join(path, "test.txt"), ordered=True
-            )
-        elif self.dataset in ["enwik8", "text8"]:
-            self.train = self.vocab.encode_file(
-                os.path.join(path, "train.txt"), ordered=True, add_eos=False
-            )
-            self.valid = self.vocab.encode_file(
-                os.path.join(path, "valid.txt"), ordered=True, add_eos=False
-            )
-            self.test = self.vocab.encode_file(
-                os.path.join(path, "test.txt"), ordered=True, add_eos=False
-            )
-        elif self.dataset == "lm1b":
-            self.train = train_paths
-            self.valid = self.vocab.encode_file(
-                os.path.join(path, "valid.txt"),
-                ordered=False,
-                add_double_eos=True,
-            )
-            self.test = self.vocab.encode_file(
-                os.path.join(path, "test.txt"),
-                ordered=False,
-                add_double_eos=True,
-            )
-
-    def get_iterator(self, split, *args, **kwargs):
-        if split == "train":
-            if self.dataset in ["ptb", "wt2", "wt103", "enwik8", "text8"]:
-                data_iter = LMOrderedIterator(self.train, *args, **kwargs)
-            elif self.dataset == "lm1b":
-                kwargs["shuffle"] = True
-                data_iter = LMMultiFileIterator(
-                    self.train, self.vocab, *args, **kwargs
-                )
-        elif split in ["valid", "test"]:
-            data = self.valid if split == "valid" else self.test
-            if self.dataset in ["ptb", "wt2", "wt103", "enwik8", "text8"]:
-                data_iter = LMOrderedIterator(data, *args, **kwargs)
-            elif self.dataset == "lm1b":
-                data_iter = LMShuffledIterator(data, *args, **kwargs)
-
-        return data_iter
-
-def get_lm_corpus(data_dir, name, vocab):
-    if vocab == "word":
-        fn = os.path.join(data_dir, "cache.pt")
-    elif vocab == "bpe":
-        fn = os.path.join(data_dir, "cache.pt.bpe")
-    else:
-        raise RuntimeError("Unsupported vocab")
-
-    if os.path.exists(fn):
-        logging.info("Loading cached dataset...")
-        corpus = torch.load(fn)
-    else:
-        logging.info("Producing dataset {}...".format(name))
-        kwargs = {}
-        if name in ["wt103", "wt2"]:
-            kwargs["special"] = ["<eos>"]
-            kwargs["lower_case"] = False
-        elif name == "ptb":
-            kwargs["special"] = ["<eos>"]
-            kwargs["lower_case"] = True
-        elif name == "lm1b":
-            kwargs["special"] = []
-            kwargs["lower_case"] = False
-            kwargs["vocab_file"] = os.path.join(data_dir, "1b_word_vocab.txt")
-        elif name in ["enwik8", "text8"]:
-            pass
-
-        corpus = Corpus(data_dir, name, vocab, **kwargs)
-        # with distributed.sync_workers() as rank:
-        #     if rank == 0:
-        #         torch.save(corpus, fn)
-
-    return corpus
-
-
-def tokenize_raw(text, lang="en"):
-    # AG: Not used?
-    import sacremoses
-
-    mt = sacremoses.MosesTokenizer(lang)
-    text = mt.tokenize(text, return_str=True)
-    text = re.sub(r"&quot;", '"', text)
-    text = re.sub(r"&apos;", "'", text)
-    text = re.sub(r"(\d)\.(\d)", r"\1 @.@ \2", text)
-    text = re.sub(r"(\d),(\d)", r"\1 @,@ \2", text)
-    text = re.sub(r"(\w)-(\w)", r"\1 @-@ \2", text)
-    return text
-
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="unit test")
-    parser.add_argument(
-        "--datadir",
-        type=str,
-        default="../data/text8",
-        help="location of the data corpus",
-    )
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default="text8",
-        choices=["ptb", "wt2", "wt103", "lm1b", "enwik8", "text8"],
-        help="dataset name",
-    )
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO)
-
-    corpus = get_lm_corpus(args.datadir, args.dataset, vocab="word")
-    logging.info("Vocab size : {}".format(len(corpus.vocab.idx2sym)))

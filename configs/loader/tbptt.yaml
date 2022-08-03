@@ -1,0 +1,8 @@
+_name_: tbptt
+chunk_len: null  # [ None | int ] chunk length for tbptt (used by TBPTTDataLoader)
+overlap_len: null # [ None | int ] overlap length for tbptt (used by TBPTTDataLoader)
+
+batch_size: 50
+num_workers: 4
+pin_memory: True
+drop_last: True # We set this to true because of the recurrent state mechanism

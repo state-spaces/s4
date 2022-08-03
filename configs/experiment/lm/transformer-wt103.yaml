@@ -1,0 +1,49 @@
+# @package _global_
+defaults:
+  - /pipeline: wt103
+  - /model: transformer
+
+# Dataset
+dataset:
+  test_split: True
+loader:
+  batch_size: 16
+  l_max: 512
+  n_context: 1
+  eval:
+    batch_size: null
+    l_max: null
+
+task:
+  div_val: 4
+  dropemb: 0.1
+  dropsoft: 0.1
+
+# Model
+model:
+  dropinp: 0.0
+  dropout: 0.1
+  prenorm: true
+  n_layers: 16
+  d_model: 512
+  residual: R
+  prenorm: False
+
+# Optimizer
+# optimizer: adamw
+optimizer:
+  lr: 5e-4
+  weight_decay: 0.0
+
+# Scheduler
+trainer:
+  max_epochs: 40
+  gradient_clip_val: 0.25
+  accumulate_grad_batches: 2
+
+scheduler: # cosine_warmup
+  num_warmup_steps: 1000
+  num_training_steps: 40000
+
+train:
+  seed: 1111

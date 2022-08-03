@@ -1,34 +1,70 @@
 from torch import nn
+import functools
 
 class SequenceModule(nn.Module):
-    """ Abstract sequence model class. All layers that the backbones use must adhere to this
+    """Abstract sequence model class. All models must adhere to this interface
 
-    A sequence model is a layer that transforms an input of shape
-    (n_batch, l_sequence, d_input) to (n_batch, l_sequence, d_output)
+    A SequenceModule is generally a model that transforms an input of shape
+    (n_batch, l_sequence, d_model) to (n_batch, l_sequence, d_output)
 
-    Additionally, it returns a "state" which can be any additional information
-    For example, RNN and SSM layers may return their hidden state,
-    while some types of transformer layers (e.g. Transformer-XL) may want to pass through state as well
+    REQUIRED methods and attributes
+    forward, d_model, d_output: controls standard forward pass, a sequence-to-sequence transformation
+    __init__ should also satisfy the following interface; see SequenceIdentity for an example
+        def __init__(self, d_model, transposed=False, **kwargs)
 
-    - default_state receives a batch_shape with device and returns an initial state
-    - step simulates a single step of the sequence (e.g. one unroll for an RNN). It receives a state and single input (n_batch, d_input) and returns a state and output (n_batch, d_output)
-    - forward is a sequence-to-sequence transformation that receives an optional state
+    OPTIONAL methods
+    default_state, step: allows stepping the model recurrently with a hidden state
+    state_to_tensor, d_state: allows decoding from hidden state
     """
 
-    # def __init__(self, transposed=False, *args, **kwargs):
-    #     """ model should support regular (B, L, H) and transposed (B, H, L) axes ordering """
-    #     self.transposed = transposed
+    @property
+    def d_model(self):
+        """Model dimension (generally same as input dimension).
+
+        This attribute is required for all SequenceModule instantiations.
+        It is used by the rest of the pipeline (e.g. model backbone, encoder) to track the internal shapes of the full model.
+        """
+        if getattr(self, "_d_model", None) is None:
+            raise NotImplementedError("SequenceModule instantiation must set d_model")
+        return self._d_model
+
+    @d_model.setter
+    def d_model(self, d):
+        self._d_model = d
 
     @property
     def d_output(self):
+        """Output dimension of model.
+
+        This attribute is required for all SequenceModule instantiations.
+        It is used by the rest of the pipeline (e.g. model backbone, decoder) to track the internal shapes of the full model.
+        """
+        if getattr(self, "_d_output", None) is None:
+            raise NotImplementedError("SequenceModule instantiation must specify d_output for decoder")
         return self._d_output
+
     @d_output.setter
     def d_output(self, d):
         self._d_output = d
 
+    def forward(self, x, state=None, **kwargs):
+        """Forward pass of sequence model, a sequence-to-sequence transformation with an optional state.
+
+        Generally, this should map a tensor of shape (batch, length, self.d_model) to (batch, length, self.d_output)
+
+        Additionally, it returns a "state" which can be any additional information
+        For example, RNN and SSM layers may return their hidden state,
+        while some types of transformer layers (e.g. Transformer-XL) may want to pass a state as well
+        """
+        return x, None
+
     @property
     def state_to_tensor(self):
-        """ Returns a function mapping a state to a single tensor, in case one wants to use the hidden state instead of the output for final prediction """
+        """Returns a function mapping a state to a single tensor.
+
+        This method should be implemented if one wants to use the hidden state instead of the output sequence for final prediction.
+        Currently only used with the StateDecoder.
+        """
         return lambda _: None
 
     @property
@@ -36,45 +72,60 @@ class SequenceModule(nn.Module):
         """ Returns dimension of output of self.state_to_tensor """
         return None
 
-    @property
-    def transposed(self):
-        return self._transposed
-    @transposed.setter
-    def transposed(self, x):
-        self._transposed = x
 
+    def default_state(self, *batch_shape, device=None):
+        """Create initial state for a batch of inputs."""
 
-    def default_state(self, *batch_shape, device=None): # TODO device shouldn't be needed; models should store their own initial state at initialization
         return None
 
-    def step(self, x, state=None, *args, **kwargs):
-        return x, state
+    def step(self, x, state=None, **kwargs):
+        """Step the model recurrently for one step of the input sequence.
 
-    def forward(self, x, state=None, *args, **kwargs):
-        return x, state
+        For example, this should correspond to unrolling an RNN for one step.
+        If the forward pass has signature (B, L, H1) -> (B, L, H2),
+        this method should generally have signature (B, H1) -> (B, H2) with an optional recurrent state.
+        """
+        raise NotImplementedError
 
-def Transpose(module):
-    """ Wrap a SequenceModule class to transpose the forward pass """
-    # TODO maybe possible with functools.wraps
-    class WrappedModule(module):
+def TransposedModule(module):
+    """Wrap a SequenceModule class to accept transposed parameter, handle state, absorb kwargs"""
+    # https://stackoverflow.com/a/65470430/1980685
+    @functools.wraps(module, updated=())
+    class TransposedModule(module):
         def __init__(self, *args, transposed=False, **kwargs):
             super().__init__(*args, **kwargs)
             self.transposed = transposed
 
-        def forward(self, x, *args, **kwargs):
+        def forward(self, x, state=None, **kwargs):
             if self.transposed: x = x.transpose(-1, -2)
-            x, state = super().forward(x)
+            x, next_state = super().forward(x, state) # Don't use kwarg because nn.LSTM
+            next_state = None if state is None else next_state
             if self.transposed: x = x.transpose(-1,-2)
-            return x, state
+            return x, next_state
     # https://stackoverflow.com/questions/5352781/how-to-set-class-names-dynamically
-    WrappedModule.__name__ = module.__name__
-    return WrappedModule
+    # TransposedModule.__name__ = module.__name__ # functools wraps is better solution
+    return TransposedModule
 
+@TransposedModule
 class SequenceIdentity(SequenceModule):
-    def __init__(self, d_model, dropout=0.0):
+    """Simple SequenceModule for testing purposes"""
+
+    def __init__(self, d_model, dropout=0.0, **kwargs):
+        """Default interface for SequenceModule
+
+        d_model: input dimension (sometimes denoted H for hidden dimension)
+        transposed: if True, inputs have axis ordering (B, H, L) instead of (B, H, L)
+        """
         super().__init__()
+        self.d_model = d_model
         self.d_output = d_model
 
-    def forward(self, x, state=None, *args, **kwargs):
+
+    def forward(self, x, state=None):
         return x, state
-SequenceIdentity = Transpose(SequenceIdentity)
+
+    def default_state(self, *batch_shape, device=None):
+        return None
+
+    def step(self, x, state=None, **kwargs):
+        return x, state

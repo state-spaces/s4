@@ -1,0 +1,14 @@
+_name_: nonaka/inception
+num_classes: 2
+input_channels: 8
+kernel_size: 40
+depth: 6
+bottleneck_size: 32
+nb_filters: 32
+use_residual: True
+lin_ftrs_head: null
+ps_head: 0.5
+bn_final_head: False
+bn_head: True
+act_head: "relu"
+concat_pooling: True

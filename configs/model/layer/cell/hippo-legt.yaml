@@ -1,0 +1,7 @@
+# Config for the HiPPO-LegT (Translated Legendre) cell
+_name_: legt
+d_model: 256
+memory_size: 1
+memory_order: -1
+dt: 0.01
+discretization: bilinear

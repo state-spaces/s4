@@ -1,9 +1,41 @@
 import math
 import torch
 import torch.nn.functional as F
-from src.tasks.mixture import mixture_loss, mixture_loss_kd
 from sklearn.metrics import f1_score, roc_auc_score
 from functools import partial
+
+def _student_t_map(mu, sigma, nu):
+    sigma = F.softplus(sigma)
+    nu = 2.0 + F.softplus(nu)
+    return mu.squeeze(axis=-1), sigma.squeeze(axis=-1), nu.squeeze(axis=-1)
+
+def student_t_loss(outs, y):
+    mu, sigma, nu = outs[..., 0], outs[..., 1], outs[..., 2]
+    mu, sigma, nu = _student_t_map(mu, sigma, nu)
+    y = y.squeeze(axis=-1)
+
+    nup1_half = (nu + 1.0) / 2.0
+    part1 = 1.0 / nu * torch.square((y - mu) / sigma)
+    Z = (
+        torch.lgamma(nup1_half)
+        - torch.lgamma(nu / 2.0)
+        - 0.5 * torch.log(math.pi * nu)
+        - torch.log(sigma)
+    )
+
+    ll = Z - nup1_half * torch.log1p(part1)
+    return -ll.mean()
+
+def gaussian_ll_loss(outs, y):
+    mu, sigma = outs[..., 0], outs[..., 1]
+    y = y.squeeze(axis=-1)
+    sigma = F.softplus(sigma)
+    ll = -1.0 * (
+        torch.log(sigma)
+        + 0.5 * math.log(2 * math.pi)
+        + 0.5 * torch.square((y - mu) / sigma)
+    )
+    return -ll.mean()
 
 def binary_cross_entropy(logits, y):
     # BCE loss requires squeezing last dimension of logits so it has the same shape as y
@@ -19,6 +51,12 @@ def cross_entropy(logits, y):
     logits = logits.view(-1, logits.shape[-1])
     y = y.view(-1)
     return F.cross_entropy(logits, y)
+
+
+def soft_cross_entropy(logits, y, **kwargs):
+    logits = logits.view(-1, logits.shape[-1])
+    # target is now 2d (no target flattening)
+    return F.cross_entropy(logits, y, **kwargs)
 
 
 def accuracy(logits, y):
@@ -37,6 +75,7 @@ def accuracy_at_k(logits, y, k=1):
         y = y.argmax(dim=-1)
     y = y.view(-1)
     return torch.topk(logits, k, dim=-1)[1].eq(y.unsqueeze(-1)).any(dim=-1).float().mean()
+
 
 def f1_binary(logits, y):
     logits = logits.view(-1, logits.shape[-1])
@@ -87,6 +126,7 @@ def mse(outs, y, len_batch=None):
         return F.mse_loss(outs, y)
     else:
         # Computes the loss of the first `lens` items in the batches
+        # TODO document the use case of this
         mask = torch.zeros_like(outs, dtype=torch.bool)
         for i, l in enumerate(len_batch):
             mask[i, :l, :] = 1
@@ -94,6 +134,9 @@ def mse(outs, y, len_batch=None):
         y_masked = torch.masked_select(y, mask)
         return F.mse_loss(outs_masked, y_masked)
 
+def forecast_rmse(outs, y, len_batch=None):
+    # TODO: generalize, currently for Monash dataset
+    return torch.sqrt(F.mse_loss(outs, y, reduction='none').mean(1)).mean()
 
 def mae(outs, y, len_batch=None):
     # assert outs.shape[:-1] == y.shape and outs.shape[-1] == 1
@@ -119,10 +162,6 @@ def loss(x, y, loss_fn):
     return loss_fn(x, y)
 
 
-def rmse(x, y, loss_fn):
-    return loss_fn(x, y) ** 0.5  # NOTE this isn't exactly correct
-
-
 def bpb(x, y, loss_fn):
     """ bits per byte (image density estimation, speech generation, char LM) """
     return loss_fn(x, y) / math.log(2)
@@ -142,19 +181,36 @@ output_metric_fns = {
     'accuracy@5': partial(accuracy_at_k, k=5),
     'accuracy@10': partial(accuracy_at_k, k=10),
     "eval_loss": loss,
-    "mixture": mixture_loss,
-    "mixture_kd": mixture_loss_kd,
     "mse": mse,
     "mae": mae,
+    "forecast_rmse": forecast_rmse,
     "f1_binary": f1_binary,
     "f1_macro": f1_macro,
     "f1_micro": f1_micro,
     "roc_auc_macro": roc_auc_macro,
     "roc_auc_micro": roc_auc_micro,
+    "soft_cross_entropy": soft_cross_entropy,  # only for pytorch 1.10+
+    "student_t": student_t_loss,
+    "gaussian_ll": gaussian_ll_loss,
 }
+
+try:
+    from segmentation_models_pytorch.utils.functional import iou
+    from segmentation_models_pytorch.losses.focal import focal_loss_with_logits
+
+    def iou_with_logits(pr, gt, eps=1e-7, threshold=None, ignore_channels=None):
+        return iou(pr.sigmoid(), gt, eps=eps, threshold=threshold, ignore_channels=ignore_channels)
+
+    output_metric_fns["iou"] = partial(iou, threshold=0.5)
+    output_metric_fns["iou_with_logits"] = partial(iou_with_logits, threshold=0.5)
+    output_metric_fns["focal_loss"] = focal_loss_with_logits
+except ImportError:
+    pass
+
 loss_metric_fns = {
     "loss": loss,
     "bpb": bpb,
     "ppl": ppl,
 }
 metric_fns = {**output_metric_fns, **loss_metric_fns}  # TODO py3.9
+

@@ -1,0 +1,37 @@
+# @package _global_
+defaults:
+  - /pipeline: sc
+  - /model: s4
+  - override /scheduler: cosine_warmup
+
+model:
+  dropout: 0.0
+  n_layers: 4
+  prenorm: true
+  d_model: 128
+  norm: batch
+  layer:
+    d_state: 64
+    bidirectional: False
+    # resample: true
+    dt_min: 0.001
+    dt_max: 0.1
+    postact: null
+
+decoder:
+  mode: last
+
+optimizer:
+  lr: 0.004
+
+loader:
+  batch_size: 32
+
+trainer:
+  max_epochs: 10
+
+scheduler:
+  num_training_steps: 50000
+
+train:
+  seed: 1111

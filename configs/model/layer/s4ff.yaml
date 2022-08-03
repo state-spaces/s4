@@ -1,4 +1,5 @@
 # TODO there has to be a way to compose this
+# [22-02] TODO needs update
 - _name_: s4
   d_state: 64
   measure: legs
@@ -10,11 +11,7 @@
       B: 2
       C: 1
       dt: 1
-  lr:
-      dt: ${optimizer.lr} # 0.0005
-      A: ${.dt}
-      B: ${.dt}
-      C: null
+  lr: 0.0005
   cache: False
   weight_decay: 0.0
   weight_norm: False

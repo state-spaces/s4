@@ -2,20 +2,24 @@ numpy
 scipy
 pandas
 sklearn
-sktime
 matplotlib
 tqdm
 rich
-pytorch-lightning
+pytorch-lightning==1.5.10
 hydra-core
-munch
 omegaconf
 wandb
 einops
 opt_einsum
-cmake
-torchtext
-datasets
-transformers
-pytorch-fast-transformers
-# pykeops==1.5 # Install to enable fast Cauchy kernel through pykeops
+cmake # For pykeops support
+pykeops
+transformers # For some schedulers
+# Model specific packges
+# pytorch-fast-transformers # for Performer
+# Dataset specific packages
+torchtext # LRA
+datasets # LRA
+# gluonts
+# timm
+# lightning-bolts
+# sktime # BIDMC
