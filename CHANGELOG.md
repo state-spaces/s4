@@ -15,7 +15,7 @@
 -->
 
 #### Bug fixes and library compatibility issues
-- PyTorch 1.11 had a [Dropout bug] which is now avoided with a custom Dropout implementation (https://github.com/pytorch/pytorch/issues/77081) (https://github.com/HazyResearch/state-spaces/issues/42, https://github.com/HazyResearch/state-spaces/issues/22)
+- PyTorch 1.11 had a [Dropout bug](https://github.com/pytorch/pytorch/issues/77081) which is now avoided with a custom Dropout implementation (https://github.com/HazyResearch/state-spaces/issues/42, https://github.com/HazyResearch/state-spaces/issues/22)
 - Conjugated tensors API change in PyTorch 1.10 (https://github.com/HazyResearch/state-spaces/issues/35)
 
 #### SaShiMi
@@ -25,7 +25,7 @@
 - Improved generation script for any models trained using this repository (https://github.com/HazyResearch/state-spaces/issues/38)
 
 #### Model Checkpoints
-- Re-trained checkpoints with the latest version of S4 (https://github.com/HazyResearch/state-spaces/issues/37, https://github.com/HazyResearch/state-spaces/issues/32)
+- Re-trained SaShiMi models with the latest version of S4 (https://github.com/HazyResearch/state-spaces/issues/37, https://github.com/HazyResearch/state-spaces/issues/32)
 - New WikiText-103 checkpoint with generation functionality (https://github.com/HazyResearch/state-spaces/issues/5, https://github.com/HazyResearch/state-spaces/issues/19)
 
 #### HiPPO
