@@ -3,7 +3,7 @@ Train an S4 model on sequential CIFAR10 / sequential MNIST with PyTorch for demo
 This code borrows heavily from https://github.com/kuangliu/pytorch-cifar.
 
 This file only depends on the standalone S4 layer
-available in s4.py at src/models/sequence/ss/standalone.
+available in src/models/s4/
 
 * Train standard sequential CIFAR:
     python -m example

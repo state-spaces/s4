@@ -1,4 +1,4 @@
-# Config for standalone example s4d file
+# Config for standalone example s4d file for testing purposes
 _name_: s4d
 d_state: 64
 dropout: ${..dropout} # Same as null

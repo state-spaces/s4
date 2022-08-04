@@ -81,10 +81,10 @@ Other packages are listed in [requirements.txt](./requirements.txt).
 ### Cauchy Kernel
 
 A core operation of S4 is the "Cauchy kernel" described in the [paper](https://arxiv.org/abs/2111.00396).
-This is a very simple operation; a naive implementation of this operation can be found in `src/models/sequence/ss/standalone/s4.py` in the function `cauchy_naive`.
-As the paper describes, this has suboptimal memory usage that currently requires a custom kernel to overcome in PyTorch.
+This is actually a very simple operation; a naive implementation of this operation can be found in the [standalone](src/models/s4/s4.py) in the function `cauchy_naive`.
+However, as the paper describes, this has suboptimal memory usage that currently requires a custom kernel to overcome in PyTorch.
 
-Two methods are supported. The code will automatically detect if either of these is installed and call the appropriate kernel.
+Two more efficient methods are supported. The code will automatically detect if either of these is installed and call the appropriate kernel.
 
 #### Custom CUDA Kernel
 

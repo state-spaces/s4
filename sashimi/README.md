@@ -34,7 +34,8 @@
 Samples of SaShiMi and baseline audio can be found [online](https://hazyresearch.stanford.edu/sashimi-examples).
 
 ## Standalone Implementation
-We provide a standalone PyTorch implementation of the SaShiMi architecture backbone in `state-spaces/sashimi/sashimi.py`, which you can use in your own code. Note that you'll need to also copy over the standalone S4 layer implementation, which can be found at `state-spaces/src/models/s4/s4.py`.
+We provide a standalone PyTorch implementation of the SaShiMi architecture backbone in [sashimi/sashimi.py](sashimi.py), which you can use in your own code. Note that you'll need to also copy over the standalone S4 layer implementation, which can be found at [src/models/s4/s4.py](../src/models/s4/).
+Note that our experiments do not use this standalone and instead use the modular model construction detailed in [src/models/README.md](../src/models/), so this standalone is less tested; if running experiments from this codebase, it is recommended to use the normal model ([Model Training](#model-training)).
 
 You can treat the SaShiMi module as a sequence-to-sequence map taking `(batch, seq, dim)` inputs to `(batch, seq, dim)` outputs i.e.
 ```python
@@ -44,7 +45,7 @@ x = torch.randn(batch_size, seq_len, dim).cuda()
 y = sashimi(x) # y.shape == x.shape
 ```
 
-If you use SaShiMi for autoregressive generation, you can convert it to a recurrent model at inference time and then step it to generate samples one at a time.
+If you use SaShiMi for autoregressive generation, you can convert it to a recurrent model at inference time and then step it to generate samples one at a time. See also the main [README](README.md#generation) for the main generation script.
 ```python
 with torch.no_grad():
     sashimi.eval()

@@ -2,8 +2,7 @@
 SaShiMi backbone.
 
 Use this backbone in your own models. You'll also need to copy over the
-standalone S4 layer, which can be found at
-`state-spaces/src/models/sequence/ss/standalone/s4.py`.
+standalone S4 layer, which can be found at `state-spaces/src/models/s4/`
 
 It's Raw! Audio Generation with State-Space Models
 Karan Goel, Albert Gu, Chris Donahue, Christopher Re.
@@ -431,3 +430,33 @@ class Sashimi(nn.Module):
         assert mode in ['dense', 'diagonal', 'linear']
         for module in self.modules():
             if hasattr(module, 'setup_step'): module.setup_step(mode=mode)
+
+
+if __name__ == '__main__':
+    from tqdm.auto import tqdm
+
+    model = Sashimi(n_layers=2).cuda()
+    # Print parameter count
+    print(sum(p.numel() for p in model.parameters()))
+
+    model.eval()
+
+    with torch.no_grad():
+        # Forward in convolutional mode: used for training SaShiMi
+        x = torch.randn(3, 10240, 64).cuda()
+        y, _ = model(x)
+
+        # Setup the SaShiMi RNN
+        model.setup_rnn('diagonal')
+
+        # Forward in recurrent mode: used for autoregressive generation at inference time
+        ys = []
+        state = model.default_state(*x.shape[:1], device='cuda')
+        for i in tqdm(range(10240)):
+            y_, state = model.step(x[:, i], state)
+            ys.append(y_.detach().cpu())
+
+        ys = torch.stack(ys, dim=1)
+        breakpoint()
+
+        print(y.shape, ys.shape)

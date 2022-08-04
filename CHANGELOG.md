@@ -3,14 +3,14 @@
 ### 2022-08-03 - [V3.0]
 
 #### Models and Features
-- Updated version of S4 module, including new measures and theory from [How to Train Your HiPPO](https://arxiv.org/abs/2206.12037) (https://github.com/HazyResearch/state-spaces/issues/21, https://github.com/HazyResearch/state-spaces/issues/54)
-- Complete version of S4D module from [On the Parameterization and Initialization of Diagonal State Space Models](https://arxiv.org/abs/2206.11893)
+- Updated version of S4 module, including new measures and theory from [[How to Train Your HiPPO](https://arxiv.org/abs/2206.12037)] (https://github.com/HazyResearch/state-spaces/issues/21, https://github.com/HazyResearch/state-spaces/issues/54)
+- Complete version of S4D module from [[On the Parameterization and Initialization of Diagonal State Space Models](https://arxiv.org/abs/2206.11893)]
 - [State forwarding](src/models/s4/README.md#state-forwarding) (https://github.com/HazyResearch/state-spaces/issues/49, https://github.com/HazyResearch/state-spaces/issues/56)
-- Support for S4 variants including DSS and GSS
+- Support for S4 variants including DSS and GSS ([documentation](src/models/s4/README.md#other-variants))
 
 <!--
 ####  Compilation of additional resources
-  - Recommended resources for understanding S4-style models, including the [Simplifying S4 blog](https://hazyresearch.stanford.edu/blog/2022-06-11-simplifying-s4) ([code](https://github.com/HazyResearch/state-spaces/tree/simple/src/models/sequence/ss/s4_simple)) and a minimal pedagogical version of S4D ([code](https://github.com/HazyResearch/state-spaces/blob/4bc304d756e8cc031f4cf98ed4dbe8170f88c2e0/src/models/sequence/ss/standalone/s4d_minimal.py))
+  - Recommended resources for understanding S4-style models, including the [Simplifying S4 blog](https://hazyresearch.stanford.edu/blog/2022-06-11-simplifying-s4) ([code](https://github.com/HazyResearch/state-spaces/tree/simple/src/models/sequence/ss/s4_simple)) and a minimal pedagogical version of S4D ([code](src/models/s4/s4d.py))
   - Tips & Tricks page for getting started with tuning S4
 -->
 
@@ -29,7 +29,7 @@
 - New WikiText-103 checkpoint with generation functionality (https://github.com/HazyResearch/state-spaces/issues/5, https://github.com/HazyResearch/state-spaces/issues/19)
 
 #### HiPPO
-- Release of new [notebook](https://github.com/HazyResearch/state-spaces/blob/v3/notebooks/hippo_function_approximation.ipynb) (and equivalent .py [standalone](https://github.com/HazyResearch/state-spaces/blob/v3/src/models/hippo/standalone.py)) illustrating HiPPO function reconstruction. Includes animations used in HTTYH, the Annotated S4D, and various S4 talks.
+- Release of new [notebook](notebooks/hippo_function_approximation.ipynb) (and equivalent .py [file](src/models/hippo/visualizations.py)) visualizing HiPPO function reconstruction. Includes animations used in HTTYH, the Annotated S4D, and various S4 talks.
 
 #### Experiments
 - Improved configs for Long Range Arena reported in HTTYH and S4D papers
