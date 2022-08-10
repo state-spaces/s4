@@ -36,7 +36,7 @@ try: # Try CUDA extension
     from extensions.cauchy.cauchy import cauchy_mult
     has_cauchy_extension = True
 except:
-    log.warn(
+    log.warning(
         "CUDA extension for cauchy multiplication not found. Install by going to extensions/cauchy/ and running `python setup.py install`. This should speed up end-to-end training by 10-50%"
     )
     has_cauchy_extension = False
@@ -147,7 +147,7 @@ except ImportError:
             return torch.sum(cauchy_matrix, dim=-2)
 
     # Vandermonde functions
-    log.error(
+    log.warning(
         "Falling back on slow Vandermonde kernel. Install pykeops for improved memory efficiency."
     )
     def log_vandermonde(v, x, L):
@@ -1297,6 +1297,8 @@ class SSKernel(nn.Module):
                 **kernel_args,
             )
         elif mode == "diag":
+            if not measure.startswith("diag"):
+                log.warning("Diagonal kernel (S4D) activated but initialization is not intended for S4D. Set `measure` to 'diag-lin', 'diag-inv', or 'diag-legs' for the main variants, or 'diag' for a combination of S4D-Lin and S4D-Inv.")
             C = C * repeat(B, 't n -> (v t) n', v=H//self.n_ssm)
             self.kernel = SSKernelDiag(
                 w, B, C, log_dt, L=L,

@@ -227,18 +227,21 @@ python -m generate <train flags> checkpoint_path=<path/to/model.ckpt> <generatio
 ```
 Any of the flags found in the config can be overridden.
 
+Note: This option can be used with either `.ckpt` checkpoints (PyTorch Lightning, which includes information for the Trainer) or `.pt` checkpoints (PyTorch, which is just a model state dict).
+
 ### Option 2: Experiment Path
-The second option for generation does not require passing in training flags again, and instead reads the config from the Hydra experiment folder.
+The second option for generation does not require passing in training flags again, and instead reads the config from the Hydra experiment folder, along with a PyTorch Lightning checkpoint within the experiment folder.
 
 ### Example 1 (Language)
 
-Download the WikiText-103 checkpoint, for example to `./checkpoints/wt103.ckpt`.
-This model was trained with the command `python -m train experiment=lm/s4-wt103`.
+Download the [WikiText-103 model checkpoint](https://https://huggingface.co/krandiash/sashimi-release/checkpoints), for example to `./checkpoints/s4-wt103.pt`.
+This model was trained with the command `python -m train experiment=lm/s4-wt103`. Note that from the config we can see that the model was trained with a receptive field of length 8192.
+
 To generate, run
 ```
-python -m generate experiment=lm/s4-wt103 checkpoint_path=$PWD/checkpoints/wt103.ckpt n_samples=1 l_sample=16384 l_prefix=8192 decode=text
+python -m generate experiment=lm/s4-wt103 checkpoint_path=checkpoints/s4-wt103.pt n_samples=1 l_sample=16384 l_prefix=8192 decode=text
 ```
-This generates a sample of length 16384 conditioned on a prefix of length 8192 (this model was trained with a receptive field of length 8192).
+This generates a sample of length 16384 conditioned on a prefix of length 8192.
 
 ### Example 2 (Audio)
 

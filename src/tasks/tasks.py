@@ -150,11 +150,11 @@ class LMTask(BaseTask):
         )
         self.encoder = encoder
         decoder = nn.Linear(d_output, n_tokens)
-        self.decoder = decoder
 
         if tied:
             assert d_model == d_output
-            self.decoder.weight = self.encoder[0].weight
+            decoder.weight = self.encoder[0].weight
+        self.decoder = decoder
 
 class ForecastingTask(BaseTask):
 

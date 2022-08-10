@@ -29,7 +29,7 @@ try: # Try CUDA extension
     has_cauchy_extension = True
     log.info("CUDA extension for Cauchy multiplication found.")
 except:
-    log.warn(
+    log.warning(
         "CUDA extension for Cauchy multiplication not found. Install by going to extensions/cauchy/ and running `python setup.py install`. This should speed up end-to-end training by 10-50%"
     )
     has_cauchy_extension = False
@@ -47,10 +47,10 @@ except ImportError:
     from src.models.functional.vandermonde import log_vandermonde_naive as log_vandermonde
     from src.models.functional.vandermonde import log_vandermonde_transpose_naive as log_vandermonde_transpose
     if not has_cauchy_extension:
-        log.error(
+        log.warning(
             "Falling back on slow Cauchy kernel. Install at least one of pykeops or the CUDA extension for memory efficiency."
         )
-    log.error(
+    log.warning(
         "Falling back on slow Vandermonde kernel. Install pykeops for improved memory efficiency."
     )
 
@@ -714,7 +714,6 @@ class SSKernelDiag(OptimModule):
         else: lr_dict, lr = lr, None
 
         self.register("log_dt", log_dt, lr_dict.get('dt', lr))
-        self.register("A", _c2r(A), lr_dict.get('A', lr))
         self.register("B", _c2r(B), lr_dict.get('B', lr))
         self.register("inv_A_real", self._A_init(A.real), lr_dict.get('A', lr))
         self.register("A_imag", A.imag, lr_dict.get('A', lr))
@@ -972,6 +971,8 @@ class SSKernel(nn.Module):
                     **kernel_args,
                 )
             elif mode == "diag":
+                if not measure.startswith("diag"):
+                    log.warning("Diagonal kernel (S4D) activated but initialization is not intended for S4D. Set `measure` to 'diag-lin', 'diag-inv', or 'diag-legs' for the main variants, or 'diag' for a combination of S4D-Lin and S4D-Inv.")
                 C = C * repeat(B, 't n -> (v t) n', v=H//self.n_ssm)
                 self.kernel = SSKernelDiag(
                     w, B, C, log_dt, L=L,

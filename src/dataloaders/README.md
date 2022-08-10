@@ -54,9 +54,17 @@ For the SC09 audio generation dataset, copy the digit subclasses of the `./data/
 The WikiText-103 language modeling dataset can be downloaded by the `getdata.sh` script from the [Transformer-XL codebase](https://github.com/kimiyoung/transformer-xl).
 By default, the datamodule looks for it under `$DATA_PATH/wt103`.
 
+A trained model checkpoint can be found [here](https://https://huggingface.co/krandiash/sashimi-release/checkpoints). (Note that this uses a vanilla isotropic S4 model and is only located in the SaShiMi release for convenience.)
+
 ## BIDMC
 
 See [prepare/bidmc/README.md](prepare/bidmc/README.md)
+
+## Informer Forecasting Datasets
+
+The ETTH, ETTM, Weather, and ECL experiments originally from the [Informer]() paper can be downloaded as [informer.zip](https://drive.google.com/file/d/1XqpxE6cthIxKYviSmR703yU45vdQ1oHT/view?usp=sharing) and extracted inside `./data`.
+
+
 
 ## Other Audio
 

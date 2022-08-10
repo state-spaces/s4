@@ -70,7 +70,7 @@ python -m train experiment=old/s4-sc
 ## WikiText-103
 
 V3 re-trained the WikiText-103 experiment with the latest model and a larger context size.
-The trained checkpoint can be found at [TODO].
+The trained checkpoint can be found [here](https://https://huggingface.co/krandiash/sashimi-release/checkpoints).
 ```
 python -m train experiment=lm/s4-wt103
 ```

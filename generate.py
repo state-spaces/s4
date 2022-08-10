@@ -141,11 +141,20 @@ def main(config: OmegaConf):
         pl.seed_everything(config.train.seed, workers=True)
 
     if not config.experiment_path:
-        ckpt_path = config.checkpoint_path
+        ckpt_path = hydra.utils.to_absolute_path(config.checkpoint_path)
     else:
         ckpt_path = os.path.join(config.experiment_path, config.checkpoint_path)
-    model = SequenceLightningModule.load_from_checkpoint(ckpt_path, config=config)
-    model.to('cuda')
+
+    if ckpt_path.endswith('.ckpt'):
+        model = SequenceLightningModule.load_from_checkpoint(ckpt_path, config=config)
+        model.to('cuda')
+    elif ckpt_path.endswith('.pt'):
+        model = SequenceLightningModule(config)
+        model.to('cuda')
+
+        # Load checkpoint
+        state_dict = torch.load(ckpt_path, map_location='cuda')
+        model.load_state_dict(state_dict)
 
     # Setup: required for S4 modules in SaShiMi
     for module in model.modules():
@@ -194,7 +203,7 @@ def main(config: OmegaConf):
         np.save(f'{save_dir}/unconditional_{config.dataset._name_}_{config.model._name_}_len_{config.l_sample/16000.:.2f}s_logprobs.npy', logprobs)
     elif config.decode == 'text':
         y = [model.dataset.vocab.get_symbols(_y) for _y in y]
-        breakpoint()
+        breakpoint() # Inspect output manually for now
     else: pass
 
 
