@@ -5,27 +5,26 @@ defaults:
   - override /scheduler: cosine_warmup
 
 scheduler:
-  num_training_steps: 500000 # 50 epochs
-  num_warmup_steps: 10000 # 1 epoch
+  num_training_steps: 250000 # 50 epochs
+  num_warmup_steps: 5000 # 1 epoch
 
 model:
   dropout: 0.
-  n_layers: 6
+  n_layers: 4
   prenorm: true
-  d_model: 256
+  d_model: 96
   norm: batch
   layer:
-    d_state: 64
     lr: 0.0005
     dt_min: 0.0001
-    dt_max: 0.1
+    dt_max: 0.01
     measure: legs
     bidirectional: true
     postact: glu
     n_ssm: null
 
 loader:
-  batch_size: 16
+  batch_size: 32
 
 optimizer:
   lr: 0.0005
