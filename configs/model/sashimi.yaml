@@ -18,4 +18,7 @@ residual: R
 norm: layer
 interp: 0
 act_pool: null
-l_max: ${dataset.__l_max}
+# l_max: ${dataset.__l_max}
+
+layer:
+  l_max: null # Turn off since layers need different lengths

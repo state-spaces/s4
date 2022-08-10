@@ -1,0 +1,9 @@
+_name_: mha
+causal: true
+n_heads: 8
+dropout: null
+bias: True
+add_bias_kv: False
+add_zero_attn: False
+kdim: null
+vdim: null

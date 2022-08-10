@@ -1,4 +1,5 @@
 - _name_: mha
+  causal: true
   n_heads: 8
   dropout: null
   bias: True
@@ -10,4 +11,3 @@
   expand: 4
   activation: gelu
   dropout: ${...dropout} # Same as null
-  # transposed: False # Set by backbone

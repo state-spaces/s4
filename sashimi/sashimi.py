@@ -119,7 +119,7 @@ class FFBlock(nn.Module):
             activation='gelu',
             activate=True,
         )
-        dropout = nn.Dropout2d(dropout) if dropout > 0.0 else nn.Identity()
+        dropout = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
         output_linear = LinearActivation(
             d_model * expand,
             d_model,
@@ -158,15 +158,14 @@ class ResidualBlock(nn.Module):
 
         Args:
             d_model: dimension of the model
-            bidirectional: use bidirectional S4 layer
-            glu: use gated linear unit in the S4 layer
+            layer: a layer config
             dropout: dropout rate
         """
         super().__init__()
 
         self.layer = layer
         self.norm = nn.LayerNorm(d_model)
-        self.dropout = nn.Dropout2d(dropout) if dropout > 0.0 else nn.Identity()
+        self.dropout = nn.Dropout(dropout) if dropout > 0.0 else nn.Identity()
 
     def forward(self, x):
         """
@@ -215,9 +214,9 @@ class Sashimi(nn.Module):
         expand=2,
         ff=2,
         bidirectional=False,
-        glu=True,
         unet=False,
         dropout=0.0,
+        **s4_args,
     ):
         """
         SaShiMi model backbone.
@@ -235,7 +234,6 @@ class Sashimi(nn.Module):
             ff: expansion factor for the FF inverted bottleneck. We generally found 2 to perform best (among 2, 4).
             bidirectional: use bidirectional S4 layers. Bidirectional layers are suitable for use with non-causal models
                 such as diffusion models like DiffWave.
-            glu: use gated linear unit in the S4 layers. Adds parameters and generally improves performance.
             unet: use a unet-like architecture, adding (Residual (S4) --> Residual (FF)) layers before downpooling.
                 All else fixed, this slows down inference (and slightly slows training), but generally improves performance.
                 We use this variant when dropping in SaShiMi into diffusion models, and this should generally be preferred
@@ -244,6 +242,7 @@ class Sashimi(nn.Module):
         """
         super().__init__()
         self.d_model = H = d_model
+        self.d_output = H
         self.unet = unet
 
         def s4_block(dim):
@@ -251,9 +250,9 @@ class Sashimi(nn.Module):
                 d_model=dim,
                 d_state=64,
                 bidirectional=bidirectional,
-                postact='glu' if glu else None,
                 dropout=dropout,
                 transposed=True,
+                **s4_args,
             )
             return ResidualBlock(
                 d_model=dim,

@@ -1,0 +1,19 @@
+_name_: sashimi_standalone
+d_model: 64
+n_layers: 8
+pool:
+  - 4
+  - 4
+expand: 2
+ff: 2
+dropout: 0.0
+# # S4 flags that are on by default in standalone
+# transposed: True
+# prenorm: true
+# dropres: 0.0
+# initializer: null
+# residual: R
+# norm: layer
+# interp: 0
+# act_pool: null
+# l_max: ${dataset.__l_max}

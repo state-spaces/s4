@@ -7,7 +7,7 @@ postact: glu
 initializer: null
 weight_norm: false
 hyper_act: null
-dropout: ${..dropout} # Same as null
+# dropout: ${model.dropout} # Same as null
 tie_dropout: ${oc.select:model.tie_dropout,null}
 mode: nplr
 measure: legs

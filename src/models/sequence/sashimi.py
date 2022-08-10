@@ -20,27 +20,20 @@ class Sashimi(SequenceModule):
         dropout=0.0,
         dropres=0.0,
         layer=None,
+        center_layer=None,
         residual=None,
         norm=None,
         initializer=None,
-        l_max=-1,
         transposed=True,
         interp=0,
         act_pool=None,
     ):
         super().__init__()
-        assert l_max > 0, "SaShiMi must have length passed in"
 
         self.d_model = d_model
         H = d_model
 
         self.interp = interp
-        if interp > 0:
-            assert l_max % interp == 0, "Interpolation level must be a factor of the length"
-            l_max = l_max // interp
-
-        L = l_max
-        self.L = L
         self.transposed = transposed
 
         # Layer arguments
@@ -48,7 +41,10 @@ class Sashimi(SequenceModule):
         layer_cfg['dropout'] = dropout
         layer_cfg['transposed'] = self.transposed
         layer_cfg['initializer'] = initializer
-        layer_cfg['l_max'] = L
+
+        center_layer_cfg = center_layer if center_layer is not None else layer_cfg.copy()
+        center_layer_cfg['dropout'] = dropout
+        center_layer_cfg['transposed'] = self.transposed
 
         ff_cfg = {
             '_name_': 'ff',
@@ -77,15 +73,13 @@ class Sashimi(SequenceModule):
         for p in pool:
             # Add sequence downsampling and feature expanding
             d_layers.append(DownPool(H, H*expand, stride=p, transposed=self.transposed, activation=act_pool))
-            L //= p
-            layer_cfg['l_max'] = L
             H *= expand
         self.d_layers = nn.ModuleList(d_layers)
 
         # Center block
         c_layers = [ ]
         for i in range(n_layers):
-            c_layers.append(_residual(H, i+1, layer_cfg))
+            c_layers.append(_residual(H, i+1, center_layer_cfg))
             if ff > 0: c_layers.append(_residual(H, i+1, ff_cfg))
         self.c_layers = nn.ModuleList(c_layers)
 
@@ -94,8 +88,6 @@ class Sashimi(SequenceModule):
         for p in pool[::-1]:
             block = []
             H //= expand
-            L *= p
-            layer_cfg['l_max'] = L
             block.append(UpPool(H*expand, H, stride=p, transposed=self.transposed, activation=act_pool))
 
             for i in range(n_layers):

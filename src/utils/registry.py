@@ -23,6 +23,7 @@ model = {
     "model": "src.models.sequence.SequenceModel",
     "unet": "src.models.sequence.SequenceUNet",
     "sashimi": "src.models.sequence.sashimi.Sashimi",
+    "sashimi_standalone": "sashimi.sashimi.Sashimi",
     # Baseline RNNs
     "lstm": "src.models.baselines.lstm.TorchLSTM",
     "gru": "src.models.baselines.gru.TorchGRU",

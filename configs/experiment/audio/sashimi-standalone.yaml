@@ -1,16 +1,25 @@
 # @package _global_
+# Sashimi standalone test
 defaults:
   - /trainer: default
   - /loader: default
-  - /dataset: youtubemix
+  - /dataset: sc09
   - /task: multiclass_classification
   - /optimizer: adamw
   - /scheduler: plateau
-  - /model: sashimi
+  - /model: sashimi-standalone
 
 model:
   n_layers: 8
+  expand: 2
+  ff: 2
+  pool:
+    - 4
+    - 4
   dropout: 0.0
+  # prenorm: True
+  # layer:
+  #   n_ssm: 1
 
 train:
   monitor: val/loss
@@ -24,20 +33,19 @@ task:
     - accuracy@5
     - accuracy@10
 
-encoder: embedding
+encoder:
+  - embedding
+  - stop # Don't pass through lengths
 
 decoder:
   _name_: sequence
   mode: last
 
 loader:
-  batch_size: 1
-
-trainer:
-  max_epochs: 1000
-
-optimizer:
-  lr: 0.004
+  batch_size: 32
 
 scheduler:
   patience: 20
+
+trainer:
+  max_epochs: 1000

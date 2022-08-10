@@ -1,0 +1,9 @@
+defaults:
+  - sashimi
+  - layer@center_layer: mha
+
+pool:
+  - 4
+  - 4
+  - 4 # Extra pool to reduce Attention length
+d_model: 32

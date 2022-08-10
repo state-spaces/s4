@@ -10,14 +10,7 @@ defaults:
 
 model:
   n_layers: 8
-  expand: 2
-  ff: 2
-  pool:
-    - 4
-    - 4
   dropout: 0.0
-  prenorm: True
-
   layer:
     n_ssm: 1
 
@@ -44,3 +37,6 @@ loader:
 
 scheduler:
   patience: 20
+
+trainer:
+  max_epochs: 1000

@@ -10,11 +10,7 @@ defaults:
 
 model:
   n_layers: 8
-  pool:
-    - 4
-    - 4
   dropout: 0.0
-  prenorm: True
 
 train:
   monitor: val/loss
