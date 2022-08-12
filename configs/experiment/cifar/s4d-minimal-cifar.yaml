@@ -2,7 +2,7 @@
 defaults:
   - /pipeline: cifar
   - /model: s4
-  - override /model/layer: s4d_minimal
+  - override /model/layer: s4d_example
   - override /scheduler: cosine_warmup
 
 model:
@@ -12,9 +12,10 @@ model:
   d_model: 128
   prenorm: false
   layer:
-    # scaling: linear
     d_state: 64
     lr: 0.001
+    # Compared to the full S4D layer, this model has the following on by default:
+    # scaling: linear
     # postact: glu
     # bidirectional: false
 

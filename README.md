@@ -136,6 +136,10 @@ See the method `register` in the model (e.g. [s4d.py](src/models/s4/s4d.py)) and
 Our logic for setting these parameters can be found in the `OptimModule` class under `src/models/sequence/ss/kernel.py` and the corresponding optimizer hook in `SequenceLightningModule.configure_optimizers` under `train.py`
 -->
 
+### HiPPO/S4 Visualizations
+
+Figures from the HTTYH and S4D papers can be visualized from [notebooks/](notebooks/). These include [animations](notebooks/hippo_function_approximation.ipynb) of HiPPO and S4 that were used in various S4 talks. The animation code can also be found in a [.py file](src/models/hippo/visualizations.py) instead of notebook.
+
 ## Experiments
 
 Instructions for reproducing experiments from the papers can be found in [experiments.md](experiments.md).

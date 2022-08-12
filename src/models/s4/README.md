@@ -90,7 +90,10 @@ This S4D layer is equivalent to using the full S4 layer with specific settings, 
 S4(mode='diag', measure='diag-lin', bidirectional=False, disc='zoh', real_type='exp')
 ```
 
-The `example.py` script incorporates this into a simple deep neural network backbone to achieve 88% on sequential CIFAR with a model of 200K parameters.
+The `example.py` script incorporates this into a simple deep neural network backbone to achieve 88% on sequential CIFAR with a model of 200K parameters. It can also be run using the standard infrastructure in this repo with the command
+```
+python -m train experiment=cifar/s4d-minimal-cifar
+```
 
 ## Simple S4
 
