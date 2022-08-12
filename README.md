@@ -9,7 +9,7 @@ This repository provides implementations and experiments for the following paper
 > Albert Gu, Ankit Gupta, Karan Goel, Christopher Ré\
 > Paper: https://arxiv.org/abs/2206.11893
 
-Other variants including [DSS](https://github.com/ag1988/dss) and [GSS](https://arxiv.org/abs/2206.13947) are also supported.
+Other variants including [DSS](https://github.com/ag1988/dss) and [GSS](https://arxiv.org/abs/2206.13947) are also supported. DSS is the predecessor to S4D that is also available in its own [fork](https://github.com/ag1988/dss).
 
 ## HTTYH
 
@@ -234,7 +234,7 @@ The second option for generation does not require passing in training flags agai
 
 ### Example 1 (Language)
 
-Download the [WikiText-103 model checkpoint](https://https://huggingface.co/krandiash/sashimi-release/checkpoints), for example to `./checkpoints/s4-wt103.pt`.
+Download the [WikiText-103 model checkpoint](https://huggingface.co/krandiash/sashimi-release/tree/main/checkpoints), for example to `./checkpoints/s4-wt103.pt`.
 This model was trained with the command `python -m train experiment=lm/s4-wt103`. Note that from the config we can see that the model was trained with a receptive field of length 8192.
 
 To generate, run
