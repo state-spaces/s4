@@ -22,7 +22,7 @@ class LoadAudio(object):
     def __call__(self, data):
         path = data['path']
         if path:
-            samples, sample_rate = librosa.load(path, self.sample_rate)
+            samples, sample_rate = librosa.load(path, sr=self.sample_rate)
         else:
             # silence
             sample_rate = self.sample_rate
@@ -137,7 +137,7 @@ class ToMelSpectrogram(object):
     def __call__(self, data):
         samples = data['samples']
         sample_rate = data['sample_rate']
-        s = librosa.feature.melspectrogram(samples, sr=sample_rate, n_mels=self.n_mels)
+        s = librosa.feature.melspectrogram(y=samples, sr=sample_rate, n_mels=self.n_mels)
         data['mel_spectrogram'] = librosa.power_to_db(s, ref=np.max)
         return data
 

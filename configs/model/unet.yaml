@@ -1,23 +1,25 @@
-# _target_: models.sequence.SequenceUNet
 defaults:
   - layer: s4
+  # Can add a different type of layer for the center blocks, or override on command line. For example, add '+model/layer@model.center_layer=mha' to have a Transformer as the center stage of the UNet
+  # - layer@center_layer: s4
 
 _name_: unet
 d_model: 64
-# n_blocks: 5
-n_layers: 4
+n_layers: 8
+pool_mode: linear
 pool:
-  - 3
   - 4
-expand: 1
+  - 4
+expand: 2
 ff: 2
-# cff: 0
-# ln_scalar: True
-prenorm: False
+cff: 2
+prenorm: True
 dropout: 0.0
 dropres: 0.0
 initializer: null
 transposed: True
 residual: R
 norm: layer
-l_max: ${dataset.__l_max}
+layer:
+  n_ssm: null
+  l_max: null # Turn off since layers need different lengths

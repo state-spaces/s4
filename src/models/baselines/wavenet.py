@@ -219,7 +219,6 @@ class WaveNetModel(SequenceModule):
                                     bias=True)
 
         self.receptive_field = receptive_field
-
         # print("Receptive field: {}".format(self.receptive_field))
 
         ### TODO
@@ -320,5 +319,6 @@ class WaveNetModel(SequenceModule):
         x = x.transpose(1, 2).contiguous()
         x = self.wavenet(x, dilation_func=self.queue_dilate)
         x = x.transpose(1, 2).contiguous()
+        x = x.squeeze(1) # (batch, dim)
 
         return x, self.dilated_queues

@@ -12,8 +12,9 @@ from omegaconf import DictConfig
 from einops import rearrange, repeat, reduce
 from opt_einsum import contract
 
+import src.utils as utils
 from src.models.sequence.base import SequenceModule
-from src.models.sequence.pool import DownPool, UpPool
+from src.models.sequence.pool import DownPool, UpPool, up_registry, registry as down_registry
 from src.models.sequence.block import SequenceResidualBlock
 
 
@@ -24,47 +25,52 @@ class SequenceUNet(SequenceModule):
 
     def __init__(
         self,
-        d_model, n_layers, pool=[], expand=1, ff=2, cff=0,
+        d_model,
+        n_layers,
+        pool=[],
+        pool_mode='linear',
+        expand=1,
+        ff=2,
+        cff=0,
         prenorm=False,
         dropout=0.0,
         dropres=0.0,
         layer=None,
+        center_layer=None,
         residual=None,
         norm=None,
         initializer=None,
-        l_max=-1,
         transposed=True,
-        act_pool=None,
     ):
         super().__init__()
         self.d_model = d_model
         H = d_model
-        L = l_max
-        self.L = L
         self.transposed = transposed
-        assert l_max > 0, "UNet must have length passed in"
 
         # Layer arguments
         layer_cfg = layer.copy()
         layer_cfg['dropout'] = dropout
         layer_cfg['transposed'] = self.transposed
         layer_cfg['initializer'] = initializer
-        layer_cfg['l_max'] = L
         print("layer config", layer_cfg)
+
+        center_layer_cfg = center_layer if center_layer is not None else layer_cfg.copy()
+        center_layer_cfg['dropout'] = dropout
+        center_layer_cfg['transposed'] = self.transposed
 
         ff_cfg = {
             '_name_': 'ff',
             'expand': ff,
             'transposed': self.transposed,
             'activation': 'gelu',
-            'initializer': initializer, # TODO
-            'dropout': dropout, # TODO untie dropout
+            'initializer': initializer,
+            'dropout': dropout,
         }
 
         def _residual(d, i, layer):
             return SequenceResidualBlock(
                 d,
-                i, # temporary placeholder for i_layer
+                i,
                 prenorm=prenorm,
                 dropout=dropres,
                 transposed=self.transposed,
@@ -82,16 +88,15 @@ class SequenceUNet(SequenceModule):
                 if ff > 0: d_layers.append(_residual(H, i+1, ff_cfg))
 
             # Add sequence downsampling and feature expanding
-            d_layers.append(DownPool(H, H*expand, stride=p, transposed=self.transposed, activation=act_pool))
-            L //= p
-            layer_cfg['l_max'] = L
+            d_pool = utils.instantiate(down_registry, pool_mode, H, stride=p, expand=expand, transposed=self.transposed)
+            d_layers.append(d_pool)
             H *= expand
         self.d_layers = nn.ModuleList(d_layers)
 
         # Center block
         c_layers = [ ]
         for i in range(n_layers):
-            c_layers.append(_residual(H, i+1, layer_cfg))
+            c_layers.append(_residual(H, i+1, center_layer_cfg))
             if cff > 0: c_layers.append(_residual(H, i+1, ff_cfg))
         self.c_layers = nn.ModuleList(c_layers)
 
@@ -99,9 +104,8 @@ class SequenceUNet(SequenceModule):
         u_layers = []
         for p in pool[::-1]:
             H //= expand
-            L *= p
-            layer_cfg['l_max'] = L
-            u_layers.append(UpPool(H*expand, H, stride=p, transposed=self.transposed, activation=act_pool))
+            u_pool = utils.instantiate(up_registry, pool_mode, H*expand, stride=p, expand=expand, causal=True, transposed=self.transposed)
+            u_layers.append(u_pool)
 
             for i in range(n_layers):
                 u_layers.append(_residual(H, i+1, layer_cfg))
@@ -190,10 +194,3 @@ class SequenceUNet(SequenceModule):
         # feature projection
         x = self.norm(x)
         return x, next_state
-
-    def cache_all(self):
-        modules = self.modules()
-        next(modules)
-        for layer in modules:
-            if hasattr(layer, 'cache_all'): layer.cache_all()
-

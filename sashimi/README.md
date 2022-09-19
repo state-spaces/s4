@@ -101,7 +101,9 @@ python -m train experiment=audio/wavenet-sc09 wandb=null
 ```
 Audio generation models are generally slow to train, e.g. YouTubeMix SaShiMi models take up to a week to train on a single V100 GPU.
 
+<!--
 > _Note on model performance_: due to limited compute resources, our results involved a best-effort reproduction of the baselines, and relatively limited hyperparameter tuning for SaShiMi. We expect that aggressive hyperparameter tuning should lead to improved results for all models. If you're interested in pushing these models to the limits and have compute $ or GPUs, please reach out to us!
+-->
 
 ## Audio Generation
 
@@ -139,7 +141,7 @@ The `prefix` flag specifies the number of steps to condition on. The script sele
 Note that it is necessary to pass the `load_data` flag and you will need to make sure the datasets are available in the `data/` directory when running conditional generation.
 
 ## Automated Metrics
-We provide a standalone implementations of automated evaluation metrics for evaluating the quality of generated samples on the SC09 dataset in `metrics.py`. Following [Kong et al. (2021)](https://arxiv.org/pdf/2009.09761.pdf), we implemented the Frechet Inception Distance (FID), Inception Score (IS), Modified Inception Score (mIS), AM Score (AM) and the number of statistically different bins score (NDB). Details about the metrics and the procedure followed by us can be found in `Appendix C.3` of our paper.
+We provide a standalone implementations of automated evaluation metrics for evaluating the quality of generated samples on the SC09 dataset in `metrics.py`. Following [Kong et al. (2021)](https://arxiv.org/pdf/2009.09761.pdf), we implemented the Frechet Inception Distance (FID), Inception Score (IS), Modified Inception Score (mIS), AM Score (AM) and the number of statistically different bins score (NDB). Details about the metrics and the procedure followed by us can be found in Appendix C.3 of our paper.
 
 ### SC09 Classifier Training
 We use a modified version of the training/testing script provided by the [pytorch-speech-commands](https://github.com/tugstugi/pytorch-speech-commands) repository, which we include under `state-spaces/sashimi/sc09_classifier`. Following [Kong et al. (2021)](https://arxiv.org/pdf/2009.09761.pdf), we used a ResNeXt model trained on SC09 spectrograms. 
@@ -194,7 +196,7 @@ state-spaces/
 We provide instructions for calculating the automated SC09 metrics next. 
 
 #### Dataset Metrics
-To generate the automated metrics for the dataset, run the following command:
+To generate the automated metrics for the dataset, run the following command from the `sashimi/sc09_classifier` folder:
 ```bash
 python test_speech_commands.py resnext.pth
 ```
@@ -205,15 +207,29 @@ For autoregressive models, we follow a threshold tuning procedure that is outlin
 
 ```bash
 # SaShiMi (4.1M parameters)
-python test_speech_commands.py --sample-dir ../samples/sc09/10240-sashimi-8-glu/ --threshold resnext.pth
+python test_speech_commands.py resnext.pth --threshold --sample-dir ../samples/sc09/sashimi/
 
 # SampleRNN (35.0M parameters)
-python test_speech_commands.py --sample-dir ../samples/sc09/10240-samplernn-3/ --threshold resnext.pth
+python test_speech_commands.py resnext.pth --threshold --sample-dir ../samples/sc09/samplernn/
 
 # WaveNet (4.2M parameters)
-python test_speech_commands.py --sample-dir ../samples/sc09/10240-wavenet-1024/ --threshold resnext.pth
+python test_speech_commands.py resnext.pth --threshold --sample-dir ../samples/sc09/wavenet/
 ```
 > _Important:_ the commands above assume that samples inside the `sample-dir` directory are sorted by log-likelihoods (in increasing order), since the `--threshold` flag is being passed. Our autoregressive generation script does this automatically, but if you generated samples manually through a separate script, you should sort them by log-likelihoods before running the above commands. If you cannot sort the samples by log-likelihoods, you can simply omit the `--threshold` flag.
+
+For example, in order to generate the SaShiMi samples above:
+```bash
+python -m generate experiment=audio/sashimi-sc09 checkpoint_path=sashimi/sashimi_sc09.pt save_dir=sashimi/samples/sc09/sashimi load_data=false n_samples=10240
+
+python -m generate experiment=audio/wavenet-sc09 checkpoint_path=sashimi/wavenet_sc09.pt save_dir=sashimi/samples/sc09/wavenet load_data=false n_samples=10240
+```
+
+Sept. 2022 (V3): A slightly larger SaShiMi model (6.8M parameters) with improved hyperparameters was trained and a checkpoint provided. It is slightly too large to generate 10240 samples at once, so the `n_batch` flag can be used:
+```
+python -m generate experiment=audio/sashimi-sc09 checkpoint_path=sashimi/sashimi_sc09_unet.pt save_dir=sashimi/samples/sc09/sashimi load_data=false n_samples=10240 n_batch=5120
+```
+
+
 
 #### Metrics on Non-Autoregressive Models (DiffWave variants, WaveGAN)
 For DiffWave models and WaveGAN (which don't provide exact likelihoods), we simply calculate metrics directly on `2048` samples.

@@ -541,6 +541,7 @@ class SpeechCommands09Autoregressive(SequenceDataset):
             padding_value=-100, # pad with -100 to ignore these locations in cross-entropy loss
             batch_first=True,
         )
+        y = F.pad(y, (0, 0, 0, pad_length), value=-100) # (batch, length, 1)
         return x, y, {"lengths": lengths}
 
 class MaestroDataset(AbstractAudioDataset):

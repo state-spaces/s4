@@ -321,6 +321,7 @@ class SampleRNN(SequenceModule):
         )
 
     def default_state(self, batch_size, device=None):
+        self._reset_state=True # Special hacks for SampleRNN
         return [rnn.default_state(batch_size, device=device) for rnn in self.frame_level_rnns]
 
     def step(self, x, state=None, *args, **kwargs):
@@ -328,8 +329,10 @@ class SampleRNN(SequenceModule):
             x = x.unsqueeze(1)
         batch_size = x.shape[0]
 
-        if state is None:
-            state = self.default_state(batch_size, device=x.device)
+        assert state is not None, "SampleRNN: State should be constructed with default_state before forward pass"
+        if self._reset_state: # Hacks for SampleRNN
+            self._reset_state = False
+            # state = self.default_state(batch_size, device=x.device)
             self._frame_level_outputs = [None for _ in self.frame_level_rnns]
             self._window = torch.zeros(
                 batch_size,
@@ -404,7 +407,7 @@ class SampleRNN(SequenceModule):
 
         # mlp_input_sequences shape: (B, L - _, D) e.g. (16, 16399, 1)
         # upper_tier_conditioning shape: (B, M_{last_rnn}, D_HIDDEN) [last rnn]
-        return y, new_states
+        return y.squeeze(1), new_states # (B, D)
 
     @property
     def lookback(self):
@@ -418,8 +421,7 @@ class SampleRNN(SequenceModule):
         """
         batch_size = inputs.shape[0]
 
-        if state is None:
-            state = self.default_state(batch_size, inputs.device)
+        assert state is not None, "SampleRNN: State should be constructed with default_state before forward pass"
 
         upper_tier_conditioning = None
         new_states = []

@@ -102,7 +102,7 @@ class SequenceResidualBlock(SequenceModule):
         if self.norm is not None and not self.prenorm: y = self.norm(y)
 
         # Pool
-        if self.pool is not None: y = self.pool(y)
+        if self.pool is not None: y, _ = self.pool(y)
 
         return y, state
 
@@ -124,6 +124,6 @@ class SequenceResidualBlock(SequenceModule):
             y = self.norm.step(y)
 
         # Pool
-        if self.pool is not None: y = self.pool(y)
+        if self.pool is not None: y, _ = self.pool(y)
 
         return y, state

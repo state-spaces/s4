@@ -1056,7 +1056,6 @@ class SSKernelDiag(OptimModule):
         else: lr_dict, lr = lr, None
 
         self.register("log_dt", log_dt, lr_dict.get('dt', lr))
-        self.register("A", _c2r(A), lr_dict.get('A', lr))
         self.register("B", _c2r(B), lr_dict.get('B', lr))
         self.register("inv_A_real", self._A_init(A.real), lr_dict.get('A', lr))
         self.register("A_imag", A.imag, lr_dict.get('A', lr))

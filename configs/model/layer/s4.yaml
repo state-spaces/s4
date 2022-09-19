@@ -7,6 +7,8 @@ postact: glu
 initializer: null
 weight_norm: false
 hyper_act: null
+gate: null # 4 for GSS
+bottleneck: null # 4 for GSS
 # dropout: ${model.dropout} # Same as null
 tie_dropout: ${oc.select:model.tie_dropout,null}
 mode: nplr

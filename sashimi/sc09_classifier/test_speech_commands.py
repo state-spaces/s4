@@ -195,7 +195,7 @@ class ActivationOp:
 CLASSES = 'zero, one, two, three, four, five, six, seven, eight, nine'.split(', ')
 
 class SpeechCommandsDataset(Dataset):
-    
+
     def __init__(self, folder, transform=None, classes=CLASSES, samples=False):
 
         self.classes = classes
@@ -264,10 +264,10 @@ transform = Compose([LoadAudio(), FixAudioLength(), feature_transform])
 
 train_dataset = SpeechCommandsDataset(args.train_dataset_dir, transform)
 train_dataloader = DataLoader(
-    train_dataset, 
-    batch_size=args.batch_size, 
-    sampler=None, 
-    pin_memory=use_gpu, 
+    train_dataset,
+    batch_size=args.batch_size,
+    sampler=None,
+    pin_memory=use_gpu,
     num_workers=args.dataload_workers_nums,
     drop_last=False,
     shuffle=False,
@@ -275,25 +275,25 @@ train_dataloader = DataLoader(
 
 test_dataset = SpeechCommandsDataset(args.test_dataset_dir, transform)
 test_dataloader = DataLoader(
-    test_dataset, 
-    batch_size=args.batch_size, 
-    sampler=None, 
-    pin_memory=use_gpu, 
+    test_dataset,
+    batch_size=args.batch_size,
+    sampler=None,
+    pin_memory=use_gpu,
     num_workers=args.dataload_workers_nums,
     drop_last=False,
     shuffle=False,
 )
 
 samples_dataset = SpeechCommandsDataset(
-    args.sample_dir, 
-    transform, 
+    args.sample_dir,
+    transform,
     samples=False if args.sample_dir.rstrip("/").endswith('test') or args.sample_dir.rstrip("/").endswith('train') else True,
 )
 samples_dataloader = DataLoader(
-    samples_dataset, 
-    batch_size=args.batch_size, 
-    sampler=None, 
-    pin_memory=use_gpu, 
+    samples_dataset,
+    batch_size=args.batch_size,
+    sampler=None,
+    pin_memory=use_gpu,
     num_workers=args.dataload_workers_nums,
     drop_last=False,
     shuffle=False,
@@ -387,15 +387,15 @@ samples_probs, samples_activations = test(samples_dataloader)
 
 
 if args.threshold:
-    
+
     n_val = len(samples_probs) // 2
     n_test = len(samples_probs) // 2
     print("Tuning thresholds using IS: using %d samples for tuning and %d for calculating metrics" % (n_val, n_test))
 
     # Split into two parts, one for tuning thresholds and one for calculating metrics
     val_indices = sorted(np.random.choice(len(samples_probs), size=n_val, replace=False))
-    test_indices = sorted(np.array(list(set(range(10240)) - set(val_indices))))
-    
+    test_indices = sorted(np.array(list(set(range(len(samples_probs))) - set(val_indices))))
+
     samples_probs_val = samples_probs[val_indices]
     samples_probs_test = samples_probs[test_indices]
 
@@ -407,7 +407,7 @@ if args.threshold:
     for lower_threshold in tqdm(np.arange(0., 0.5, 0.1)):
         for upper_threshold in tqdm(np.arange(0.6, 1.0, 0.05)):
             all_scores['is'][(lower_threshold, upper_threshold)] = inception_score(samples_probs_val[int(lower_threshold * n_val):int(upper_threshold * n_val)])
-    
+
     # Find the best score and calculate all metrics on the test set
     best_value = 0.
     best_thresholds_is = None

@@ -19,6 +19,26 @@ from src.models.baselines.wavenet import WaveNetModel
 from src.models.sequence.ss.s4 import S4
 from train import SequenceLightningModule
 
+def test_step(model):
+    B, L = 2, 64
+    x = torch.ones(B, L, dtype=torch.long).to('cuda')
+
+    # Forward
+    batch = (x, None)
+    y, _, _ = model(batch) # Forward pass expects a batch which has both x and y (inputs and targets)
+
+    # Step
+    model._reset_state(batch, device='cuda')
+    ys = []
+    for x_ in torch.unbind(x, dim=-1):
+        y_ = model.step(x_)
+        ys.append(y_)
+    ys = torch.stack(ys, dim=1)
+
+    print(torch.norm(y-ys))
+
+    breakpoint()
+
 @torch.inference_mode()
 def generate(
     model,
@@ -31,9 +51,16 @@ def generate(
     benchmark=False,
     return_logprobs=False,
 ):
+
     x, _, *_ = batch # (B, L)
     x = x.to('cuda')
     T = x.shape[1] if T is None else T
+
+    # Special logic for WaveNet
+    if isinstance(model.model, WaveNetModel) and not benchmark:
+        l_prefix += model.model.receptive_field
+        T += model.model.receptive_field
+        x = F.pad(x, (model.model.receptive_field, 0), value=128)
 
     # Set up the initial state
     model._reset_state(batch, device='cuda')
@@ -51,6 +78,7 @@ def generate(
     for t in tqdm(range(T)):
 
         # Step through the model with the current sample
+        breakpoint()
         y_t = model.step(x_t)
 
         # Handle special loss functions such as ProjectedAdaptiveSoftmax
@@ -93,10 +121,11 @@ def generate(
         y_all.append(x_t.cpu())
         # y_all.append(y_t.cpu())
 
-    y_all = torch.stack(y_all, dim=1)
+    y_all = torch.stack(y_all, dim=1) # (batch, length)
 
     if isinstance(model.model, WaveNetModel) and not benchmark:
-        y_all = y_all[model.model.receptive_field:]
+        y_all = y_all[:, model.model.receptive_field:]
+
 
     if not return_logprobs:
         if debug:
@@ -127,7 +156,9 @@ def main(config: OmegaConf):
     if not config.load_data:
         OmegaConf.update(config, "train.disable_dataset", True)
 
-    OmegaConf.update(config, "loader.batch_size", config.n_samples)
+    if config.n_batch is None:
+        config.n_batch = config.n_samples
+    OmegaConf.update(config, "loader.batch_size", config.n_batch)
 
     # Create the Lightning Module - same as train.py
 
@@ -165,13 +196,8 @@ def main(config: OmegaConf):
         # Get the eval dataloaders
         eval_dataloaders = model.val_dataloader()
         dl = eval_dataloaders[0] if config.split == 'val' else eval_dataloaders[1]
-
-        # Construct a batch
-        x, _, *_ = next(iter(dl))
-        batch = (x.repeat(config.n_reps, 1), None, None)
     else:
         assert config.l_prefix == 0, 'Only unconditional generation when data is not loaded.'
-        batch = (torch.zeros(config.n_samples * config.n_reps, 1).to(torch.long) + 128, None, None)
 
     # Handle save directory intelligently
     if config.save_dir:
@@ -180,17 +206,38 @@ def main(config: OmegaConf):
         save_dir = os.path.join(os.getcwd(), "samples/")
     os.makedirs(save_dir, exist_ok=True)
 
+    # Test
+    if config.test_generation:
+        test_step(model)
+
+
     # Generate
-    y, logprobs, _ = generate(
-        model, # lightning module (SequenceLightningModule from `train.py`)
-        batch, # pass data to condition the generation
-        l_prefix=config.l_prefix, # length of conditioning prefix
-        T=config.l_sample, # length of generated sequence
-        top_p=config.top_p, # nucleus sampling: always set to 1.0 for SaShiMi experiments
-        tau=config.temp, # temperature: always set to 1.0 for SaShiMi experiments
-        return_logprobs=True, # calc exact likelihoods
-    )
+    assert config.n_samples % config.n_batch == 0, "For convenience, n_samples should be a multiple of n_batch"
+    y = []
+    logprobs =  []
+    for _ in range(config.n_samples // config.n_batch):
+        # Construct a batch
+        if config.load_data:
+            x, _, *_ = next(iter(dl))
+            batch = (x.repeat(config.n_reps, 1), None, None)
+        else:
+            batch = (torch.zeros(config.n_batch * config.n_reps, 1).to(torch.long) + 128, None, None)
+
+        _y, _logprobs, _ = generate(
+            model, # lightning module (SequenceLightningModule from `train.py`)
+            batch, # pass data to condition the generation
+            l_prefix=config.l_prefix, # length of conditioning prefix
+            T=config.l_sample, # length of generated sequence
+            top_p=config.top_p, # nucleus sampling: always set to 1.0 for SaShiMi experiments
+            tau=config.temp, # temperature: always set to 1.0 for SaShiMi experiments
+            return_logprobs=True, # calc exact likelihoods
+        )
+        y.append(_y)
+        logprobs.append(_logprobs)
+
     # Sort based on likelihoods and save
+    y = torch.cat(y, dim=0)
+    logprobs = np.concatenate(logprobs, axis=0)
     y = y[np.argsort(logprobs.flatten())]
 
     # Decode quantization

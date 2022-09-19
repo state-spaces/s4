@@ -1,0 +1,49 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: default
+  - /dataset: sc09
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: cosine_warmup
+  - /model: unet
+
+model:
+  n_layers: 8
+  d_model: 64
+  dropout: 0.0
+  layer:
+    n_ssm: null
+    measure: legs
+
+train:
+  monitor: val/loss
+  mode: min
+
+task:
+  metrics:
+    - bpb
+    - accuracy
+    - accuracy@3
+    - accuracy@5
+    - accuracy@10
+
+encoder: embedding
+
+decoder:
+  _name_: sequence
+  mode: last
+
+loader:
+  batch_size: 16
+
+optimizer:
+  weight_decay: 0.1
+  lr: 0.001
+
+scheduler:
+  num_warmup_steps: 1000
+  num_training_steps: 200000
+
+trainer:
+  max_epochs: 100
