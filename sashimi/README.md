@@ -224,11 +224,16 @@ python -m generate experiment=audio/sashimi-sc09 checkpoint_path=sashimi/sashimi
 python -m generate experiment=audio/wavenet-sc09 checkpoint_path=sashimi/wavenet_sc09.pt save_dir=sashimi/samples/sc09/wavenet load_data=false n_samples=10240
 ```
 
-Sept. 2022 (V3): A slightly larger SaShiMi model (6.8M parameters) with improved hyperparameters was trained and a checkpoint provided. It is slightly too large to generate 10240 samples at once, so the `n_batch` flag can be used:
+**Update (Sept. 2022 - V3)**: A slightly larger SaShiMi model (6.8M parameters) with improved hyperparameters was trained and a checkpoint is provided. It is slightly too large to generate 10240 samples at once, so the `n_batch` flag can be used:
 ```
 python -m generate experiment=audio/sashimi-sc09 checkpoint_path=sashimi/sashimi_sc09_unet.pt save_dir=sashimi/samples/sc09/sashimi load_data=false n_samples=10240 n_batch=5120
 ```
 
+The results are better than the original model reported in the paper.
+|                | NLL   | FID  | IS   | mIS   | AM   |
+| ---            | ---   | ---  | ---  | ---   | ---  |
+| Sashimi (orig) | 1.891 | 1.99 | 4.12 | 24.57 | 0.90 |
+| Sashimi (new)  | 1.873 | 1.99 | 5.13 | 42.57 | 0.74 |
 
 
 #### Metrics on Non-Autoregressive Models (DiffWave variants, WaveGAN)
