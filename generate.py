@@ -78,7 +78,6 @@ def generate(
     for t in tqdm(range(T)):
 
         # Step through the model with the current sample
-        breakpoint()
         y_t = model.step(x_t)
 
         # Handle special loss functions such as ProjectedAdaptiveSoftmax
@@ -143,6 +142,7 @@ def main(config: OmegaConf):
 
     # Load train config from existing Hydra experiment
     if config.experiment_path is not None:
+        config.experiment_path = hydra.utils.to_absolute_path(config.experiment_path)
         experiment_config = OmegaConf.load(os.path.join(config.experiment_path, '.hydra', 'config.yaml'))
         # config = OmegaConf.merge(config, experiment_config)
         config.model = experiment_config.model
