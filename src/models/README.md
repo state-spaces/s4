@@ -70,7 +70,7 @@ python train.py pipeline=mnist model=rnn/hippo-legs model.cell_args.hidden_size=
 Other sequence models are easily incorporated into this repository,
 and several other baselines have been ported.
 
-These include CNNs such as [CKConv](https://arxiv.org/abs/2102.02611) and continuous-time/RNN models such as [UnICORNN](https://arxiv.org/abs/2102.02611) and [LipschitzRNN](https://arxiv.org/abs/2006.12070).
+These include CNNs such as [CKConv](https://arxiv.org/abs/2102.02611) and continuous-time/RNN models such as [UnICORNN](https://arxiv.org/abs/2103.05487) and [LipschitzRNN](https://arxiv.org/abs/2006.12070).
 
 Models and datasets can be flexibly interchanged.
 Examples:
