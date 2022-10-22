@@ -197,7 +197,7 @@ def nplr(measure, N, rank=1, dtype=torch.float, diagonalize_precision=True):
     (w - p q^*, B) is unitarily equivalent to the original HiPPO A, B by the matrix V
     i.e. A = V[w - p q^*]V^*, B = V B
     """
-    assert dtype == torch.float or torch.double
+    assert dtype == torch.float or dtype == torch.double
     cdtype = torch.cfloat if dtype == torch.float else torch.cdouble
 
     A, B = transition(measure, N)
