@@ -7,7 +7,7 @@ from einops import rearrange, repeat
 import src.models.hippo.hippo as hippo
 
 def dplr(scaling='linear', N=64, rank=1, H=1, dtype=torch.float, real_scale=1.0, imag_scale=1.0, random_real=False, random_imag=False, normalize=False, diagonal=True, random_B=False):
-    assert dtype == torch.float or torch.double
+    assert dtype == torch.float or dtype == torch.double
     dtype = torch.cfloat if dtype == torch.float else torch.cdouble
 
     pi = torch.tensor(math.pi)
