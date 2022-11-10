@@ -45,7 +45,8 @@ x = torch.randn(batch_size, seq_len, dim).cuda()
 y = sashimi(x) # y.shape == x.shape
 ```
 
-If you use SaShiMi for autoregressive generation, you can convert it to a recurrent model at inference time and then step it to generate samples one at a time. See also the main [README](README.md#generation) for the main generation script.
+If you use SaShiMi for autoregressive generation, you can convert it to a recurrent model at inference time and then step it to generate samples one at a time. The following is a simple example that processes an input in recurrent mode instead of convolutional mode.
+See the main [README](README.md#generation) for the main generation script used for autoregressive generation.
 ```python
 with torch.no_grad():
     sashimi.eval()
@@ -59,7 +60,8 @@ with torch.no_grad():
         y_, state = sashimi.step(x[:, i], state)
         ys.append(y_.detach().cpu())
 
-    ys = torch.stack(ys, dim=1) # ys.shape == x.shape
+    y = torch.stack(ys, dim=1) # y.shape == x.shape
+    # y should be equal to sashimi(x)!
 ```
 
 ## DiffWave
@@ -73,7 +75,7 @@ You can download the Beethoven, YouTubeMix and SC09 datasets from the following 
 - [YouTubeMix](https://huggingface.co/datasets/krandiash/youtubemix)
 - [SC09](https://huggingface.co/datasets/krandiash/sc09)
 
-For each dataset, you only need to download and unzip the` <dataset>.zip` file inside the `data/` directory at the top-level of the `state-spaces` repository. 
+For each dataset, you only need to download and unzip the` <dataset>.zip` file inside the `data/` directory at the top-level of the `state-spaces` repository.
 
 Details about the training-validation-test splits used are also included in the README files on the dataset pages. If you reproduce our results, this splitting will be handled automatically by our training scripts. The specific data processing code that we use can be found at `src/dataloaders/audio.py`, and dataset definitions for use with our training code are included in `src/dataloaders/datasets.py`. The dataset configs can be found at `configs/datasets/`.
 
@@ -114,16 +116,16 @@ More instructions can be found in the main [README](../README.md#generation).
 We provide checkpoints for SaShiMi, SampleRNN and WaveNet on YouTubeMix and SC09 on the [Huggingface Hub](https://huggingface.co/krandiash/sashimi-release). The checkpoint files are named `checkpoints/<model>_<dataset>.pt` and are provided for use with our generation script at `state-spaces/sashimi/generation.py`.
 
 ### Unconditional Generation
-First, put the checkpoints you downloaded at `state-spaces/checkpoints/`. 
+First, put the checkpoints you downloaded at `state-spaces/checkpoints/`.
 
 Then, run the following command to generate audio
 ```bash
-python -m generate experiment=<model>-<dataset> l_sample=<sample_len_in_steps> load_data=false
+python -m generate experiment=audio/<model>-<dataset> checkpoint_path=<path/to/model.ckpt> l_sample=<sample_len_in_steps> load_data=false
 ```
 
 For example, to generate 32 unconditional samples of 1 second 16kHz audio from the SaShiMi model on YouTubeMix, run the following command:
 ```bash
-python -m generate experiment=sashimi-youtubemix n_samples=32 l_sample=16000 load_data=false
+python -m generate experiment=audio/sashimi-youtubemix checkpoint_path=checkpoints/sashimi_youtubemix.pt n_samples=32 l_sample=16000 load_data=false
 ```
 The generated `.wav` files will be saved to `sashimi/samples/`. You can generate audio for all models and datasets in a similar way.
 
@@ -134,20 +136,20 @@ The generated `.wav` files will be saved to `sashimi/samples/`. You can generate
 ### Conditional Generation
 You can also generate conditional samples, e.g. to generate 32 samples conditioned on 0.5 seconds of audio from the SaShiMi model on YouTubeMix, run the following command:
 ```bash
-python -m generate experiment=sashimi-youtubemix n_samples=8 n_reps=4 l_sample=16000 l_prefix=8000
+python -m generate experiment=audio/sashimi-youtubemix checkpoint_path=checkpoints/sashimi_youtubemix.pt n_samples=8 n_reps=4 l_sample=16000 l_prefix=8000
 ```
-The `prefix` flag specifies the number of steps to condition on. The script selects the first `n_samples` examples of the specified `split` (defaults to `val`) of the dataset. `n_reps` specifies how many generated samples will condition on a prefix from a single example (i.e. the total number of generated samples is `n_samples x n_reps`). 
+The `prefix` flag specifies the number of steps to condition on. The script selects the first `n_samples` examples of the specified `split` (defaults to `val`) of the dataset. `n_reps` specifies how many generated samples will condition on a prefix from a single example (i.e. the total number of generated samples is `n_samples x n_reps`).
 
 Note that it is necessary to pass the `load_data` flag and you will need to make sure the datasets are available in the `data/` directory when running conditional generation.
 
 ## Automated Metrics
-We provide a standalone implementations of automated evaluation metrics for evaluating the quality of generated samples on the SC09 dataset in `metrics.py`. Following [Kong et al. (2021)](https://arxiv.org/pdf/2009.09761.pdf), we implemented the Frechet Inception Distance (FID), Inception Score (IS), Modified Inception Score (mIS), AM Score (AM) and the number of statistically different bins score (NDB). Details about the metrics and the procedure followed by us can be found in Appendix C.3 of our paper.
+We provide a standalone implementations of automated evaluation metrics for evaluating the quality of generated samples on the SC09 dataset in `metrics.py`. Following [Kong et al. (2021)](https://arxiv.org/pdf/2009.09761.pdf), we implemented the Frechet Inception Distance (FID), Inception Score (IS), Modified Inception Score (mIS), AM Score (AM) and the number of statistically different bins score (NDB). Details about the metrics and the procedure followed by us can be found in Appendix C.3 of the paper.
 
 ### SC09 Classifier Training
-We use a modified version of the training/testing script provided by the [pytorch-speech-commands](https://github.com/tugstugi/pytorch-speech-commands) repository, which we include under `state-spaces/sashimi/sc09_classifier`. Following [Kong et al. (2021)](https://arxiv.org/pdf/2009.09761.pdf), we used a ResNeXt model trained on SC09 spectrograms. 
+We use a modified version of the training/testing script provided by the [pytorch-speech-commands](https://github.com/tugstugi/pytorch-speech-commands) repository, which we include under `state-spaces/sashimi/sc09_classifier`. Following [Kong et al. (2021)](https://arxiv.org/pdf/2009.09761.pdf), we used a ResNeXt model trained on SC09 spectrograms.
 
 This classifier has two purposes:
-1. To calculate the automated metrics, each SC09 audio clip must be converted into a feature vector. 
+1. To calculate the automated metrics, each SC09 audio clip must be converted into a feature vector.
 2. Following [Donahue et al. (2019)](https://arxiv.org/pdf/1802.04208.pdf), we use classifier confidence as a proxy for the quality and intelligibility of the generated audio. Roughly, we sample a large number of samples from each model, and then select the top samples (as ranked by classifier confidence) per class (as assigned by the classifier). These are then used in MOS experiments.
 
 #### Install Dependencies
@@ -193,7 +195,7 @@ state-spaces/
 ```
 
 ### Calculating Automated Metrics
-We provide instructions for calculating the automated SC09 metrics next. 
+We provide instructions for calculating the automated SC09 metrics next.
 
 #### Dataset Metrics
 To generate the automated metrics for the dataset, run the following command from the `sashimi/sc09_classifier` folder:
@@ -265,7 +267,7 @@ python test_speech_commands.py --sample-dir ../samples/sc09/2048-wavegan/ resnex
 Details and instructions on how we ran our MOS studies on Amazon Mechnical Turk can be found in `Appendix C.4` of our paper. We strongly recommend referring to that section while going through the instructions below. We provide both code and samples that you can use to compare against SaShiMi, as well as run your own MOS studies.
 
 ### Template for HITs
-We provide templates for generating HTML required for constructing HITs on Amazon MTurk at `sashimi/mturk/templates/`. Our templates are largely derived and repurposed from the templates provided by [Neekhara et al. (2019)](https://arxiv.org/pdf/1904.07944.pdf). The template in `template_music.py` can be used to generate HITs for evaluating any music generation model, while the template in `template_speech.py` can be used for evaluating models on SC09 (and could likely be repurposed for evaluating other types of speech generation models). Each HTML template corresponds to what is shown in a single HIT to a crowdworker. 
+We provide templates for generating HTML required for constructing HITs on Amazon MTurk at `sashimi/mturk/templates/`. Our templates are largely derived and repurposed from the templates provided by [Neekhara et al. (2019)](https://arxiv.org/pdf/1904.07944.pdf). The template in `template_music.py` can be used to generate HITs for evaluating any music generation model, while the template in `template_speech.py` can be used for evaluating models on SC09 (and could likely be repurposed for evaluating other types of speech generation models). Each HTML template corresponds to what is shown in a single HIT to a crowdworker.
 
 ### Download Artifacts
 The SaShiMi release page for the [Huggingface Hub](https://huggingface.co/krandiash/sashimi-release) contains the final set of `.wav` files that we use in our MOS MTurk experiments at `mturk/sc09` and `mturk/youtubemix`. You should download and unzip these files and place them at `state-spaces/sashimi/mturk/sc09/` and `state-spaces/sashimi/mturk/youtubemix/` respectively.
@@ -280,7 +282,7 @@ If you want to run MOS studies on YouTubeMix (or for any music generation datase
 6. Posting the HITs to Amazon MTurk (see [Posting HITs](#posting-hits)).
 7. Downloading results and calculating the MOS scores using our `MTurk YouTubeMix MOS` notebook at `state-spaces/sashimi/mturk/mos`.
 
-For Steps 1 and 2, you can use your own generation scripts or refer to our generation code (see [Audio Generation](#audio-generation)). 
+For Steps 1 and 2, you can use your own generation scripts or refer to our generation code (see [Audio Generation](#audio-generation)).
 
 For Step 3, we provide the `turk_create_batch.py` script that takes a directory of samples for a collection of methods and organizes them as a batch of HITs. Note that this script only organizes the data that will be contained in each HIT and does not actually post the HITs to MTurk.
 
@@ -340,11 +342,11 @@ python turk_create_batch.py \
 --batch_size 1
 
 # Run your own
-python turk_create_batch.py \ 
---condition <condition> \ 
---input_dir path/to/<condition>/ \ 
---output_dir final/ \ 
---methods <method-1> <method-2> ... <method-k> \ 
+python turk_create_batch.py \
+--condition <condition> \
+--input_dir path/to/<condition>/ \
+--output_dir final/ \
+--methods <method-1> <method-2> ... <method-k> \
 --batch_size 1
 ```
 
@@ -362,7 +364,7 @@ final/
 │   ├── 2/
 │   ├── ...
 │   ├── 29/ # 30 total batches
-|   ├── batches.txt # mapping from the batch index to the wav file taken from each method 
+|   ├── batches.txt # mapping from the batch index to the wav file taken from each method
 |   ├── uids.txt # mapping from (method, wav file) to a unique ID
 |   ├── urls.csv # list of file URLs for each batch: you'll upload this to MTurk later for creating the HITs
 |   ├── urls_0.csv
@@ -401,7 +403,7 @@ If you want to run MOS studies on SC09 (or for a speech generation dataset and m
 8. Posting the HITs to Amazon MTurk (see [Posting HITs](#posting-hits)).
 9. Downloading results and calculating the MOS scores using our `MTurk SC09 MOS` notebook at `state-spaces/sashimi/mturk/mos`.
 
-For Step 1, you can use your own generation scripts or refer to our generation code (see [Audio Generation](#audio-generation)). 
+For Step 1, you can use your own generation scripts or refer to our generation code (see [Audio Generation](#audio-generation)).
 
 Step 2 can be completed by referring to the [SC09 Classifier Training](#sc09-classifier-training) section or reusing our provided ResNeXt model checkpoint.
 
@@ -424,7 +426,7 @@ python prepare_sc09.py --methods diffwave-500k diffwave-1m diffwave-small-500k s
 ```
 The `prepare_sc09.py` script takes additional arguments for `cache_dir`, `sample_dir` and `target_dir` to customize paths. By default, it will look for the `2048-<model>-resnext-probs.npy` files in `state-spaces/sashimi/sc09_classifier/cache/` (`cache_dir`), the samples in `state-spaces/sashimi/samples/sc09/` (`sample_dir`) and the output directory `state-spaces/sashimi/mturk/sc09/sc09-unconditional-exp-confident-repro/` (`target_dir`).
 
-As a convenience, we provide the output of this step on the [Huggingface Hub](https://huggingface.co/krandiash/sashimi-release) under the `mturk/sc09` folder (called `sc09-unconditional-exp-confident`). This corresponds to the directory of samples we used for SC09 MOS evaluation. Either download and place this inside `state-spaces/sashimi/mturk/sc09/` before proceeding to the commands below, OR make sure you've followed the previous steps to generate samples for each method using the `prepare_sc09.py` script. 
+As a convenience, we provide the output of this step on the [Huggingface Hub](https://huggingface.co/krandiash/sashimi-release) under the `mturk/sc09` folder (called `sc09-unconditional-exp-confident`). This corresponds to the directory of samples we used for SC09 MOS evaluation. Either download and place this inside `state-spaces/sashimi/mturk/sc09/` before proceeding to the commands below, OR make sure you've followed the previous steps to generate samples for each method using the `prepare_sc09.py` script.
 
 For Step 5, we then provide the `turk_create_batch.py` script that takes a directory of samples for a collection of methods and organizes them as a batch of HITs. Note that this script only organizes the data that will be contained in each HIT and does not actually post the HITs to MTurk.
 
