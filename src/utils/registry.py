@@ -58,6 +58,7 @@ layer = {
     "conv1d": "src.models.sequence.convs.conv1d.Conv1d",
     "conv2d": "src.models.sequence.convs.conv2d.Conv2d",
     "performer": "src.models.sequence.attention.linear.Performer",
+    "mega": "src.models.sequence.mega.MegaBlock",
 }
 
 callbacks = {

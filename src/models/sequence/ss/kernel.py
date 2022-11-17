@@ -866,6 +866,89 @@ class SSKernelDiag(OptimModule):
         next_state = AL * state + v
         return next_state
 
+class EMAKernel(OptimModule):
+    """Translation of Mega's MultiHeadEMA.
+    This is a minimal implementation of the convolution kernel part of the module.
+    This module, together with the main S4 block in src.models.sequence.ss.s4
+    (which is really just a fft-conv wrapper around any convolution kernel,
+    such as this one), should be exactly equivalent to using the original Mega
+    EMA module in src.models.sequence.ss.ema.
+    Two additional flags have been provided to resolve discrepencies in parameter
+    count between S4(D) and EMA
+    - `dt_tie` makes the shape of the step size \Delta (H, 1) instead of (H, N)
+    - `efficient_bidirectional` ties the A/B/dt parameters for the conv kernels
+    in both forwards and backwards directions. This should have exactly the same
+    speed, slightly more parameter efficiency, and unchanged performance.
+    """
+
+    def __init__(
+        self,
+        H,
+        N=2,
+        channels=1,
+        l_max=None,
+        dt_tie=False,
+        efficient_bidirectional=False,
+    ):
+        super().__init__()
+
+        self.H = H
+        self.N = N
+        self.channels = channels
+        self.l_max = l_max
+        self.scale = math.sqrt(1.0 / self.N)
+
+        # Exactly match the parameter count of S4(D) when bididirectional is on
+        self.efficient_bidirectional = efficient_bidirectional
+        if self.efficient_bidirectional:
+            H_C = H * channels
+        else:
+            H *= channels
+            H_C = H
+
+        self.delta = nn.Parameter(torch.Tensor(H, 1 if dt_tie else N, 1))
+        self.alpha = nn.Parameter(torch.Tensor(H, N, 1))
+        self.beta = nn.Parameter(torch.Tensor(H, N, 1))
+        self.gamma = nn.Parameter(torch.Tensor(H_C, N))
+        # self.omega = nn.Parameter(torch.Tensor(H))  # D skip connection handled by outside class
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        with torch.no_grad():
+            nn.init.normal_(self.delta, mean=0.0, std=0.2)
+            nn.init.normal_(self.alpha, mean=0.0, std=0.2)
+            # Mega comment: beta [1, -1, 1, -1, ...] seems more stable.
+            val = torch.ones(self.N, 1)
+            if self.N > 1:
+                idx = torch.tensor(list(range(1, self.N, 2)))
+                val.index_fill_(0, idx, -1.0)
+            self.beta.normal_(mean=0.0, std=0.02).add_(val)
+            nn.init.normal_(self.gamma, mean=0.0, std=1.0)
+            # nn.init.normal_(self.omega, mean=0.0, std=1.0)
+
+    def coeffs(self): # Same as discretize
+        p = torch.sigmoid(self.delta)  # (H N 1)
+        alpha = torch.sigmoid(self.alpha)
+        q = 1.0 - p * alpha
+        return p, q
+
+    def forward(self, L=None, state=None, rate=1.0):
+        L = L if self.l_max is None else min(self.l_max, L)
+        p, q = self.coeffs()  # (H N 1)
+        vander = torch.arange(L).to(p).view(1, 1, L) * torch.log(q)  # (H N L)
+        kernel = (p * self.beta) * torch.exp(vander)
+        if self.efficient_bidirectional:
+            C = rearrange(self.gamma * self.scale, '(c h) n -> c h n', c=self.channels)
+            kernel = torch.einsum('dnl,cdn->cdl', kernel, C)
+            # kernel = rearrange(kernel, 'c d l -> (c d) l')
+        else:
+            kernel = torch.einsum('dnl,dn->dl', kernel, self.gamma * self.scale)
+            kernel = rearrange(kernel, '(c h) l -> c h l', c=self.channels)
+
+        kernel = kernel[..., :L]
+        # kernel = rearrange(kernel, '(c h) l -> c h l', c=self.channels)
+        return kernel, None  # k_state
 class SSKernel(nn.Module):
     """Wrapper around SSKernel parameterizations.
 
@@ -926,7 +1009,9 @@ class SSKernel(nn.Module):
             ) + math.log(dt_min)
 
         # Compute the preprocessed representation
-        if mode == "real":  # For testing and ablation purposes
+        if mode == "ema":
+            self.kernel = EMAKernel(H, N=N, channels=channels, **kernel_args)
+        elif mode == "real":  # For testing and ablation purposes
             # Generate A, B
             A, B = hippo.transition(measure, self.N)
             A = torch.as_tensor(A, dtype=dtype)

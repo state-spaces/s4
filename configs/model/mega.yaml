@@ -1,0 +1,18 @@
+defaults:
+  - layer: mega
+
+_name_: model
+prenorm: true
+transposed: false
+n_layers: 4
+d_model: 128
+residual: null  # Handled inside Mega block
+pool: null # No downsampling
+norm: null  # Handled inside Mega block
+dropout: 0.0
+tie_dropout: false
+track_norms: true # Logs to wandb
+
+# Optional encoder/decoder, e.g. add positional embeddings or padding masks
+encoder: null
+decoder: null

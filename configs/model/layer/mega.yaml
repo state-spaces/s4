@@ -1,0 +1,20 @@
+_name_: mega
+d_attin: 64   # Default for LRA-Image
+d_attout: 320  # Default for LRA-Image
+d_state: 16   # Default for LRA-Image
+activation: silu
+attention_activation: softmax
+bidirectional: false
+chunk: -1
+l_max: null
+norm: layer
+prenorm: true
+tie_dropout: false
+rel_pos_bias: simple
+max_positions: 1024
+ff_expand: 2  # Expansion factor for FFN
+dropout: 0.0
+drop_attin: 0.0
+drop_attout: 0.0
+drop_ffn: 0.0
+transposed: false
