@@ -1,5 +1,7 @@
 ## Mega: SSM Ablations (EMA and S4D)
 
+This branch contains reproductions of the Mega: Moving Average Equipped Gated Attention model. To see the changes, use the PR view for this branch (https://github.com/HazyResearch/state-spaces/compare/mega?expand=1)
+
 Results:
 
 | Model              | Params | s/epoch | Val Acc |

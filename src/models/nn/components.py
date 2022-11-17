@@ -84,7 +84,7 @@ class DropoutNd(nn.Module):
         """ X: (batch, dim, lengths...) """
         if self.training:
             if not self.transposed: X = rearrange(X, 'b d ... -> b ... d')
-            # binomial = torch.distributions.binomial.Binomial(probs=1-self.p) # This is incredibly slow because of CPU -> GPU copying
+            # binomial = torch.distributions.binomial.Binomial(probs=1-self.p) # This is incredibly slow
             mask_shape = X.shape[:2] + (1,)*(X.ndim-2) if self.tie else X.shape
             # mask = self.binomial.sample(mask_shape)
             mask = torch.rand(*mask_shape, device=X.device) < 1.-self.p
@@ -103,8 +103,6 @@ def Activation(activation=None, size=None, dim=-1):
         return nn.ReLU()
     elif activation == 'gelu':
         return nn.GELU()
-    elif activation == 'elu':
-        return nn.ELU()
     elif activation in ['swish', 'silu']:
         return nn.SiLU()
     elif activation == 'glu':
@@ -303,7 +301,7 @@ class Normalization(nn.Module):
         if self.transposed:
             x = rearrange(x, 'b d ... -> b d (...)')
         else:
-            x = rearrange(x, 'b ... d -> b (...) d')
+            x = rearrange(x, 'b ... d -> b (...)d ')
 
         # The cases of LayerNorm / no normalization are automatically handled in all cases
         # Instance/Batch Norm work automatically with transposed axes
@@ -397,12 +395,3 @@ class ReversibleInstanceNorm1dOutput(nn.Module):
         if not self.transposed:
             return x.transpose(-1, -2)
         return x
-
-if __name__ == '__main__':
-    norm = ReversibleInstanceNorm1dInput(7, transposed=False)
-    x = torch.rand(8, 100, 7)
-    y = norm(x)
-    revnorm = ReversibleInstanceNorm1dOutput(norm)
-    z = revnorm(y)
-    assert torch.allclose(x, z)
-    breakpoint()
