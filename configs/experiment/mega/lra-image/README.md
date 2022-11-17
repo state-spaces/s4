@@ -39,13 +39,14 @@ Small Mega models and additional details about these variants:
 ```
 python -m train experiment=mega/lra-image/small-mega-ema
 ```
-Small version of the same model (using the same EMA layer), with the following changes:
+Small version of the same model (using the original Mega EMA layer), with the following changes:
 - Model depth halved from 8 to 4
 - Model width halved (`d_model`, `d_ffn`, `v` in Table 8)
 - Weight decay halved from 0.02 to 0.01
 - Training time halved from 200 to 100 epochs
 
-Details: This uses the MultiHeadEMA module (https://github.com/HazyResearch/state-spaces/blob/mega/src/models/sequence/ss/ema.py).
+Details: This calls the Mega block (https://github.com/HazyResearch/state-spaces/blob/mega/src/models/sequence/mega.py) which uses the MultiHeadEMA module (https://github.com/HazyResearch/state-spaces/blob/mega/src/models/sequence/ss/ema.py).
+Both of these are transcribed from the official Mega code.
 
 ```
 python -m train experiment=mega/lra-image/small-mega-ema-with-s4
@@ -53,10 +54,11 @@ python -m train experiment=mega/lra-image/small-mega-ema-with-s4
 Same as above, but computing the EMA module with a codepath that goes through the S4 block (does not use the actual S4 layer). Should be exactly the same as the above model.
 This config only ablates that the alternate codepath behaves as expected, so that we can confidently replace smaller modules (the convolution kernel).
 
-Details: This breaks the MultiHeadEMA module into two parts, the kernel construction and the convolution. The kernel construction module is `EMAKernel` ([code](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/sequence/ss/kernel.py#L869)) which can be seen as a drop-in replacement of alternative convolution kernels such as S4D's kernel ([kernel.py](../../../../src/models/sequence/ss/kernel.py))
+Details: This breaks the MultiHeadEMA module into two parts, the kernel construction and the convolution. The kernel construction module is `EMAKernel` ([code](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/sequence/ss/kernel.py#L869)) which can be seen as a drop-in replacement of alternative convolution kernels such as S4D's kernel.
 
-The convolution goes through the S4 block, so it goes through the more general S4 FFT-conv block (but replaces the S4 kernel with an EMA kernel, controlled by the `mode=ema` [option](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/sequence/ss/kernel.py#L1012)).
-This logic is performed [here](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/sequence/mega.py#L95).
+The convolution goes through the [S4 block](https://github.com/HazyResearch/state-spaces/blob/mega/src/models/sequence/ss/s4.py), which is just a generic block implementing FFT convolution. The kernel inside is controllable by the `mode=ema` [option](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/sequence/ss/kernel.py#L1012)) to use the `EMAKernel`.
+
+The swap from `MultiHeadEMA` to `S4Block`+`EMAKernel` is performed [here](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/sequence/mega.py#L95).
 
 
 ```
@@ -71,13 +73,14 @@ Details: Exactly the same as above but replaces `EMAKernel` with `SSKernelDiag`.
 The `small-{ema,s4d}.yaml` experiments use a block with only an SSM convolution.
 This is a variant of the small ablation models from the S4D paper
 (`configs/experiment/cifar/s4-cifar-ablation.yaml`).
-To make the models more directly comparable, some architecture flags were tweaked to match the above models (namely using pre-batch-norm rather than post-layer-norm),
-which might lower these results slightly compared to the original S4D results.
 
 ```
 python -m train experiment=mega/lra-image/small-s4d
 ```
 Pure S4D module from the S4D paper (no Attention).
+
+To make the models more directly comparable, some architecture flags were tweaked to match the Mega models (namely using pre-batch-norm rather than post-layer-norm),
+which might lower these results slightly (~84) compared to the original S4D results (~86) for these model sizes.
 
 ```
 python -m train experiment=mega/lra-image/small-ema
