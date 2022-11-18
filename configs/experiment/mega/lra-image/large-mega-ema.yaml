@@ -38,6 +38,7 @@ trainer:
   gradient_clip_val: 1.0
 
 scheduler:
+  num_warmup_steps: 10000
   num_training_steps: 200000
 
 train:

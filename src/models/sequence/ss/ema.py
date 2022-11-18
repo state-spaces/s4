@@ -15,11 +15,16 @@ import torch.nn.functional as F
 class MultiHeadEMA(nn.Module):
     """Exponential Moving Average Layer.
 
-    This class is a verbatim translation of the original code.
-    A few variable names have been changed to be more consistent with this codebase.
+    This class is a verbatim translation of the original code with minor differences that
+    do not change the code execution path.
 
-    The only semantic change is removing the final SiLU activation,
-    which is handled by the caller class (e.g. MegaBlock).
+    - A few variable names have been changed to be more consistent with this codebase.
+
+    - State passing is not supported ("incremental_state" in the Mega code),
+      as the original module uses a different fairseq interface than this codebase.
+
+    - The only semantic change is removing the final SiLU activation,
+      which is handled by the caller module (e.g. src.models.sequence.mega.MegaBlock).
     """
 
     def __init__(
@@ -31,67 +36,58 @@ class MultiHeadEMA(nn.Module):
     ):
         super().__init__()
 
-        self.d_model = d_model
-        self.d_state = d_state
+        self.H = d_model
+        self.N = d_state
         self.bidirectional = bidirectional
         self.l_max = l_max
-        self.scale = math.sqrt(1.0 / self.d_state)
+        self.scale = math.sqrt(1.0 / self.N)
 
-        H = 2 * d_model if self.bidirectional else d_model
-        # This is a state-space based on S4(D) where
-        # delta, alpha, beta, gamma, omega simply correspond to
+        H = 2 * self.H if self.bidirectional else self.H
+
+        # This is a state-space model variant of S4(D) where
+        # delta, alpha, beta, gamma, omega directly correspond to
         # the \Delta, A, B, C, D parameters of SSMs
-        self.delta = nn.Parameter(torch.Tensor(H, d_state, 1))
-        self.alpha = nn.Parameter(torch.Tensor(H, d_state, 1))
-        self.beta = nn.Parameter(torch.Tensor(H, d_state, 1))
-        self.gamma = nn.Parameter(torch.Tensor(H, d_state))
-        self.omega = nn.Parameter(torch.Tensor(d_model))
+        self.delta = nn.Parameter(torch.Tensor(H, self.N, 1))
+        self.alpha = nn.Parameter(torch.Tensor(H, self.N, 1))
+        self.beta = nn.Parameter(torch.Tensor(H, self.N))
+        self.gamma = nn.Parameter(torch.Tensor(H, self.N))
+        self.omega = nn.Parameter(torch.Tensor(self.H))
         self._kernel = None
         self._coeffs = None
 
         self.reset_parameters()
 
-        self.onnx_trace = False
-        self.tpu = False
-
-    def prepare_for_onnx_export_(self):
-        self.onnx_trace = True
-
-    def prepare_for_tpu_(self, **kwargs):
-        self.tpu = True
-
     def reset_parameters(self):
         with torch.no_grad():
-            # delta & alpha
+            # delta & alpha (dt and A parameters of SSM)
             nn.init.normal_(self.delta, mean=0.0, std=0.2)
             nn.init.normal_(self.alpha, mean=0.0, std=0.2)
-            # beta [1, -1, 1, -1, ...] seems more stable.
-            val = torch.ones(self.d_state, 1)
-            if self.d_state > 1:
-                idx = torch.tensor(list(range(1, self.d_state, 2)))
+            # Mega: beta [1, -1, 1, -1, ...] seems more stable.
+            val = torch.ones(self.N)
+            if self.N > 1:
+                idx = torch.tensor(list(range(1, self.N, 2)))
                 val.index_fill_(0, idx, -1.0)
             self.beta.normal_(mean=0.0, std=0.02).add_(val)
-            # gamma & omega
+            # gamma & omega (C and D parameters of SSM)
+            # should be unit variance, as specified in HTTYH
             nn.init.normal_(self.gamma, mean=0.0, std=1.0)
             nn.init.normal_(self.omega, mean=0.0, std=1.0)
 
     def _calc_coeffs(self):
         self._coeffs = None
-        # D x N x 1
-        p = torch.sigmoid(self.delta)
+        p = torch.sigmoid(self.delta)  # (H N 1)
         alpha = torch.sigmoid(self.alpha)
         q = 1.0 - p * alpha
         return p, q
 
     def _compute_kernel(self, L: int):
         self._kernel = None
-        # D x N x 1
-        p, q = self._calc_coeffs()
-        # D x N x L
-        vander = torch.arange(L).to(p).view(1, 1, L) * torch.log(q)
-        kernel = (p * self.beta) * torch.exp(vander)
-        # D x L
-        return torch.einsum('dnl,dn->dl', kernel, self.gamma * self.scale)
+        # Materialize parameters - analog of SSM discretization
+        p, q = self._calc_coeffs()  # (H N 1)
+
+        vander = torch.log(q) * torch.arange(L).to(p).view(1, 1, L)  # (H N L)
+        kernel = p[..., 0] * self.beta * self.gamma * self.scale
+        return torch.einsum('dn,dnl->dl', kernel, torch.exp(vander))  # (H L)
 
     def coeffs(self):
         if self.training:
@@ -110,60 +106,11 @@ class MultiHeadEMA(nn.Module):
                 self._kernel = self._compute_kernel(L)
             return self._kernel[..., :L]
 
-    def step(self, x, length, hx=None):
-        if length == 1:
-            return self.one_step(x, hx=hx)
-
-        # D x N x 1
-        p, q = self.coeffs()
-        # D x N x L+1
-        vander = torch.arange(length + 1).to(p).view(1, 1, length + 1) * torch.log(q)
-        vander = torch.exp(vander)
-        if hx is not None:
-            # D x N x L * D x N x 1 -> D x N x L
-            k = vander[:, :, 1:] * (self.gamma * self.scale).unsqueeze(-1)
-            ox = torch.einsum('bdn,dnl->bdl', hx, k)
-            # D x N * B x D x N -> B x D x N
-            hh = vander[:, :, -1] * hx
-        else:
-            ox = None
-            hh = None
-
-        # D x N x L
-        vander = vander[:, :, :-1]
-        kernel = (p * self.beta) * vander
-        k = torch.einsum('dnl,dn->dl', kernel, self.gamma * self.scale)
-
-        k_f = torch.fft.rfft(k.float(), n=2 * length)
-        x_f = torch.fft.rfft(x.float(), n=2 * length)
-        # B x D x L
-        out = torch.fft.irfft(x_f * k_f, n=2 * length)[..., 0:length]
-        out = out.type_as(x)
-        if ox is not None:
-            out = out + ox
-
-        h = torch.einsum('bdl,dnl->bdn', x, torch.flip(kernel, dims=[2]))
-        if hh is not None:
-            h = h + hh
-        # L x B x D, B x D x N
-        return out.permute(2, 0, 1), h
-
-    def one_step(self, x, hx=None):
-        p, q = self.coeffs()
-        # (D x N) x (B x D x 1) -> B x D x N
-        h = (p * self.beta).squeeze(-1) * x
-        if hx is not None:
-            h = h + q.squeeze(-1) * hx
-        # B x D
-        out = torch.einsum('bdn,dn->bd', h, self.gamma * self.scale)
-        # 1 x B x D, B x D x N
-        return out.unsqueeze(0), h
-
     def forward(
         self,
-        x,
-        padding_mask: Optional[torch.Tensor] = None,
+        u,
         state: Optional[Dict[str, Dict[str, Optional[torch.Tensor]]]] = None,
+        padding_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, None]:
         """Input shape: Time x Batch x Channel
         Args:
@@ -172,80 +119,43 @@ class MultiHeadEMA(nn.Module):
                 padding elements are indicated by 1s.
         """
 
-        bsz, seq_len, d_model = x.size()
-        assert d_model == self.d_model
+        B, L, H = u.size()
+        assert H == self.H
 
-        residual = x * self.omega
-
-        # L x B x D -> B x D x L
-        # x = x.permute(1, 2, 0)
-        x = x.transpose(-1, -2)  # (B D L)
+        u = u.transpose(-1, -2)  # (B H L)
         if padding_mask is not None:
-            x = x * (1.0 - padding_mask.unsqueeze(1).type_as(x))
+            u = u * (1.0 - padding_mask.unsqueeze(1).type_as(u))
 
-        assert not self.bidirectional or state is None, 'Bidirectional EMA does not support incremental state'
+        # assert not self.bidirectional or state is None, 'Bidirectional EMA does not support incremental state'
         if state is not None:
-            saved_state = self._get_input_buffer(state)
-            if 'prev_state' in saved_state:
-                h = saved_state['prev_state']
-            else:
-                h = None
-            out, h = self.step(x, seq_len, hx=h)
-            saved_state['prev_state'] = h
-            self._set_input_buffer(state, saved_state)
-            # B x D -> 1 x B x D
-            # out = F.silu(out + residual)
-            out = out + residual
+            raise NotImplementedError(
+                "MultiHeadEMA module does not support state passing in this repository."
+                "Use S4D for more functionality such as state passing and better performance."
+            )
         else:
-            # D x L
-            k = self.kernel(seq_len)
-            fft_len = seq_len
+            k = self.kernel(L)  # (H L)
+            l_fft = L
             s = 0
             l_kernel = k.size(1)
-            assert l_kernel == seq_len
+            assert l_kernel == L
+            u_ = u
             if self.bidirectional:
-                k1, k2 = torch.split(k, [self.d_model, self.d_model], dim=0)
-                # D x 2*L-1
-                k = F.pad(k1, (l_kernel - 1, 0)) + F.pad(k2.flip(-1), (0, l_kernel - 1))
-                x = F.pad(x, (l_kernel - 1, 0))
-                fft_len = fft_len + l_kernel - 1
+                # This is twice as inefficient as it could be
+                # See S4 FFT conv bidirectional implementation for improvement
+                k1, k2 = torch.split(k, [self.H, self.H], dim=0)
+                k = F.pad(k1, (l_kernel - 1, 0)) + F.pad(k2.flip(-1), (0, l_kernel - 1))  # (H 2*L-1)
+                u_ = F.pad(u, (l_kernel - 1, 0))
+                l_fft = l_fft + l_kernel - 1
                 s = 2 * l_kernel - 2
 
-            k_f = torch.fft.rfft(k.float(), n=2 * fft_len)
-            x_f = torch.fft.rfft(x.float(), n=2 * fft_len)
-            # B x D x L
-            out = torch.fft.irfft(x_f * k_f, n=2 * fft_len)[..., s:s + seq_len]
-            out = out.type_as(x)
-            # B x D x L -> L x B x D
-            # out = F.silu(out.transpose(-1, -2) + residual)
-            out = out.transpose(-1, -2) + residual
+            k_f = torch.fft.rfft(k.float(), n=2 * l_fft)
+            u_f = torch.fft.rfft(u_.float(), n=2 * l_fft)
+            y = torch.fft.irfft(u_f * k_f, n=2 * l_fft)[..., s:s + L]  # (B H L)
+            y = y.type_as(u)
+            y = y + u * self.omega.unsqueeze(-1)  # (B H L)
+            y = y.transpose(-1, -2)
 
-        return out, None  # empty state
-
-    def _get_input_buffer(self, state: Optional[Dict[str, Dict[str, Optional[torch.Tensor]]]]) -> Dict[str, Optional[torch.Tensor]]:
-        result = self.get_state(state, "ema_state")
-        if result is not None:
-            return result
-        else:
-            empty_result: Dict[str, Optional[torch.Tensor]] = {}
-            return empty_result
-
-    def _set_input_buffer(self, state: Dict[str, Dict[str, Optional[torch.Tensor]]], buffer: Dict[str, Optional[torch.Tensor]]):
-        return self.set_state(state, "ema_state", buffer)
-
-    @torch.jit.export
-    def reorder_state(
-            self, state: Dict[str, Dict[str, Optional[torch.Tensor]]], new_order: torch.Tensor
-    ):
-        """Reorder buffered internal state (for incremental generation)."""
-        input_buffer = self._get_input_buffer(state)
-        if input_buffer is not None:
-            for k in input_buffer.keys():
-                input_buffer_k = input_buffer[k]
-                if input_buffer_k is not None:
-                    input_buffer[k] = input_buffer_k.index_select(0, new_order)
-            state = self._set_input_buffer(state, input_buffer)
-        return state
+        return y, None  # empty state
 
     def extra_repr(self) -> str:
-        return 'edim={}, d_state={}, bidirectional={}, trunction={}'.format(self.d_model, self.d_state, self.bidirectional, self.l_max)
+        return 'edim={}, N={}, bidirectional={}, trunction={}'.format(self.H, self.N, self.bidirectional, self.l_max)

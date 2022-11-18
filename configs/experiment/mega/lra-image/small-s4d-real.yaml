@@ -1,24 +1,25 @@
 # @package _global_
 defaults:
   - /pipeline: cifar
-  - /model: mega
+  - /model: s4
   - override /scheduler: cosine_warmup
 
 model:
-  dropout: 0.0
+  dropout: 0.1
   tie_dropout: false
   n_layers: 4
-  d_model: 80
+  d_model: 128
   prenorm: true
+  norm: batch
   layer:
-    norm: batch
-    d_attin: 64
-    d_attout: 80
-    d_state: 16
-    attention_activation: laplace
-    chunk: 128
+    mode: diag
+    measure: diag-real # Simple initialization for real
+    d_state: 64
     bidirectional: true
-    mode: mega
+    disc: zoh
+    n_ssm: null # Don't tie A/B params to param match EMA
+    lr: 0.001
+    force_real: true  # Throw away imaginary part
 
 dataset:
   grayscale: true
@@ -29,13 +30,9 @@ loader:
 optimizer:
   lr: 0.01
   weight_decay: 0.01
-  betas:
-    - 0.9
-    - 0.98
 
 trainer:
   max_epochs: 100
-  gradient_clip_val: 1.0
 
 scheduler:
   num_warmup_steps: 5000
@@ -43,4 +40,4 @@ scheduler:
 
 train:
   seed: 2222
-  name: Small Mega block - EMA
+  name: Small SSM block - S4D-Real

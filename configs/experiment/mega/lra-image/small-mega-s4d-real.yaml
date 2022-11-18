@@ -18,9 +18,11 @@ model:
     attention_activation: laplace
     chunk: 128
     bidirectional: true
-    mode: ema  # Use same EMA kernel inside generic SSM block
-    efficient_bidirectional: true # Match S4 param count
-    dt_tie: true # Match S4 param count
+    mode: diag  # Use S4D kernel inside generic SSM block
+    disc: zoh
+    measure: diag-real # Simple initialization for real
+    lr: 0.001
+    force_real: true  # Throw away imaginary part
 
 dataset:
   grayscale: true
@@ -45,4 +47,4 @@ scheduler:
 
 train:
   seed: 2222
-  name: Small Mega block - EMA - SSM repro
+  name: Small Mega block - S4D-Real

@@ -95,7 +95,7 @@ class MegaBlock(nn.Module):
         if mode == 'mega':
             self.ssm = MultiHeadEMA(d_model, d_state=d_state, bidirectional=bidirectional, l_max=l_max)
         else:
-            self.ssm = S4(d_model, d_state=d_state, bidirectional=bidirectional, l_max=l_max, linear=True, mode=mode, transposed=False, **ssm_args)
+            self.ssm = S4(d_model, d_state=d_state, bidirectional=bidirectional, l_max=l_max, activation=None, postact=None, mode=mode, transposed=False, **ssm_args)
 
         self.v_proj = nn.Linear(d_model, d_attout)  # U_v (eq. 10)
         self.mx_proj = nn.Linear(d_model, d_attin + d_attout + 2 * d_model)

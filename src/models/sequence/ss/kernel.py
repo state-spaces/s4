@@ -689,6 +689,7 @@ class SSKernelDiag(OptimModule):
         real_type='exp',
         lr=None,
         bandlimit=None,
+        force_real=False,
     ):
 
         super().__init__()
@@ -696,6 +697,7 @@ class SSKernelDiag(OptimModule):
         self.disc = disc
         self.bandlimit = bandlimit
         self.real_type = real_type
+        self.force_real = force_real
 
         # Rank of low-rank correction
         assert A.size(-1) == C.size(-1)
@@ -766,6 +768,10 @@ class SSKernelDiag(OptimModule):
 
         B = _r2c(self.B)
         B = repeat(B, 't n -> 1 (v t) n', v=self.repeat)
+
+        # Force A to be real valued, so the whole kernel can be interpreted as a "multi-head EMA"
+        if self.force_real:
+            A = A.real + 0j
 
         if self.bandlimit is not None:
             freqs = dt[:, None] / rate * A.imag.abs() / (2*math.pi) # (H, N)
@@ -868,17 +874,19 @@ class SSKernelDiag(OptimModule):
 
 class EMAKernel(OptimModule):
     """Translation of Mega's MultiHeadEMA.
+
     This is a minimal implementation of the convolution kernel part of the module.
     This module, together with the main S4 block in src.models.sequence.ss.s4
     (which is really just a fft-conv wrapper around any convolution kernel,
     such as this one), should be exactly equivalent to using the original Mega
     EMA module in src.models.sequence.ss.ema.
+
     Two additional flags have been provided to resolve discrepencies in parameter
     count between S4(D) and EMA
     - `dt_tie` makes the shape of the step size \Delta (H, 1) instead of (H, N)
     - `efficient_bidirectional` ties the A/B/dt parameters for the conv kernels
-    in both forwards and backwards directions. This should have exactly the same
-    speed, slightly more parameter efficiency, and unchanged performance.
+      in both forwards and backwards directions. This should have exactly the same
+      speed, slightly more parameter efficiency, and unchanged performance.
     """
 
     def __init__(
@@ -949,6 +957,7 @@ class EMAKernel(OptimModule):
         kernel = kernel[..., :L]
         # kernel = rearrange(kernel, '(c h) l -> c h l', c=self.channels)
         return kernel, None  # k_state
+
 class SSKernel(nn.Module):
     """Wrapper around SSKernel parameterizations.
 
