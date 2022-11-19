@@ -2,3 +2,4 @@
 _name_: adamw
 lr: 0.001 # Initial learning rate
 weight_decay: 0.00 # Weight decay
+betas: [0.9, 0.999]

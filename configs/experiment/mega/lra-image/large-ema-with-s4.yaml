@@ -1,0 +1,39 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar
+  - /model: s4
+  - override /scheduler: cosine_warmup
+
+model:
+  dropout: 0.1
+  tie_dropout: false # Different from original config
+  n_layers: 6
+  d_model: 512
+  prenorm: true # Different from original config
+  norm: batch   # Different from original config
+  layer:
+    bidirectional: true
+    mode: ema
+    efficient_bidirectional: true # Match S4 param count
+    dt_tie: true # Match S4 param count
+
+dataset:
+  grayscale: true
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.05
+
+trainer:
+  max_epochs: 200
+
+scheduler:
+  num_warmup_steps: 10000
+  num_training_steps: 200000
+
+train:
+  seed: 2222
+  name: Large SSM block - EMA - SSM repro

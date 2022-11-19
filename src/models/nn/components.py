@@ -109,10 +109,14 @@ def Activation(activation=None, size=None, dim=-1):
         return nn.GLU(dim=dim)
     elif activation == 'sigmoid':
         return nn.Sigmoid()
+    elif activation == 'softplus':
+        return nn.Softplus()
     elif activation == 'modrelu':
         return Modrelu(size)
-    elif activation == 'sqrelu':
+    elif activation in ['sqrelu', 'relu2']:
         return SquaredReLU()
+    elif activation == 'laplace':
+        return Laplace()
     elif activation == 'ln':
         return TransposedLN(dim)
     else:
@@ -184,7 +188,21 @@ def LinearActivation(
 
 class SquaredReLU(nn.Module):
     def forward(self, x):
-        return F.relu(x)**2
+        # return F.relu(x)**2
+        return torch.square(F.relu(x))  # Could this be faster?
+
+def laplace(x, mu=0.707107, sigma=0.282095):
+    x = (x - mu).div(sigma * math.sqrt(2.0))
+    return 0.5 * (1.0 + torch.erf(x))
+
+class Laplace(nn.Module):
+    def __init__(self, mu=0.707107, sigma=0.282095):
+        super().__init__()
+        self.mu = mu
+        self.sigma = sigma
+
+    def forward(self, x):
+        return laplace(x, mu=self.mu, sigma=self.sigma)
 
 
 class TransposedLinear(nn.Module):

@@ -1,0 +1,44 @@
+# @package _global_
+# Based on the s4-cifar-ablation config from the S4D paper
+defaults:
+  - /pipeline: cifar
+  - /model: s4
+  - override /scheduler: cosine_warmup
+
+model:
+  dropout: 0.1
+  tie_dropout: false # Different from original config
+  n_layers: 4
+  d_model: 128
+  prenorm: true # Different from original config
+  norm: batch   # Different from original config
+  layer:
+    mode: diag
+    measure: diag-lin
+    d_state: 64
+    bidirectional: true
+    disc: zoh
+    lr: 0.001
+    n_ssm: null # Don't tie A/B params to param match EMA
+    force_real: false
+
+dataset:
+  grayscale: true
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.01
+
+trainer:
+  max_epochs: 100
+
+scheduler:
+  num_warmup_steps: 5000
+  num_training_steps: 100000
+
+train:
+  seed: 2222
+  name: Small SSM Block - S4D

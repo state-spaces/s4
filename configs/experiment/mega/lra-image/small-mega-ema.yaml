@@ -1,0 +1,46 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar
+  - /model: mega
+  - override /scheduler: cosine_warmup
+
+model:
+  dropout: 0.0
+  tie_dropout: false
+  n_layers: 4
+  d_model: 80
+  prenorm: true
+  layer:
+    norm: batch
+    d_attin: 64
+    d_attout: 80
+    d_state: 16
+    attention_activation: laplace
+    chunk: 128
+    bidirectional: true
+    mode: mega
+
+dataset:
+  grayscale: true
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.01
+  betas:
+    - 0.9
+    - 0.98
+
+trainer:
+  max_epochs: 100
+  gradient_clip_val: 1.0
+
+scheduler:
+  num_warmup_steps: 5000
+  num_training_steps: 100000
+
+train:
+  seed: 2222
+  name: Small Mega block - EMA

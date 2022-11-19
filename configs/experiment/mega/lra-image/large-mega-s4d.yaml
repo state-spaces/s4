@@ -1,0 +1,50 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar
+  - /model: mega
+  - override /scheduler: cosine_warmup
+
+model:
+  dropout: 0.0
+  tie_dropout: false
+  n_layers: 8
+  d_model: 160
+  prenorm: true
+  layer:
+    norm: batch
+    d_attin: 64
+    d_attout: 320
+    d_state: 16
+    attention_activation: laplace
+    chunk: 128
+    bidirectional: true
+    mode: diag
+    disc: zoh
+    measure: diag-lin
+    lr: 0.001
+    force_real: false  # Throw away imaginary part
+
+dataset:
+  grayscale: true
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.02
+  betas:
+    - 0.9
+    - 0.98
+
+trainer:
+  max_epochs: 200
+  gradient_clip_val: 1.0
+
+scheduler:
+  num_warmup_steps: 10000
+  num_training_steps: 200000
+
+train:
+  seed: 2222
+  name: Large Mega block - S4D

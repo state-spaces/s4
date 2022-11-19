@@ -2,3 +2,4 @@
 _name_: adam
 lr: 0.001  # Initial learning rate
 # weight_decay: 0.0  # Weight decay for adam|lamb; should use AdamW instead if desired
+betas: [0.9, 0.999]

@@ -1,0 +1,38 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar
+  - /model: s4
+  - override /scheduler: cosine_warmup
+
+model:
+  dropout: 0.1
+  tie_dropout: false
+  n_layers: 4
+  d_model: 128
+  prenorm: true
+  norm: batch
+  layer:
+    mode: ema
+    d_state: 64
+    bidirectional: true
+
+dataset:
+  grayscale: true
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.01
+
+trainer:
+  max_epochs: 100
+
+scheduler:
+  num_warmup_steps: 5000
+  num_training_steps: 100000
+
+train:
+  seed: 2222
+  name: Small SSM block - EMA

@@ -1,0 +1,48 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar
+  - /model: mega
+  - override /scheduler: cosine_warmup
+
+model:
+  dropout: 0.0
+  tie_dropout: false
+  n_layers: 8
+  d_model: 160
+  prenorm: true
+  layer:
+    norm: batch
+    d_attin: 64
+    d_attout: 320
+    d_state: 16
+    attention_activation: laplace
+    chunk: 128
+    bidirectional: true
+    mode: ema
+    efficient_bidirectional: true # Match S4 param count
+    dt_tie: true # Match S4 param count
+
+dataset:
+  grayscale: true
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.02
+  betas:
+    - 0.9
+    - 0.98  # Default is 0.999, never seen anyone optimize this before!
+
+trainer:
+  max_epochs: 200
+  gradient_clip_val: 1.0
+
+scheduler:
+  num_warmup_steps: 10000
+  num_training_steps: 200000
+
+train:
+  seed: 2222
+  name: Large Mega block - EMA - SSM repro
