@@ -77,7 +77,7 @@ Both of these are transcribed from the official Mega code.
 ```
 python -m train experiment=mega/lra-image/small-mega-ema-with-s4
 ```
-Same as above, but computing the EMA module with a codepath that goes through the S4 block (does not use the actual S4 layer). Should be exactly the same as the above model.
+Same as above, but computing the EMA module with a codepath that goes through the S4 convolution block (does not use the actual S4 layer). It should be almost exactly the same as the above model.
 This config only ablates that the alternate codepath behaves as expected, so that we can confidently replace inner modules (the convolution kernel).
 
 **Details:**
@@ -92,7 +92,7 @@ python -m train experiment=mega/lra-image/small-mega-s4d-real
 ```
 Same as above, but replaces EMA with an S4D layer that is forced to be real-valued instead of complex-valued.
 
-**Details**: Exactly the same as above but replaces `EMAKernel` with `SSKernelDiag`. Note that the latter has more features, but the minimal version of it ([here](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/s4/s4d.py#L16)) is nearly identical to the EMA kernel.
+**Details**: Exactly the same as above but replaces `EMAKernel` with `SSKernelDiag` with the option `force_real=True`. Note that the latter has more features, but the minimal version of it ([here](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/s4/s4d.py#L16)) is nearly identical to the EMA kernel.
 
 ```
 python -m train experiment=mega/lra-image/small-mega-s4d
