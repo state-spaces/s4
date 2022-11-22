@@ -1,32 +1,52 @@
-## Mega: SSM Ablations (EMA and S4D)
+## Mega: SSM Ablations - EMA and S4(D)
 
-This branch contains reproductions of the Mega: Moving Average Equipped Gated Attention model. To see all changes, see the PR for this branch (https://github.com/HazyResearch/state-spaces/commit/e9ce652126cc773dcb6bb7d6f7270c425d4a36a2).
+
+The Mega model from "Mega: Moving Average Equipped Gated Attention" has been implemented in this codebase.
+Roughly, this model combines an *exponential moving average* (EMA) component with gating and attention. Although stemming from a quite different motivation and developed concurrently, the EMA component ends up very similar to S4 (in particularly S4D).
+This folder thus contains a limited set of ablations comparing these components.
+
+### Disclaimers
+
+**Reproducibility:** These ablations were run from an internal codebase in Nov 2022 which should be equivalent to this PR (https://github.com/HazyResearch/state-spaces/commit/e9ce652126cc773dcb6bb7d6f7270c425d4a36a2), although they have not been reproduced in this codebase and may have slight discrepancies. Furthermore other parts of the code have changed since then.
+
+**Limited datasets:**
+These ablations were run only on the LRA-Image task, which is a toy task, and with the single setting where the Mega chunk size is $c=128$. Although the results below show S4 variants to outperform EMA in this setting, **the full Mega-chunk model $c=1024$ performs much better** and preliminary ablations showed that for $c=1024$, Mega-EMA outperformed Mega-S4D by 0.5-1 points on these particular hyperparameter settings.
+
+
+### Results
+
 
 | Model                  | Params   | s/epoch   | Val Acc   |
 | --------------------   | -------- | --------- | --------- |
-| (large) Mega-EMA       | 2.73M    | 180       | 82.56     |
+| (large) Mega-EMA^       | 2.73M    | 180       | 82.56     |
 | (large) Mega-EMA-Repro | 2.65M    | 124       | 83.42     |
 | (large) Mega-S4D-Real  | 2.65M    | 121       | 84.44     |
 | (large) Mega-S4D       | 2.65M    | 122       | 86.22     |
+| (large) Mega-S4        | 2.67M    | 138       | 86.68     |
 |                        |          |           |
 | (small) Mega-EMA       | 299K     | 51        | 81.16     |
 | (small) Mega-EMA-Repro | 279K     | 51        | 80.76     |
 | (small) Mega-S4D-Real  | 279K     | 54        | 81.20     |
 | (small) Mega-S4D       | 279K     | 53        | 81.46     |
+| (small) Mega-S4        | 284K     | 61        | 81.63     |
 |                        |          |           |
-| (large) EMA            | 4.35M    | 128       | 70.96     |
+| (large) EMA            | 4.35M    | 129       | 70.96     |
 | (large) EMA-Repro      | 3.96M    | 119       | 71.52     |
 | (large) S4D-Real       | 3.96M    | 105       | 74.30     |
 | (large) S4D            | 3.96M    | 105       | 88.28     |
+| (large) S4             | 4.15M    | 118       | 88.70     |
 |                        |          |           |
 | (small) EMA            | 333K     | 31        | 69.96     |
 | (small) EMA-Repro      | 267K     | 30        | 69.38     |
 | (small) S4D-Real       | 267K     | 32        | 70.88     |
 | (small) S4D            | 267K     | 30        | 82.78     |
+| (small) S4             | 300K     | 39        | 84.76     |
 
 These runs correspond to the experiment files
 `{large-mega,small-mega,small,large}-{ema,ema-with-s4,s4d-real,s4d}.yaml`
 described below.
+
+^ Speed differences stem from a different implementation of the bidirectional logic and is not inherent to the model. The EMA-Repro runs use the same faster version that the S4(D) baselines use.
 
 ------------
 
@@ -55,6 +75,11 @@ which has the same "multi-head EMA" interpretation as Mega.
 python -m train experiment=mega/lra-image/large-mega-s4d
 ```
 Same model but replacing the EMA component with original (complex) S4D.
+
+```
+python -m train experiment=mega/lra-image/large-mega-s4d '~model.layer.disc' '~model.layer.force_real' model.layer.mode=nplr model.layer.measure=legs
+```
+Same model but replacing S4D with S4.
 
 ----------
 
@@ -99,6 +124,11 @@ python -m train experiment=mega/lra-image/small-mega-s4d
 ```
 Same as above, but with the original (complex-valued) S4D layer.
 
+```
+python -m train experiment=mega/lra-image/small-mega-s4d '~model.layer.disc' '~model.layer.force_real' model.layer.mode=nplr model.layer.measure=legs
+```
+Same model but replacing S4D with S4.
+
 ----------
 
 The `{small,large}-{<model>}.yaml` experiments use a block with only an SSM convolution.
@@ -111,8 +141,7 @@ python -m train experiment=mega/lra-image/small-s4d
 
 Pure S4D module from the S4D paper (no Attention).
 
-To make the models more directly comparable, some architecture flags were tweaked to match the Mega models (namely using pre-batch-norm rather than post-layer-norm),
-which might lower these results slightly compared to the original S4D results for these model sizes.
+To make the models more directly comparable, some architecture flags were tweaked to match the Mega models (namely using pre-batch-norm rather than post-layer-norm).
 
 ```
 python -m train experiment=mega/lra-image/small-s4d-real
@@ -129,11 +158,16 @@ python -m train experiment=mega/lra-image/small-ema-with-s4d
 ```
 Same as above, but use settings to match the parameter count of S4D.
 
+```
+python -m train experiment=mega/lra-image/small-s4 '~model.layer.disc' '~model.layer.force_real' model.layer.mode=nplr model.layer.measure=legs
+```
+Same model but replacing S4 with S4D.
+
 -----------
 
 ### Earlier runs with different warmup steps
 
-The above configs have been updated with more warmup steps (see [TODO]()).
+The above configs have been updated with more warmup steps.
 Earlier versions of these experiments were run where everything was exactly the same except all runs had `scheduler.num_warm_steps=1000`. These are the earlier results.
 
 | Model                  | Params   | s/epoch   | Val Acc   |
@@ -150,3 +184,18 @@ Earlier versions of these experiments were run where everything was exactly the 
 | (small) S4D-Real       | 200K      | 32        | 70.34     |
 | (small) S4D            | 200K      | 31        | 84.40     |
 
+
+-----------
+
+### Runs in Mega repo
+
+
+| Model                | Params   |   s/epoch |   Val Acc |
+| -------------------- | -------- | --------- | --------- |
+| Mega-EMA (original)  | 2.82M    |       195 |     86.10 |
+| Mega-S4D-Real        | 2.74M    |       152 |     87.00 |
+| Mega-S4D             | 2.74M    |       152 |     87.12 |
+| Mega-S4              | 2.77M    |       163 |     87.42 |
+
+
+Again, it is stressed that these were all for a **very limited task setting** and that Mega-EMA likely outperforms the S4(D) baselines for the setting $c=1024$ and these hyperparameters.
