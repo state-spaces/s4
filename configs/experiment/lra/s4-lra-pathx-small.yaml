@@ -18,9 +18,9 @@ model:
     lr: 0.0005
     dt_min: 0.0001
     dt_max: 0.01
-    measure: legs
+    init: legs
     bidirectional: true
-    postact: glu
+    final_act: glu
     n_ssm: null
 
 loader:

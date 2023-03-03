@@ -1,0 +1,21 @@
+_name_: hmdb51
+__l_max: 1176
+split_dir: "test_train_splits"  # path to splits
+video_dir: "videos"  # path to videos
+clip_duration: 2  # Duration of sampled clip for each video, just the upper bound
+num_frames: 24  # frames per clip
+frame_size: 224  # square shape of image to use
+use_ddp: False  # using a distributed sampler / not
+split_id: 1  # 1, 2, or 3
+augment: default  # for train split only
+randaug:
+  magnitude: 9
+  num_layers: 2
+  prob: 0.5
+  sampling_type: gaussian # 'gaussian' | 'uniform'
+augmix:
+  magnitude: 3
+  alpha: 1.0
+  width: 3
+  depth: -1
+num_gpus: 1  # will control if using distributed sampler

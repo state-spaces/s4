@@ -16,7 +16,7 @@ model:
     lr: 0.001
     # Compared to the full S4D layer, this model has the following on by default:
     # scaling: linear
-    # postact: glu
+    # final_act: glu
     # bidirectional: false
 
 loader:

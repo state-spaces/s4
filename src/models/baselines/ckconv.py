@@ -1,5 +1,7 @@
-"""
-CKConv Implementation: taken directly from https://github.com/dwromero/ckconv
+"""Implementation of Continuous Kernel Convolution (CKConv).
+Paper: https://arxiv.org/abs/2102.02611
+
+Adapted directly from https://github.com/dwromero/ckconv.
 """
 
 from typing import Tuple, Optional

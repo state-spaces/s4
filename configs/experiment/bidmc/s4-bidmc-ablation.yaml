@@ -15,11 +15,12 @@ model:
   prenorm: true
   layer:
     rank: 1
-    measure: legs
+    init: legs
     deterministic: false
     d_state: 256
     bidirectional: true
-    postact: null
+    final_act: id
+    n_ssm: 1
 
 decoder:
   mode: pool

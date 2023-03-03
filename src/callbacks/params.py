@@ -1,3 +1,5 @@
+"""Log parameter counts to WandB."""
+
 from typing import Any
 
 import pytorch_lightning as pl

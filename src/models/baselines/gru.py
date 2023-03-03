@@ -1,4 +1,4 @@
-""" Wrapper around nn.GRU to make it compatible with our RNN interface. Similar to lstm.TorchLSTM """
+"""Wrapper around nn.GRU to make it compatible with our RNN interface. Similar to lstm.TorchLSTM."""
 
 import torch
 from torch import nn

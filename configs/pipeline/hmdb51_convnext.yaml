@@ -1,0 +1,22 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: default
+  - /dataset: hmdb51
+  # - /task: multiclass_classification
+  - /task: video
+  - /optimizer: adamw
+  - /scheduler: plateau
+
+train:
+  monitor: val/accuracy # Needed for plateau scheduler
+  mode: max
+
+# encoder:
+#   _name_: patch3d
+#   d_emb: 256
+#   filter_sizes: [2, 16, 16]
+
+# decoder:
+#   _name_: sequence
+#   mode: pool

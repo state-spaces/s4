@@ -14,7 +14,7 @@ model:
   layer:
     bidirectional: true
     mode: diag
-    measure: diag-lin
+    init: diag-lin
     disc: zoh
     lr: 0.001
     force_real: false
@@ -39,4 +39,4 @@ scheduler:
 
 train:
   seed: 2222
-  name: Large SSM block - EMA
+  name: Large SSM block - S4D

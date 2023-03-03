@@ -1,0 +1,11 @@
+defaults:
+  - vit
+
+_name_: vit_s_16
+patch_size: 16
+d_model: 768
+dropout: 0.0
+drop_path_rate: 0.0
+depth: 8
+expand: 3
+norm: layer

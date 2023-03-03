@@ -1,4 +1,4 @@
-""" Utility wrappers around modules to let them handle Args and extra arguments """
+"""Utility wrappers around modules to let them handle extra arguments."""
 
 import inspect
 from functools import wraps
@@ -6,7 +6,8 @@ import torch
 from torch import nn
 
 def wrap_kwargs(f):
-    """
+    """Wrap a Callable to pass through extra arguments.
+
     Given a callable f that can consume some named arguments,
     wrap it with a kwargs that passes back any unused args
 
@@ -50,6 +51,7 @@ def wrap_kwargs(f):
     wrap_kwargs(m.forward)(0, y=1, z=2) == (0, {'y': 2, 'z': 2})
 
     """
+
     sig = inspect.signature(f)
     # Check if f already has kwargs
     has_kwargs = any([

@@ -4,6 +4,7 @@ _name_: pathfinder
 resolution: 32
 sequential: True
 tokenize: False
+center: False  # If not tokenize, embed to [0, 1] instead of [-1, 1]
 pool: 1
 val_split: 0.1
 test_split: 0.1

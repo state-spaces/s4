@@ -13,11 +13,13 @@ defaults:
   - callbacks: # Extra pytorch-lightning features
     - base
     - checkpoint
+    - rich # RichProgressBar and RichModelSummary
 
 # Additional arguments used to configure the training loop
 # Most of these set combinations of options in the PL trainer, add callbacks, or add features to the optimizer
 train:
   seed: 0
+  name: null # optional name for the run to make logging easier
   # These three options are used by callbacks (checkpoint, monitor) and scheduler
   # Most of them are task dependent and are set by the pipeline
   interval: ??? # Should be specified by scheduler. Also used by LR monitor
@@ -63,7 +65,7 @@ wandb:
   group: ""
   job_type: training
   mode: online # choices=['online', 'offline', 'disabled']
-  save_dir: null
+  save_dir: "."
   id: null # pass correct id to resume experiment!
   # Below options should not need to be specified
   # entity: ""  # set to name of your wandb team or just remove it

@@ -9,7 +9,7 @@ from src.models.baselines.nonaka.basic_conv1d import AdaptiveConcatPool1d, creat
 # Inception time inspired by https://github.com/hfawaz/InceptionTime/blob/master/classifiers/inception.py and https://github.com/tcapelle/TimeSeries_fastai/blob/master/inception.py
 
 def conv(in_planes, out_planes, kernel_size=3, stride=1):
-    "convolution with padding"
+    """Convolution with padding."""
     return nn.Conv1d(in_planes, out_planes, kernel_size=kernel_size, stride=stride,
                      padding=(kernel_size-1)//2, bias=False)
 
@@ -65,7 +65,8 @@ class InceptionBackbone(nn.Module):
         return x
 
 class Inception1d(nn.Module):
-    '''inception time architecture'''
+    """Inception time architecture."""
+
     def __init__(self, num_classes=2, input_channels=8, kernel_size=40, depth=6, bottleneck_size=32, nb_filters=32, use_residual=True,lin_ftrs_head=None, ps_head=0.5, bn_final_head=False, bn_head=True, act_head="relu", concat_pooling=True):
         super().__init__()
         assert(kernel_size>=40)
@@ -100,6 +101,5 @@ class Inception1d(nn.Module):
         self.layers[-1][-1] = x
 
 def inception1d(**kwargs):
-    """Constructs an Inception model
-    """
+    """Constructs an Inception model."""
     return Inception1d(**kwargs)

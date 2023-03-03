@@ -12,7 +12,7 @@ model:
   residual: null
   layer:
     rank: 1
-    measure: fourier
+    init: fourier
     deterministic: false
     d_state: 256
     lr:

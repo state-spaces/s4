@@ -12,11 +12,11 @@ model:
   prenorm: false
   layer:
     rank: 1
-    measure: legs
+    init: legs
     deterministic: false
     d_state: 64
     bidirectional: true
-    postact: null
+    final_act: id
 
 loader:
   batch_size: 50
@@ -29,7 +29,7 @@ trainer:
   max_epochs: 100
 
 scheduler:
-  num_training_steps: 100000
+  num_training_steps: 90000
 
 train:
   seed: 1111

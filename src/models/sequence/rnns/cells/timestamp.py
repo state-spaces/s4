@@ -1,4 +1,4 @@
-""" Variants of the HiPPO-RNN that accept timestamped inputs and evolve according to the elapsed time between inputs. Used in original HiPPO paper for irregularly-sampled CharacterTrajectories experiments. """
+"""Variants of the HiPPO-RNN that accept timestamped inputs and evolve according to the elapsed time between inputs. Used in original HiPPO paper for irregularly-sampled CharacterTrajectories experiments."""
 
 import torch
 import torch.nn as nn
@@ -16,9 +16,9 @@ from src.models.hippo.transition import (
 )
 
 class TimeMemoryCell(MemoryCell):
-    """ MemoryCell with timestamped data
+    """MemoryCell with timestamped data.
 
-    Assumes that first channel of inputs are timestamps
+    Assumes that first channel of inputs are timestamps.
     """
 
     def __init__(
@@ -59,7 +59,7 @@ class TimeMemoryCell(MemoryCell):
         else: assert False
 
     def update_memory(self, m, u, t0, t1):
-        """ This class is intended to be subclassed to the LTI or LSI cases """
+        """This class is intended to be subclassed to the LTI or LSI cases."""
         raise NotImplementedError
 
     def forward(self, input, state):
@@ -79,7 +79,7 @@ class TimeMemoryCell(MemoryCell):
         return output, next_state
 
 class TimeLSICell(TimeMemoryCell):
-    """ A cell implementing "Linear Scale Invariant" dynamics: c' = Ac + Bf with timestamped inputs.
+    """A cell implementing "Linear Scale Invariant" dynamics: c' = Ac + Bf with timestamped inputs.
 
     This class can handle the setting where there is timescale shift, even if the model does not know about it.
     """
@@ -102,7 +102,7 @@ class TimeLSICell(TimeMemoryCell):
         return m
 
 class TimeLTICell(TimeMemoryCell):
-    """ A cell implementing Linear Time Invariant dynamics: c' = Ac + Bf with timestamped inputs.
+    """A cell implementing Linear Time Invariant dynamics: c' = Ac + Bf with timestamped inputs.
 
     Unlike HiPPO-LegS with timestamps, this class will not work if there is timescale shift that it does not know about.
     However, unlike generic RNNs, it does work if it knows the sampling rate change.

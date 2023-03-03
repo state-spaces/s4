@@ -1,5 +1,5 @@
-""" Adapted from ODE-LSTM https://github.com/mlech26l/ode-lstms/. """
 # Copyright 2021 The ODE-LSTM Authors. All Rights Reserved.
+"""Adapted from ODE-LSTM https://github.com/mlech26l/ode-lstms/."""
 
 import torch
 import torch.nn as nn

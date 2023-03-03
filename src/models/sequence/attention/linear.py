@@ -1,5 +1,7 @@
-"""Implement linear attention."""
-""" From github.com/HazyResearch/transformers """
+"""Implement linear attention.
+
+From github.com/HazyResearch/transformers
+"""
 
 from functools import partial
 from contextlib import contextmanager
@@ -127,7 +129,7 @@ class LinearAttention(nn.Module):
 
 @TransposedModule
 class Performer(SequenceModule):
-    """ [21-09-29] TODO the MHA class should take options for attention like full, performer, etc. Currently this is essentially duplicated from MultiheadAttention class """
+    # TODO [21-09-29] the MHA class should take options for attention like full, performer, etc. Currently this is essentially duplicated from MultiheadAttention class."""
     def __init__(self, d_model, n_heads, *args, causal=True, **kwargs):
         super().__init__()
         self.d_model = d_model

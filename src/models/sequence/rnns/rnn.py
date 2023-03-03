@@ -59,22 +59,22 @@ class RNN(SequenceModule):
 
     @property
     def d_state(self):
-        """ Size after converting state to a single tensor """
+        """Size after converting state to a single tensor."""
         return self.cell.d_state
 
     @property
     def d_output(self):
-        """ Size of output """
+        """Size of output."""
         return self.cell.d_output
 
     @property
     def state_to_tensor(self):
-        """ Convert state into a single tensor output """
+        """Convert state into a single tensor output."""
         return self.cell.state_to_tensor
 
 
 class PackedRNN(RNN):
-    """ Version of RNN that expected a nn.utils.rnn.PackedSequence """
+    """Version of RNN that expected a nn.utils.rnn.PackedSequence."""
 
     @staticmethod
     def apply_tuple(tup, fn):
@@ -86,7 +86,7 @@ class PackedRNN(RNN):
 
     @staticmethod
     def concat_tuple(tups, dim=0):
-        """Concat a list of Tensors or a list of tuples of Tensor"""
+        """Concat a list of Tensors or a list of tuples of Tensor."""
         if isinstance(tups[0], tuple):
             return tuple(
                 (torch.cat(xs, dim) if isinstance(xs[0], torch.Tensor) else xs[0])

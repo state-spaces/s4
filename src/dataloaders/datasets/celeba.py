@@ -1,3 +1,5 @@
+"""Implementation of Celeb-A dataset."""
+
 from functools import partial
 import torch
 import os

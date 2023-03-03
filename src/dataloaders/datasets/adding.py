@@ -1,3 +1,8 @@
+"""Implementation of standard Adding dataset.
+
+Originally used in Arjovsky's Unitary RNN, maybe earlier?
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

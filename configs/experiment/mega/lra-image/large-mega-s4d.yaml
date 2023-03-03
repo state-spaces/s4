@@ -20,7 +20,7 @@ model:
     bidirectional: true
     mode: diag
     disc: zoh
-    measure: diag-lin
+    init: diag-lin
     lr: 0.001
     force_real: false  # Throw away imaginary part
 

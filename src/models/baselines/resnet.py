@@ -1,4 +1,4 @@
-"""2D ResNet baselines from torchvision"""
+"""2D ResNet baselines from torchvision."""
 
 import torch.nn as nn
 import torchvision.models as models
@@ -8,7 +8,6 @@ from einops import rearrange
 class TorchVisionResnet(nn.Module):
     def __init__(
         self,
-        # d_input,
         variant="resnet18",  # e.g. [ "resnet18" | "resnet34" | "resnet50" | "wide_resnet50_2" ]
     ):
         super().__init__()

@@ -1,4 +1,5 @@
 """Implementation of basic benchmark datasets used in S4 experiments: MNIST, CIFAR10 and Speech Commands."""
+
 import numpy as np
 import torch
 import torchvision

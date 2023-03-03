@@ -21,10 +21,10 @@ model:
       B: 0.001
     dt_min: 0.001
     dt_max: 0.1
-    measure: legs
+    init: legs
     bidirectional: true
-    postact: glu
-    n_ssm: ${..d_model}
+    final_act: glu
+    n_ssm: null
 
 dataset:
   l_max: 4096

@@ -1,11 +1,8 @@
 """pykeops implementations of the Vandermonde matrix multiplication kernel used in the S4D kernel."""
-import math
-import torch
 
+import torch
 from einops import rearrange, repeat
 from opt_einsum import contract
-
-import os
 
 try:
     import pykeops

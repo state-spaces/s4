@@ -1,4 +1,4 @@
-""" Definitions of A and B matrices for various HiPPO operators. """
+"""Definitions of A and B matrices for various HiPPO operators."""
 
 import torch
 import torch.nn as nn
@@ -15,6 +15,7 @@ def embed_c2r(A):
     return rearrange(A, 'm x n y -> (m x) (n y)')
 
 # TODO take in 'torch' option to return torch instead of numpy, and converts the shape of B from (N, 1) to (N)
+# TODO remove tlagt
 def transition(measure, N, **measure_args):
     """ A, B transition matrices for different measures
 
@@ -28,6 +29,11 @@ def transition(measure, N, **measure_args):
     if measure == 'lagt':
         b = measure_args.get('beta', 1.0)
         A = np.eye(N) / 2 - np.tril(np.ones((N, N)))
+        B = b * np.ones((N, 1))
+    elif measure == 'tlagt':
+        # beta = 1 corresponds to no tilt
+        b = measure_args.get('beta', 1.0)
+        A = (1.-b)/2 * np.eye(N) - np.tril(np.ones((N, N)))
         B = b * np.ones((N, 1))
     # Generalized Laguerre
     # alpha 0, beta small is most stable (limits to the 'lagt' measure)
@@ -135,7 +141,7 @@ def transition(measure, N, **measure_args):
     return A, B
 
 def rank_correction(measure, N, rank=1, dtype=torch.float):
-    """ Return low-rank matrix L such that A + L is normal """
+    """Return low-rank matrix L such that A + L is normal."""
 
     if measure == 'legs':
         assert rank >= 1
@@ -174,11 +180,11 @@ def rank_correction(measure, N, rank=1, dtype=torch.float):
 
     d = P.size(0)
     if rank > d:
-        P = torch.cat([P, torch.zeros(rank-d, N, dtype=dtype)], dim=0) # (rank N)
+        P = torch.cat([P, torch.zeros(rank-d, N, dtype=dtype)], dim=0)  # (R N)
     return P
 
 def initial_C(measure, N, dtype=torch.float):
-    """ Return C that captures the other endpoint in the HiPPO approximation """
+    """Return C that captures the other endpoint in the HiPPO approximation."""
 
     if measure == 'legt':
         C = (torch.arange(N, dtype=dtype)*2+1)**.5 * (-1)**torch.arange(N)
@@ -193,10 +199,13 @@ def initial_C(measure, N, dtype=torch.float):
 
 
 def nplr(measure, N, rank=1, dtype=torch.float, diagonalize_precision=True):
-    """ Return w, p, q, V, B such that
+    """Constructs NPLR form of HiPPO matrices.
+
+    Returns w, p, q, V, B such that
     (w - p q^*, B) is unitarily equivalent to the original HiPPO A, B by the matrix V
     i.e. A = V[w - p q^*]V^*, B = V B
     """
+
     assert dtype == torch.float or dtype == torch.double
     cdtype = torch.cfloat if dtype == torch.float else torch.cdouble
 
@@ -215,37 +224,37 @@ def nplr(measure, N, rank=1, dtype=torch.float, diagonalize_precision=True):
 
     # Take advantage of identity + skew-symmetric form to calculate real and imaginary parts separately
     # Imaginary part can use eigh instead of eig
-    w_re = torch.mean(torch.diagonal(AP), -1, keepdim=True)
+    W_re = torch.mean(torch.diagonal(AP), -1, keepdim=True)
 
     # Diagonalize in double precision
     if diagonalize_precision: AP = AP.to(torch.double)
     # w, V = torch.linalg.eig(AP) # (..., N) (..., N, N)
-    w_im, V = torch.linalg.eigh(AP*-1j) # (..., N) (..., N, N)
-    if diagonalize_precision: w_im, V = w_im.to(cdtype), V.to(cdtype)
-    w = w_re + 1j * w_im
-    # Check: V w V^{-1} = A
-    # print("check", V @ torch.diag_embed(w) @ V.conj().transpose(-1, -2))
+    W_im, V = torch.linalg.eigh(AP*-1j) # (..., N) (..., N, N)
+    if diagonalize_precision: W_im, V = W_im.to(cdtype), V.to(cdtype)
+    W = W_re + 1j * W_im
+    # Check: V W V^{-1} = A
+    # print("check", V @ torch.diag_embed(W) @ V.conj().transpose(-1, -2))
 
 
     # Only keep half of each conjugate pair
-    _, idx = torch.sort(w.imag)
-    w_sorted = w[idx]
+    _, idx = torch.sort(W.imag)
+    W_sorted = W[idx]
     V_sorted = V[:, idx]
 
     # There is an edge case when eigenvalues can be 0, which requires some machinery to handle
     # We use a huge hack here: Assume only one pair is 0, and that it is the first row/column of A (only happens in Fourier case)
     V = V_sorted[:, :N//2]
-    w = w_sorted[:N//2]
-    assert w[-2].abs() > 1e-4, "Only 1 zero eigenvalue allowed in diagonal part of A"
-    if w[-1].abs() < 1e-4:
+    W = W_sorted[:N//2]  # Only keep negative imaginary components
+    assert W[-2].abs() > 1e-4, "Only 1 zero eigenvalue allowed in diagonal part of A"
+    if W[-1].abs() < 1e-4:
         V[:, -1] = 0.
         V[0, -1] = 2**-0.5
         V[1, -1] = 2**-0.5 * 1j
 
-    _AP = V @ torch.diag_embed(w) @ V.conj().transpose(-1, -2)
+    _AP = V @ torch.diag_embed(W) @ V.conj().transpose(-1, -2)
     if ((err := torch.sum((2*_AP.real-AP)**2)/N) > 1e-5):
         print("Warning: Diagonalization of A matrix not numerically precise - error", err)
-    # print("check", V @ torch.diag_embed(w) @ V.conj().transpose(-1, -2))
+    # print("check", V @ torch.diag_embed(W) @ V.conj().transpose(-1, -2))
 
     V_inv = V.conj().transpose(-1, -2)
 
@@ -254,5 +263,7 @@ def nplr(measure, N, rank=1, dtype=torch.float, diagonalize_precision=True):
     # C = contract('ij, j -> i', V_inv, C.to(V)) # V^* C
     P = contract('ij, ...j -> ...i', V_inv, P.to(V)) # V^* P
 
-    # return w, P, B, C, V
-    return w, P, B, V
+    # W represents the imaginary part of the DPLR form: A = W - PP^*
+    # Downstream classes just call this A for simplicity,
+    # which is also more consistent with the diagonal case
+    return W, P, B, V

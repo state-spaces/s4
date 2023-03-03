@@ -14,7 +14,7 @@ model:
   layer:
     bidirectional: true
     mode: diag
-    measure: diag-real # Simple initialization for real
+    init: diag-real # Simple initialization for real
     disc: zoh
     lr: 0.001
     force_real: true  # Throw away imaginary part

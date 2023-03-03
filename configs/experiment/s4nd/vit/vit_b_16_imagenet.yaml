@@ -1,0 +1,45 @@
+# @package _global_
+defaults:
+  - /pipeline: imagenet
+  - /model: vit/vit_b_16
+
+model:
+  dropout: 0.0
+  drop_path_rate: 0.1
+
+task:
+  # 2 options for soft_cross_entropy (for mixup)
+  loss:
+    # use soft_cross_entropy for pytorch 1.10+, which takes in label_smoothing here
+    _name_: soft_cross_entropy
+    label_smoothing: 0.1
+
+  # use timm_soft_cross_entropy for pytorch 1.9 and below. TIMM does not accept
+  # label_smoothing here, add that to TIMM mixup args.
+    # _name_: timm_soft_cross_entropy
+  loss_val:
+    _name_: cross_entropy
+
+loader:
+  batch_size: 128
+  num_workers: 12
+
+trainer:
+  max_epochs: 310
+  precision: 16
+  devices: 8
+
+train:
+  seed: 1112
+  ema: 0.99996
+  optimizer_param_grouping:
+    bias_weight_decay: False
+    normalization_weight_decay: False
+  remove_test_loader_in_eval: true
+
+optimizer:
+  lr: 0.001
+  weight_decay: 0.05
+
+encoder: null
+decoder: null

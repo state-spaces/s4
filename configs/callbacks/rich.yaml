@@ -1,7 +1,8 @@
 rich_model_summary:
   # _target_: pytorch_lightning.callbacks.RichModelSummary
-  max_depth: 2
+  max_depth: 1
 
 rich_progress_bar:
   # _target_: pytorch_lightning.callbacks.RichProgressBar
-  refresh_rate_per_second: 1.0
+  refresh_rate: 1
+  leave: true # Set to True to leave progress bar up after every epoch

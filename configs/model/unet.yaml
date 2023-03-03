@@ -20,6 +20,7 @@ initializer: null
 transposed: True
 residual: R
 norm: layer
+# l_max: ${dataset.__l_max}
 layer:
   n_ssm: null
   l_max: null # Turn off since layers need different lengths

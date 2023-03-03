@@ -1,4 +1,4 @@
-""" Wrapper around expRNN's Orthogonal class for convenience """
+"""Wrapper around expRNN's Orthogonal class for convenience."""
 
 from .exprnn.orthogonal import Orthogonal
 from .exprnn.trivializations import expm, cayley_map
@@ -9,7 +9,7 @@ init_name_to_init = {'henaff': henaff_init_, 'cayley': cayley_init_}
 
 class OrthogonalLinear(Orthogonal):
     def __init__(self, d_input, d_output, method='dtriv', init='cayley', K=100):
-        """ Wrapper around expRNN's Orthogonal class taking care of parameter names """
+        """Wrapper around expRNN's Orthogonal class taking care of parameter names."""
         if method == "exprnn":
             mode = "static"
             param = 'expm'

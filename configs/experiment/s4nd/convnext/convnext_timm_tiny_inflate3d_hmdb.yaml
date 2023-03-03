@@ -1,0 +1,88 @@
+# @package _global_
+defaults:
+  - /pipeline: hmdb51_convnext
+  - /model: timm/convnext_tiny_3d
+  - override /scheduler: timm_cosine  # timm_cosine or plateau
+
+dataset:
+  split_dir: testTrainMulti_7030_splits
+  video_dir: videos
+  clip_duration: 2
+  num_frames: 24
+  frame_size: 224
+  # __l_max: [24, 224, 224]
+  use_ddp: False # handled automatically in PTL
+  augment: default
+  randaug:
+    num_layers: 2
+  augmix:
+    width: 3
+  # rand_augments: 0
+  num_gpus: ${trainer.devices}  # will control if using distributed sampler
+
+task:
+  loss:
+    _name_: cross_entropy
+  # loss_val:
+  #   _name_: cross_entropy
+
+loader:
+  batch_size: 8
+  num_workers: 12
+  persistent_workers: ${eval:"${loader.num_workers} != 0"}  # set False when using num_workers = 0
+
+trainer:
+  max_epochs: 100
+  precision: 16
+  devices: 1
+  accumulate_grad_batches: ${eval:${train.global_batch_size} // ${.devices} // ${loader.batch_size}}
+
+train:
+  pretrained_model_path: null
+  seed: 1112
+  ema: 0.   # if using, 0.99996
+  optimizer_param_grouping:
+    bias_weight_decay: False
+    normalization_weight_decay: False
+  remove_test_loader_in_eval: true  # null means we do use test loader
+  global_batch_size: ${loader.batch_size}  # effective batch size (handled with multiple gpus, and accumulate_grad_batches)
+  pretrained_model_state_hook:
+    _name_: convnext_timm_tiny_2d_to_3d
+    normalize: True
+
+optimizer:
+  lr: 2e-4
+  weight_decay: 0  #  maybe 1e-8
+
+scheduler:
+  # params for cosine decay
+  warmup_t: 0
+  t_initial: 100
+  lr_min: 0
+
+encoder: id
+decoder: id
+
+model:
+  num_classes: 51
+  # video_size: ${dataset.__l_max}
+  video_size:
+    - ${dataset.num_frames}
+    - ${dataset.frame_size}
+    - ${dataset.frame_size}
+  drop_path_rate: 0.0
+  drop_head: 0.0
+  drop_mlp: 0.0
+  # dropout: 0.  # layer in s4 uses this
+  # patch_size: 4  # 2 or 4, use for stem downsample factor
+  # spatial_patch_size: 4  # needs to be same as 2d model
+  tempor_patch_size: 2
+  temporal_stage_strides: [None, 1, 1, 1]  # 1st stride handled by stem (most likely)
+  stem_type: patch  # eg, patch, s4nd_path, s4nd
+  downsample_type: null  # eg, patch, s4nd, null (for strided conv)
+  factor_3d: false
+  stage_layers:  # null means use regular conv2d in convnext
+  - null
+  - null
+  - null
+  - null

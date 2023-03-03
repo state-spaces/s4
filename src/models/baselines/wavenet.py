@@ -1,6 +1,5 @@
-"""
-Taken from https://github.com/vincentherrmann/pytorch-wavenet
-"""
+"""Adapted from https://github.com/vincentherrmann/pytorch-wavenet."""
+
 import os
 import os.path
 import time
@@ -89,6 +88,7 @@ class DilatedQueue:
         self.in_pos = 0
         self.out_pos = 0
 
+
 def constant_pad_1d(
     input,
     target_size,
@@ -132,6 +132,7 @@ class WaveNetModel(SequenceModule):
         skip_channels=256,
         end_channels=256,
         classes=256,
+        # output_length=32,
         kernel_size=2,
         dtype=torch.FloatTensor,
         bias=False,
@@ -156,6 +157,7 @@ class WaveNetModel(SequenceModule):
 
         self.dilations = []
         self.dilated_queues = []
+        # self.main_convs = nn.ModuleList()
         self.filter_convs = nn.ModuleList()
         self.gate_convs = nn.ModuleList()
         self.residual_convs = nn.ModuleList()
@@ -303,6 +305,7 @@ class WaveNetModel(SequenceModule):
         # reshape output
         x = x.transpose(1, 2).contiguous()
         x = x[:, -(input.shape[2] - self.receptive_field):]
+
         return x, None
 
     def step(self, x, state=None):
@@ -322,3 +325,73 @@ class WaveNetModel(SequenceModule):
         x = x.squeeze(1) # (batch, dim)
 
         return x, self.dilated_queues
+
+
+    def generate(self,
+                 num_samples,
+                 first_samples=None,
+                 temperature=1.):
+        self.eval()
+        if first_samples is None:
+            first_samples = self.dtype(1).zero_()
+        generated = Variable(first_samples, volatile=True)
+
+        num_pad = self.receptive_field - generated.size(0)
+        if num_pad > 0:
+            generated = constant_pad_1d(generated, self.scope)
+            print("pad zero")
+
+        for i in range(num_samples):
+            input = Variable(torch.FloatTensor(1, self.classes, self.receptive_field).zero_())
+            input = input.scatter_(1, generated[-self.receptive_field:].view(1, -1, self.receptive_field), 1.)
+
+            x = self.wavenet(input,
+                             dilation_func=self.wavenet_dilate)[:, :, -1].squeeze()
+
+            if temperature > 0:
+                x /= temperature
+                prob = F.softmax(x, dim=0)
+                prob = prob.cpu()
+                np_prob = prob.data.numpy()
+                x = np.random.choice(self.classes, p=np_prob)
+                x = Variable(torch.LongTensor([x]))
+            else:
+                x = torch.max(x, 0)[1].float()
+
+            generated = torch.cat((generated, x), 0)
+
+        generated = (generated / self.classes) * 2. - 1
+        mu_gen = mu_law_expansion(generated, self.classes)
+
+        self.train()
+        return mu_gen
+
+    def parameter_count(self):
+        par = list(self.parameters())
+        s = sum([np.prod(list(d.size())) for d in par])
+        return s
+
+    def cpu(self, type=torch.FloatTensor):
+        self.dtype = type
+        for q in self.dilated_queues:
+            q.dtype = self.dtype
+        super().cpu()
+
+
+def load_latest_model_from(location, use_cuda=True):
+    files = [location + "/" + f for f in os.listdir(location)]
+    newest_file = max(files, key=os.path.getctime)
+    print("load model " + newest_file)
+
+    if use_cuda:
+        model = torch.load(newest_file)
+    else:
+        model = load_to_cpu(newest_file)
+
+    return model
+
+
+def load_to_cpu(path):
+    model = torch.load(path, map_location=lambda storage, loc: storage)
+    model.cpu()
+    return model

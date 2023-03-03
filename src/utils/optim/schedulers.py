@@ -1,4 +1,4 @@
-"""Custom learning rate schedulers"""
+"""Custom learning rate schedulers."""
 
 import math
 import warnings
@@ -38,8 +38,7 @@ class CosineWarmup(torch.optim.lr_scheduler.CosineAnnealingLR):
 
 
 def InvSqrt(optimizer, warmup_step):
-    """ Originally used for Transformer (in Attention is all you need)
-    """
+    """Originally used for Transformer (in "Attention is All You Need")."""
 
     def lr_lambda(step):
         # return a multiplier instead of a learning rate
@@ -63,7 +62,7 @@ def Constant(optimizer, warmup_step):
 
 
 class TimmCosineLRScheduler(CosineLRScheduler, torch.optim.lr_scheduler._LRScheduler):
-    """ Wrap timm.scheduler.CosineLRScheduler so we can call scheduler.step() without passing in epoch.
+    """Wrap timm.scheduler.CosineLRScheduler so we can call scheduler.step() without passing in epoch.
     It supports resuming as well.
     """
 

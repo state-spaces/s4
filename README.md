@@ -1,49 +1,12 @@
 # Structured State Spaces for Sequence Modeling
 
-This repository provides implementations and experiments for the following papers.
+This repository provides the official implementations and experiments for models related to [S4](https://arxiv.org/abs/2111.00396),
+including [HiPPO](https://arxiv.org/abs/2008.07669), [LSSL](https://arxiv.org/abs/2110.13985), [SaShiMi](https://arxiv.org/abs/2202.09729),
+[DSS](https://arxiv.org/abs/2203.14343), [HTTYH](https://arxiv.org/abs/2206.12037), [S4D](https://arxiv.org/abs/2206.11893),
+and [S4ND](https://arxiv.org/abs/2210.06583).
 
-## S4D
-
-![S4D](assets/s4d.png "S4D: The diagonal variant of S4")
-> **On the Parameterization and Initialization of Diagonal State Space Models**\
-> Albert Gu, Ankit Gupta, Karan Goel, Christopher Ré\
-> Paper: https://arxiv.org/abs/2206.11893
-
-Other variants including [DSS](https://github.com/ag1988/dss) and [GSS](https://arxiv.org/abs/2206.13947) are also supported. DSS is the predecessor to S4D that is also available in its own [fork](https://github.com/ag1988/dss).
-
-## HTTYH
-
-![HTTYH](assets/httyh.png "Basis Functions for S4 Variants")
-> **How to Train Your HiPPO: State Spaces with Generalized Orthogonal Basis Projections**\
-> Albert Gu*, Isys Johnson*, Aman Timalsina, Atri Rudra, Christopher Ré\
-> Paper: https://arxiv.org/abs/2206.12037
-
-## SaShiMi (ICML 2022 - Long Talk)
-
-![SaShiMi](assets/sashimi.png "SaShiMi Architecture")
-> **It's Raw! Audio Generation with State-Space Models**\
-> Karan Goel, Albert Gu, Chris Donahue, Christopher Ré\
-> Paper: https://arxiv.org/abs/2202.09729
-
-## S4 (ICLR 2022 - Outstanding Paper HM)
-
-![Structured State Spaces](assets/s4.png "Properties of Structured State Spaces")
-> **Efficiently Modeling Long Sequences with Structured State Spaces**\
-> Albert Gu, Karan Goel, Christopher Ré\
-> Paper: https://arxiv.org/abs/2111.00396
-
-## LSSL (NeurIPS 2021)
-
-![Linear State Space Layer](assets/splash.png "Properties of State Spaces")
-> **Combining Recurrent, Convolutional, and Continuous-time Models with the Linear State Space Layer**\
-> Albert Gu, Isys Johnson, Karan Goel, Khaled Saab, Tri Dao, Atri Rudra, Christopher Ré\
-> Paper: https://arxiv.org/abs/2110.13985
-
-## HiPPO (NeurIPS 2020 - Spotlight)
-![HiPPO Framework](assets/hippo.png "HiPPO Framework")
-> **HiPPO: Recurrent Memory with Optimal Polynomial Projections**\
-> Albert Gu*, Tri Dao*, Stefano Ermon, Atri Rudra, Christopher Ré\
-> Paper: https://arxiv.org/abs/2008.07669
+Project-specific information for each of these models, including overview of the source code and specific experiment reproductions,
+can be found under [models/](models/).
 
 
 ## Table of Contents
@@ -52,15 +15,10 @@ Setting up the environment and porting S4 to external codebases:
 - [Setup](#setup)
 - [Getting Started with S4](#getting-started-with-s4)
 
-Reproducing experiments from the papers:
-- [Experiments](#experiments)
-- [SaShiMi](sashimi/)
-
 Using this repository for training models:
 - [Training](#training)
 - [Generation](#generation)
 - [Repository Structure](#overall-repository-structure)
-- [READMEs](#readmes)
 - [Citation](#citation)
 
 ### Changelog
@@ -78,10 +36,10 @@ See [CHANGELOG.md](CHANGELOG.md)
 This repository requires Python 3.8+ and Pytorch 1.10+.
 Other packages are listed in [requirements.txt](./requirements.txt).
 
-### Cauchy Kernel
+### Structured Kernels
 
-A core operation of S4 is the "Cauchy kernel" described in the [paper](https://arxiv.org/abs/2111.00396).
-This is actually a very simple operation; a naive implementation of this operation can be found in the [standalone](src/models/s4/s4.py) in the function `cauchy_naive`.
+A core operation of S4 are the Cauchy and Vandermonde kernels described in the [paper](https://arxiv.org/abs/2111.00396).
+These are very simple matrix multiplications; a naive implementation of these operation can be found in the [standalone](models/s4/s4.py) in the function `cauchy_naive` and `log_vandermonde_naive`.
 However, as the paper describes, this has suboptimal memory usage that currently requires a custom kernel to overcome in PyTorch.
 
 Two more efficient methods are supported. The code will automatically detect if either of these is installed and call the appropriate kernel.
@@ -89,7 +47,7 @@ Two more efficient methods are supported. The code will automatically detect if 
 #### Custom CUDA Kernel
 
 This version is faster but requires manual compilation for each machine environment.
-Run `python setup.py install` from the directory `extensions/cauchy/`.
+Run `python setup.py install` from the directory `extensions/kernels/`.
 
 #### Pykeops
 
@@ -109,20 +67,20 @@ See [notebooks/](notebooks/) for visualizations explaining some concepts behind 
 ### Example Train Script (External Usage)
 
 [example.py](example.py) is a self-contained training script for MNIST and CIFAR that imports the standalone S4 file. The default settings `python example.py` reaches 88% accuracy on sequential CIFAR with a very simple S4D model of 200k parameters.
-This script can be used as an example for using S4 in external repositories.
+This script can be used as an example for using S4 variants in external repositories.
 
 ### Training with this Repository (Internal Usage)
 
 This repository aims to provide a very flexible framework for training sequence models. Many models and datasets are supported.
 
-Basic usage is `python -m train`, or equivalently
+The basic entrypoint is `python -m train`, or equivalently
 ```
 python -m train pipeline=mnist model=s4
 ```
 which trains an S4 model on the Permuted MNIST dataset.
 This should get to around 90% after 1 epoch which takes 1-3 minutes depending on GPU.
 
-More examples of using this repository can be found in [Experiments](#experiments) and [Training](#training).
+More examples of using this repository are documented throughout. See [Training](#training) for an overview.
 
 ### Optimizer Hyperparameters
 
@@ -136,14 +94,12 @@ See the method `register` in the model (e.g. [s4d.py](src/models/s4/s4d.py)) and
 Our logic for setting these parameters can be found in the `OptimModule` class under `src/models/sequence/ss/kernel.py` and the corresponding optimizer hook in `SequenceLightningModule.configure_optimizers` under `train.py`
 -->
 
-### HiPPO/S4 Visualizations
 
-Figures from the HTTYH and S4D papers can be visualized from [notebooks/](notebooks/). These include [animations](notebooks/hippo_function_approximation.ipynb) of HiPPO and S4 that were used in various S4 talks. The animation code can also be found in a [.py file](src/models/hippo/visualizations.py) instead of notebook.
+## Training
 
-## Experiments
+The core training infrastructure of this repository is based on [Pytorch-Lightning](https://pytorch-lightning.readthedocs.io/en/latest/) with a configuration scheme based on [Hydra](https://hydra.cc/docs/intro/).
 
-Instructions for reproducing experiments from the papers can be found in [experiments.md](experiments.md).
-
+The main entrypoint is `train.py` and configs are found in `configs/`.
 
 ### Data
 
@@ -156,15 +112,8 @@ The README inside this subdirectory documents how to download and organize other
 Models are defined in [src/models](src/models). See the README in this subdirectory for an overview.
 
 
-
-## Training
-
-The core training infrastructure of this repository is based on [Pytorch-Lightning](https://pytorch-lightning.readthedocs.io/en/latest/) with a configuration scheme based on [Hydra](https://hydra.cc/docs/intro/).
-
-The main entrypoint is `train.py` and configs are found in `configs/`.
-
 ### Configs and Hyperparameters
-Pre-defined configs for many end-to-end experiments are provided (see [experiments.md](experiments.md)).
+Pre-defined configs reproducing end-to-end experiments from the papers are provided, found under project-specific information in [models/](models/), such as for the [original S4 paper](models/s4/experiments.md).
 
 Configs can also be easily modified through the command line.
 An example experiment is
@@ -174,6 +123,7 @@ python -m train pipeline=mnist dataset.permute=True model=s4 model.n_layers=3 mo
 This uses the Permuted MNIST task with an S4 model with a specified number of layers, backbone dimension, and normalization type.
 
 See [configs/README.md](configs/) for more detailed documentation about the configs.
+
 
 #### Hydra
 
@@ -274,80 +224,30 @@ This option only needs the path to the Hydra experiment folder and the desired c
 
 ## Overall Repository Structure
 ```
-configs/         config files for model, data pipeline, training loop, etc.
-data/            default location of raw data
-extensions/      CUDA extension for Cauchy kernel
-src/             main source code for models, datasets, etc.
-  callbacks/     training loop utilities (e.g. checkpointing)
-  dataloaders/   dataset and dataloader definitions
-  models/        model definitions
-  tasks/         encoder/decoder modules to interface between data and model backbone
+configs/         Config files for model, data pipeline, training loop, etc.
+data/            Default location of raw data
+extensions/      CUDA extensions (Cauchy and Vandermonde kernels)
+src/             Main source code for models, datasets, etc.
+  callbacks/     Training loop utilities (e.g. checkpointing)
+  dataloaders/   Dataset and dataloader definitions
+  models/        Model definitions
+  tasks/         Encoder/decoder modules to interface between data and model backbone
   utils/
-sashimi/         SaShiMi README and additional code (generation, metrics, MTurk)
+models/          Model-specific information (code, experiments, additional resources)
 example.py       Example training script for using S4 externally
 train.py         Training entrypoint for this repo
 generate.py      Autoregressive generation script
 ```
 
-## READMEs
-In addition to this top level README, several READMEs detailing the usage of this repository are organized in subdirectories.
-
-- [src/dataloaders/README.md](src/dataloaders/)
-- [src/models/README.md](src/models/)
-- [src/models/s4/README.md](src/models/s4/)
-- [experiments.md](experiments.md)
-- [configs/README.md](configs/)
-- [configs/model/README.md](configs/model/)
-- [configs/experiment/README.md](configs/experiment/)
-- [sashimi/README.md](sashimi/)
-
-
-
 
 ## Citation
-If you use this codebase, or otherwise found our work valuable, please cite:
+If you use this codebase, or otherwise found our work valuable, please cite the S4 paper and [other relevant papers](models/README.md#citations)
+
 ```
-@article{gu2022s4d,
-  title={On the Parameterization and Initialization of Diagonal State Space Models},
-  author={Gu, Albert and Gupta, Ankit and Goel, Karan and R\'e, Christopher},
-  journal={arXiv preprint arXiv:2206.11893},
-  year={2022}
-}
-
-@article{gu2022hippo,
-  title={How to Train Your HiPPO: State Space Models with Generalized Basis Projections},
-  author={Gu, Albert and Johnson, Isys and Timalsina, Aman and Rudra, Atri and R\'e, Christopher},
-  journal={arXiv preprint arXiv:2206.12037},
-  year={2022}
-}
-
-@article{goel2022sashimi,
-  title={It's Raw! Audio Generation with State-Space Models},
-  author={Goel, Karan and Gu, Albert and Donahue, Chris and R{\'e}, Christopher},
-  journal={International Conference on Machine Learning ({ICML})},
-  year={2022}
-}
-
 @inproceedings{gu2022efficiently,
   title={Efficiently Modeling Long Sequences with Structured State Spaces},
   author={Gu, Albert and Goel, Karan and R\'e, Christopher},
   booktitle={The International Conference on Learning Representations ({ICLR})},
   year={2022}
-}
-
-@article{gu2021combining,
-  title={Combining Recurrent, Convolutional, and Continuous-time Models with Linear State-Space Layers},
-  author={Gu, Albert and Johnson, Isys and Goel, Karan and Saab, Khaled and Dao, Tri and Rudra, Atri and R{\'e}, Christopher},
-  journal={Advances in neural information processing systems},
-  volume={34},
-  year={2021}
-}
-
-@article{gu2020hippo,
-  title={HiPPO: Recurrent Memory with Optimal Polynomial Projections},
-  author={Gu, Albert and Dao, Tri and Ermon, Stefano and Rudra, Atri and R{\'e}, Christopher},
-  journal={Advances in neural information processing systems},
-  volume={33},
-  year={2020}
 }
 ```

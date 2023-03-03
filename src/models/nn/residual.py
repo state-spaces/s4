@@ -1,10 +1,13 @@
-""" Implementations of different types of residual functions. """
+"""Implementations of different types of residual functions."""
 
 import torch
 from torch import nn
 
 class Residual(nn.Module):
-    """ Residual connection with constant affine weights. Can simulate standard residual, no residual, and "constant gates". """
+    """Residual connection with constant affine weights.
+
+    Can simulate standard residual, no residual, and "constant gates".
+    """
 
     def __init__(self, i_layer, d_input, d_model, alpha=1.0, beta=1.0):
         # print("ConstantResidual extra kwargs", kwargs)
@@ -25,9 +28,11 @@ class Residual(nn.Module):
         return self.alpha * x + y if self.alpha else y
 
 class Affine(Residual):
-    """ Residual connection with learnable scalar multipliers on the main branch
-    scalar: Single scalar multiplier, or one per dimension
-    scale, power: Initialize to scale * layer_num**(-power)
+    """Residual with learnable scalar multipliers on the main branch.
+
+    Arguments:
+    - scalar: Single scalar multiplier, or one per dimension
+    - scale, power: Initialize to scale * layer_num**(-power)
     """
 
     def __init__(self, *args, scalar=True, gamma=0.0, **kwargs):

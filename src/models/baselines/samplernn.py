@@ -1,3 +1,8 @@
+"""Implementation of SampleRNN model.
+
+Paper: https://arxiv.org/abs/1612.07837
+"""
+
 import torch
 import torch.nn.functional as F
 from torch.nn import init
@@ -7,7 +12,7 @@ import numpy as np
 from src.models.baselines.lstm import TorchLSTM
 from src.models.baselines.gru import TorchGRU
 from src.models.sequence.base import SequenceModule
-from src.models.sequence.ss.s4 import S4
+from src.models.sequence.modules.s4block import S4Block
 from src.dataloaders.audio import mu_law_decode, linear_decode, q_zero
 
 class StackedRNN(SequenceModule):
@@ -138,8 +143,7 @@ class StackedRNN(SequenceModule):
 
 
 class StackedRNNBaseline(SequenceModule):
-    """
-    Standard stacked RNN baseline in SampleRNN paper.
+    """Standard stacked RNN baseline in SampleRNN paper.
 
     Marked as the "one_tier" model in the codebase.
     https://github.com/soroushmehr/sampleRNN_ICLR2017/blob/master/models/one_tier/one_tier.py
@@ -254,9 +258,9 @@ class LearnedUpsampling1d(torch.nn.Module):
 
 
 class SampleRNN(SequenceModule):
-    """
-    Implementation taken from
-    https://github.com/deepsound-project/samplernn-pytorch
+    """SampleRNN model.
+
+    Implementation adapted from https://github.com/deepsound-project/samplernn-pytorch.
     """
 
     @property
@@ -535,7 +539,7 @@ class FrameLevelRNN(torch.nn.Module):
                 learn_h0=learn_h0,
             )
         elif self.layer == 's4':
-            self.rnn = S4(
+            self.rnn = S4Block(
                 H=d_hidden,
                 d_state=64,
                 use_state=False,

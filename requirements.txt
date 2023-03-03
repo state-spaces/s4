@@ -1,11 +1,13 @@
 numpy
 scipy
 pandas
-sklearn
+scikit-learn
 matplotlib
 tqdm
 rich
-pytorch-lightning==1.5.10
+torchtext
+# torchvision
+pytorch-lightning==1.9.3
 hydra-core
 omegaconf
 wandb
@@ -19,9 +21,9 @@ transformers # For some schedulers
 # pytorch-fast-transformers # for Performer
 
 # Dataset specific packages
-torchtext # LRA
 datasets # LRA
-# gluonts
-# timm
-# lightning-bolts
-# sktime # BIDMC
+sktime # BIDMC
+scikit-learn # Impedance
+numba # Impedance
+gluonts # Monash
+timm==0.5.4 # ImageNet

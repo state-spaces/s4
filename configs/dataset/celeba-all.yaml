@@ -1,0 +1,7 @@
+_name_: celeba-all
+permute: False
+augment: False
+res: [178, 218]
+ndim: 1 # 2 for data as images (B, 3, res_0, res_1), 1 for data as sequence (B, L, 3)
+__l_max: 40000
+download: false

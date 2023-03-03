@@ -1,4 +1,4 @@
-""" Implementation of the Simple Recurrent Unit
+"""Implementation of the Simple Recurrent Unit.
 
 https://arxiv.org/abs/1709.02755
 """
@@ -14,7 +14,7 @@ import src.models.nn.utils as U
 from src.models.sequence.base import SequenceModule, TransposedModule
 
 class SRUCell(CellBase):
-    """ Implementation of the pure SRU cell that works with the models.rnn.RNN class """
+    """Implementation of the pure SRU cell that works with the models.rnns.rnn.RNN class."""
     name = 'sru'
 
     valid_keys = ['fx', 'rx', 'bias']
@@ -82,7 +82,7 @@ class SRUCell(CellBase):
         return h, c_
 
 class SRURNNGate(nn.Module):
-    """ The gate/cell state computation of SRU """
+    """The gate/cell state computation of SRU."""
     def __init__(self, d_model, feedback=True):
         """
         feedback: control whether cell state feeds back into itself. If False, this is essentially a QRNN reduce
@@ -118,7 +118,7 @@ class SRURNNGate(nn.Module):
 
 @TransposedModule
 class SRURNN(SequenceModule):
-    """ Full RNN layer implementing the SRU (not just a Cell) """
+    """Full RNN layer implementing the SRU (not just a Cell)."""
 
     def __init__(self, d_input, d_model=None, feedback=True, return_output=True, dropout=0.0):
         super().__init__()

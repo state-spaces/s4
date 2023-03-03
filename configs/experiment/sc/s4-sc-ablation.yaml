@@ -16,7 +16,7 @@ model:
     # resample: true
     dt_min: 0.001
     dt_max: 0.1
-    postact: null
+    final_act: id
 
 decoder:
   mode: last

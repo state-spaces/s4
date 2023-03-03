@@ -1,4 +1,4 @@
-""" Datasets for core experimental results """
+"""Core dataloader interface."""
 
 import os
 import pickle

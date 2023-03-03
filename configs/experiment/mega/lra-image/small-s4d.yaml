@@ -14,7 +14,7 @@ model:
   norm: batch   # Different from original config
   layer:
     mode: diag
-    measure: diag-lin
+    init: diag-lin
     d_state: 64
     bidirectional: true
     disc: zoh

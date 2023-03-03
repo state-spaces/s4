@@ -1,14 +1,11 @@
 # Downloaded from https://github.com/Lezcano/expRNN
-
-"""
-Adaptation of expm and expm_frechet in numpy for torch
-"""
-
 #
 # Authors: Travis Oliphant, March 2002
 #          Anthony Scopatz, August 2012 (Sparse Updates)
 #          Jake Vanderplas, August 2012 (Sparse Updates)
 #
+"""Adaptation of expm and expm_frechet in numpy for torch."""
+
 
 from __future__ import division, print_function, absolute_import
 
@@ -20,8 +17,7 @@ import torch
 import scipy.special
 
 def _onenorm_matrix_power_nnm(A, p):
-    """
-    Compute the 1-norm of a non-negative integer power of a non-negative matrix.
+    """Compute the 1-norm of a non-negative integer power of a non-negative matrix.
 
     Parameters
     ----------
@@ -60,8 +56,7 @@ def _ident_like(A):
     return torch.eye(A.shape[0], A.shape[1], dtype=A.dtype, device=A.device)
 
 class _ExpmPadeHelper(object):
-    """
-    Help lazily evaluate a matrix exponential.
+    """Help lazily evaluate a matrix exponential.
 
     The idea is to not do more work than we need for high expm precision,
     so we lazily compute matrix powers and store or precompute
@@ -189,8 +184,7 @@ class _ExpmPadeHelper(object):
 
 
 def expm32(A):
-    """
-    Compute the matrix exponential using Pade approximation.
+    """Compute the matrix exponential using Pade approximation.
 
     Parameters
     ----------
@@ -265,8 +259,7 @@ def _solve_P_Q(U, V):
 
 
 def _ell(A, m):
-    """
-    A helper function for expm_2009.
+    """A helper function for expm_2009.
 
     Parameters
     ----------
@@ -306,7 +299,7 @@ def _ell(A, m):
     return max(int(np.ceil(np.log2(alpha/u) / (2 * m))), 0)
 
 def differential(f, A, E):
-    """ Computes the differential of f at A when acting on E:  (df)_A(E) """
+    """Computes the differential of f at A when acting on E: (df)_A(E)."""
     n = A.size(0)
     M = torch.zeros(2*n, 2*n, dtype=A.dtype, device=A.device, requires_grad=False)
     M[:n, :n] = A

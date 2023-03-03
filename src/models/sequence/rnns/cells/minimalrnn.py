@@ -1,4 +1,4 @@
-""" Implementation of the 'MinimalRNN', which a reviewer from NeurIPS2020 asked us to compare against
+"""Implementation of the 'MinimalRNN', which a reviewer from NeurIPS2020 asked us to compare against.
 
 https://arxiv.org/abs/1711.06788
 
@@ -64,4 +64,3 @@ class MinimalRNNCell(CellBase):
         h = (1.-g) * h + g * hidden
 
         return h, h
-

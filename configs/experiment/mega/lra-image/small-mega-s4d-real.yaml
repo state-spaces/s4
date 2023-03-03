@@ -20,7 +20,7 @@ model:
     bidirectional: true
     mode: diag  # Use S4D kernel inside generic SSM block
     disc: zoh
-    measure: diag-real # Simple initialization for real
+    init: diag-real # Simple initialization for real
     lr: 0.001
     force_real: true  # Throw away imaginary part
 

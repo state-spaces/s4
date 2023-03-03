@@ -1,4 +1,4 @@
-""" Baseline simple RNN cells such as the vanilla RNN and GRU. """
+"""Baseline simple RNN cells such as the vanilla RNN and GRU."""
 
 import torch
 import torch.nn as nn
@@ -10,9 +10,9 @@ from src.models.nn.orthogonal import OrthogonalLinear
 from src.models.sequence.base import SequenceModule
 
 class CellBase(SequenceModule):
-    """ Abstract class for our recurrent cell interface.
+    """Abstract class for our recurrent cell interface.
 
-    Passes input through
+    Passes input through.
     """
     registry = {}
 
@@ -56,7 +56,7 @@ class CellBase(SequenceModule):
         pass
 
     def forward(self, input, hidden):
-        """ Returns output, next_state """
+        """Returns output, next_state."""
         return input, input
 
     def default_state(self, *batch_shape, device=None):
@@ -190,9 +190,12 @@ class GatedRNNCell(RNNCell):
         return h, h
 
 class ExpRNNCell(RNNCell):
-    """ Note: there is a subtle distinction between this and the ExpRNN original cell in the initialization of hx
-    this shouldn't make a difference
-    (original ExpRNN cell located in models.nn.exprnn.orthogonal.OrthogonalRNN)
+    """Implementation of expRNN.
+
+    Note: there is a subtle distinction between this and the ExpRNN original cell
+    in the initialization of hx, but this shouldn't make a difference.
+
+    (Original ExpRNN cell is located in models.nn.exprnn.orthogonal.OrthogonalRNN.)
     """
 
     name = 'exprnn'

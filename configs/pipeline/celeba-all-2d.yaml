@@ -1,0 +1,34 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: default
+  - /dataset: celeba-all
+  - /task: multilabel_classification
+  - /optimizer: adamw
+  - /scheduler: cosine_warmup
+
+
+dataset:
+  res: [128, 128]
+  ndim: 2
+  __l_max: ${dataset.res}
+
+task:
+  torchmetrics: null
+  metrics:
+    - binary_accuracy
+
+train:
+  monitor: val/binary_accuracy
+  mode: max
+
+trainer:
+  max_epochs: 20
+
+optimizer:
+  lr: 4e-3
+  weight_decay: 0.01
+
+scheduler:
+  num_warmup_steps: 500
+  num_training_steps: 6000

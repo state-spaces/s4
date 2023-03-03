@@ -1,7 +1,11 @@
-### https://github.com/HazyResearch/transformers/blob/master/src/callbacks/speed_monitor.py
+"""PL callbacks for monitoring computation speed.
 
-# Adapted from https://pytorch-lightning.readthedocs.io/en/latest/_modules/pytorch_lightning/callbacks/gpu_stats_monitor.html#GPUStatsMonitor
-# We only need the speed monitoring, not the GPU monitoring
+Adapted from https://github.com/HazyResearch/transformers/blob/master/src/callbacks/speed_monitor.py.
+
+In turn adapted from https://pytorch-lightning.readthedocs.io/en/latest/_modules/pytorch_lightning/callbacks/gpu_stats_monitor.html#GPUStatsMonitor.
+We only need the speed monitoring, not the GPU monitoring.
+"""
+
 import time
 from typing import Any
 
@@ -43,7 +47,6 @@ class Timer(Callback):
         pl_module: LightningModule,
         batch: Any,
         batch_idx: int,
-        dataloader_idx: int
     ) -> None:
         if self._log_stats.step_time:
             self._snap_step_time = time.time()
@@ -66,7 +69,6 @@ class Timer(Callback):
         outputs: STEP_OUTPUT,
         batch: Any,
         batch_idx: int,
-        dataloader_idx: int,
     ) -> None:
         if self._log_stats.inter_step_time:
             self._snap_inter_step_time = time.time()

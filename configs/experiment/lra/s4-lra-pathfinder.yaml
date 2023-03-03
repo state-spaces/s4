@@ -19,9 +19,9 @@ model:
     lr: 0.001
     dt_min: 0.001
     dt_max: 0.1
-    measure: legs
+    init: legs
     bidirectional: true
-    postact: glu
+    final_act: glu
     n_ssm: 256
 
 decoder:

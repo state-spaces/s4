@@ -1,4 +1,4 @@
-""" Wrapper around nn.Conv2d to adhere to SequenceModule interface. """
+"""Wrapper around nn.Conv2d to adhere to SequenceModule interface."""
 
 import torch
 from torch import nn
@@ -34,12 +34,12 @@ class Conv2d(SequenceModule):
         self.activation = Activation(activation)
 
     def forward(self, x, resolution=None, state=None, *args, **kwargs):
-        if not self.transposed: x = x.transpose(-1, -2)
+        if not self.transposed: x = x.transpose(-1, -3)
         y = self.conv2d(x)
         y = self.activation(y) # NOTE doesn't work with glu
         y = self.dropout(y)
         y = self.linear(y)
-        if not self.transposed: y = y.transpose(-1, -2)
+        if not self.transposed: y = y.transpose(-1, -3)
         return y, None
 
     def step(self, x, state):

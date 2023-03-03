@@ -1,4 +1,7 @@
-### https://github.com/HazyResearch/transformers/blob/master/src/callbacks/wandb_callbacks.py
+"""PL callbacks for logging to WandB.
+
+From https://github.com/HazyResearch/transformers/blob/master/src/callbacks/wandb_callbacks.py.
+"""
 
 import glob
 import os
@@ -254,7 +257,7 @@ class LogImagePredictions(Callback):
             )
 
 class LogDT(Callback):
-    """ Log the dt values (from NeurIPS 2021 LSSL submission) """
+    """Log the dt values (from NeurIPS 2021 LSSL submission)."""
     def on_train_epoch_end(self, trainer, pl_module):
         log_dict = {}
         for name, m in pl_module.model.named_modules():

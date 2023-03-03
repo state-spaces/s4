@@ -1,4 +1,4 @@
-""" Wrapper of optimizers in torch.optim for computation of exponential moving average of parameters
+"""Wrapper of optimizers in torch.optim for computation of exponential moving average of parameters.
 
 Source: https://github.com/kamenbliznashki/pixel_models/blob/master/optim.py
 """

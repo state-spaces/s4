@@ -1,8 +1,9 @@
+"""Defines base class SequenceModule, a modular interface for sequence models."""
 from torch import nn
 import functools
 
 class SequenceModule(nn.Module):
-    """Abstract sequence model class. All models must adhere to this interface
+    """Abstract sequence model class. All models must adhere to this interface.
 
     A SequenceModule is generally a model that transforms an input of shape
     (n_batch, l_sequence, d_model) to (n_batch, l_sequence, d_output)
@@ -88,7 +89,7 @@ class SequenceModule(nn.Module):
         raise NotImplementedError
 
 def TransposedModule(module):
-    """Wrap a SequenceModule class to accept transposed parameter, handle state, absorb kwargs"""
+    """Wrap a SequenceModule class to accept transposed parameter, handle state, absorb kwargs."""
     # https://stackoverflow.com/a/65470430/1980685
     @functools.wraps(module, updated=())
     class TransposedModule(module):
@@ -108,7 +109,7 @@ def TransposedModule(module):
 
 @TransposedModule
 class SequenceIdentity(SequenceModule):
-    """Simple SequenceModule for testing purposes"""
+    """Simple SequenceModule for testing purposes."""
 
     def __init__(self, d_model, dropout=0.0, **kwargs):
         """Default interface for SequenceModule

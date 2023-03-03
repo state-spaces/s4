@@ -1,0 +1,17 @@
+defaults:
+  # - vit
+  - layer: vit
+
+_name_: vit_b_16
+patch_size: 16
+d_model: 768
+dropout: 0.0
+drop_path_rate: 0.0
+depth: 12
+expand: 4
+norm: layer
+use_pos_embed: true
+use_cls_token: true
+
+layer:
+  num_heads: 12

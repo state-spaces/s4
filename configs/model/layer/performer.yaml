@@ -7,7 +7,7 @@
     _target_: src.models.sequence.attention.performer.PerformerFeatures
     n_features: 64
   causal: False
-- _name_: ff
+- _name_: ffn
   expand: 4
   activation: gelu
   dropout: ${...dropout} # Same as null

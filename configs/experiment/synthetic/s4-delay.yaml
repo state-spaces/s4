@@ -12,7 +12,7 @@ model:
   residual: null
   layer:
     rank: 1
-    measure: legs
+    init: legs
     deterministic: false
     d_state: 1024
     lr:

@@ -2,17 +2,21 @@ _name_: s4
 d_state: 64
 channels: 1
 bidirectional: false
+gate: null # 4 for GSS
+gate_act: id # 4 for GSS
+bottleneck: null # 4 for GSS
 activation: gelu
-postact: glu
+mult_act: null
+final_act: glu # Final activation after FF layer; new name for 'postact'
+postact: null  # Deprecated for 'final_act'
 initializer: null
 weight_norm: false
-hyper_act: null
-gate: null # 4 for GSS
-bottleneck: null # 4 for GSS
 # dropout: ${model.dropout} # Same as null
 tie_dropout: ${oc.select:model.tie_dropout,null}
+# Kernel arguments
 mode: nplr
-measure: legs
+init: legs  # Initialization option; new name for 'measure'
+measure: null  # Deprecated for 'init'
 rank: 1
 dt_min: 0.001
 dt_max: 0.1
@@ -20,6 +24,7 @@ lr:
   dt: 0.001
   A: 0.001
   B: 0.001
+wd: 0.0 # Can be dictionary like lr
 n_ssm: 1
 deterministic: false # Special C init
 l_max: ${oc.select:dataset.__l_max,null} # Grab dataset length if exists, otherwise set to 1 and kernel will automatically resize

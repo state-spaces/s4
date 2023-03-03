@@ -7,7 +7,7 @@
   add_zero_attn: False
   kdim: null
   vdim: null
-- _name_: ff
+- _name_: ffn
   expand: 4
   activation: gelu
   dropout: ${...dropout} # Same as null

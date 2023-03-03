@@ -1,4 +1,4 @@
-"""Synthetic datasets"""
+"""Synthetic datasets."""
 
 import numpy as np
 import torch
@@ -20,7 +20,9 @@ class Copying(SequenceDataset):
             "n_tokens": 10,  # alphabet size
             "lag": False,
             "variable": False,  # Randomly distribute memorization tokens throughout sequence instead of frontloading them
+            "variable_length": False,  # Randomize number of tokens to memorize
             "one_hot": False,
+            "reverse": False,
             "static": False, # Use a static dataset of size n_train, otherwise always use random data with n_train per epoch
             "n_train": 10000,
             "n_eval": 1000,
@@ -52,6 +54,7 @@ class Copying(SequenceDataset):
             lag=self.lag,
             variable=self.variable,
             one_hot=self.one_hot,
+            reverse=self.reverse,
         )
         self.dataset_val = CopyingEvalDataset(
             self.l_noise,
@@ -61,6 +64,7 @@ class Copying(SequenceDataset):
             lag=self.lag,
             variable=self.variable,
             one_hot=self.one_hot,
+            reverse=self.reverse,
         )
         self.dataset_test = None
 
@@ -207,3 +211,58 @@ class Delay(SequenceDataset):
     def __str__(self):
         return f"{self._name_}{self.l_noise}{'v' if self.variable else ''}"
 
+class MackeyGlass(SequenceDataset):
+    _name_ = "mackey"
+
+    @property
+    def init_defaults(self):
+        return {
+            "l_seq": 5000, # length of total sequence
+            "l_predict": 15,  # length to reconstruct
+            "tau": 17,  # Delay of MG system
+            "washout": 100,
+            "delta_t": 10,
+            "n_train": 1024,
+            "n_eval": 64,
+        }
+
+    @property
+    def d_input(self):
+        return 1
+
+    @property
+    def d_output(self):
+        return 1
+
+    @property
+    def l_output(self):
+        return self.l_seq
+
+    def setup(self):
+        from .datasets.mackey import mackey_glass
+
+        train_X, train_Y = mackey_glass(
+            n_samples=self.n_train,
+            l_seq=self.l_seq,
+            l_predict=self.l_predict,
+            tau=self.tau,
+            washout=self.washout,
+            delta_t=self.delta_t,
+        )
+        train_X, train_Y = torch.FloatTensor(train_X), torch.FloatTensor(train_Y)
+        val_X, val_Y = mackey_glass(
+            n_samples=self.n_eval,
+            l_seq=self.l_seq,
+            l_predict=self.l_predict,
+            tau=self.tau,
+            washout=self.washout,
+            delta_t=self.delta_t,
+        )
+        val_X, val_Y = torch.FloatTensor(val_X), torch.FloatTensor(val_Y)
+        self.dataset_train = torch.utils.data.TensorDataset(train_X, train_Y)
+        self.dataset_val = torch.utils.data.TensorDataset(val_X, val_Y)
+        self.dataset_test = None
+
+
+    def __str__(self):
+        return f"{self._name_}"

@@ -1,5 +1,4 @@
-"""
-RNN Vocal Generation Model
+"""RNN Vocal Generation Model.
 
 Blizzard, Music, and Huckleberry Finn data feeders.
 """

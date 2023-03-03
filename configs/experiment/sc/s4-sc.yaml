@@ -14,7 +14,7 @@ model:
   layer:
     d_state: 64
     bidirectional: true
-    postact: glu
+    final_act: glu
     n_ssm: 2
 
 optimizer:

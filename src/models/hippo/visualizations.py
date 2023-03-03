@@ -1,8 +1,10 @@
-""" Standalone implementation of HiPPO operators.
+"""Standalone implementation of HiPPO operators.
 
-Contains experiments for the function reconstruction experiment in original HiPPO paper, as well as new animations from "How to Train Your HiPPO"
+Contains experiments for the function reconstruction experiment in original HiPPO paper,
+as well as new animations from "How to Train Your HiPPO".
 
-This file ports the notebook notebooks/hippo_function_approximation.ipynb, which is recommended if Jupyter is supported
+This file ports the notebook notebooks/hippo_function_approximation.ipynb,
+which is recommended if Jupyter is supported.
 """
 
 from functools import partial
@@ -118,7 +120,8 @@ def basis(method, N, vals, c=0.0, truncate_measure=True):
 
 
 class HiPPOScale(nn.Module):
-    """ Vanilla HiPPO-LegS model (scale invariant instead of time invariant) """
+    """Vanilla HiPPO-LegS model (scale invariant instead of time invariant)."""
+
     def __init__(self, N, method='legs', max_length=1024, discretization='bilinear'):
         """
         max_length: maximum sequence length
@@ -179,12 +182,14 @@ class HiPPOScale(nn.Module):
         return a
 
 class HiPPO(nn.Module):
-    """ Linear time invariant x' = Ax + Bu """
+    """Linear time invariant x' = Ax + Bu."""
+
     def __init__(self, N, method='legt', dt=1.0, T=1.0, discretization='bilinear', scale=False, c=0.0):
         """
         N: the order of the HiPPO projection
         dt: discretization step size - should be roughly inverse to the length of the sequence
         """
+
         super().__init__()
         self.method = method
         self.N = N

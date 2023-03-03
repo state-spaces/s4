@@ -1,3 +1,5 @@
+"""Implementation of "Continuous Delay" dataset from How to Train Your HIPPO."""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

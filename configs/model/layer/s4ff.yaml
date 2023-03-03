@@ -2,7 +2,7 @@
 # [22-02] TODO needs update
 - _name_: s4
   d_state: 64
-  measure: legs
+  init: legs
   rank: 1
   dt_min: 0.001
   dt_max: 0.1
@@ -16,11 +16,11 @@
   weight_decay: 0.0
   weight_norm: False
   activation: gelu
-  postact: glu
+  final_act: glu
   initializer: null
   dropout: ${...dropout} # Same as null
   l_max: ${dataset.__l_max} # TODO temporary; use hydra interpolation for now
-- _name_: ff
+- _name_: ffn
   expand: 4
   activation: gelu
   dropout: ${...dropout} # Same as null

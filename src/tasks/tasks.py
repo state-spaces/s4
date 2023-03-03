@@ -1,3 +1,5 @@
+"""Implements Task interface, which consists of encoder + decoder + loss/metrics."""
+
 from typing import Optional, List, Tuple
 import math
 import functools
@@ -7,8 +9,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
 from omegaconf import ListConfig
-from src.models.nn.components import ReversibleInstanceNorm1dInput, ReversibleInstanceNorm1dOutput, \
-    TSNormalization, TSInverseNormalization
+from src.models.nn.normalization import (
+    ReversibleInstanceNorm1dInput,
+    ReversibleInstanceNorm1dOutput,
+    TSNormalization,
+    TSInverseNormalization,
+)
 
 from src.models.nn.adaptive_softmax import AdaptiveEmbedding, ProjectedAdaptiveLogSoftmax
 import src.tasks.metrics as M
@@ -18,7 +24,9 @@ from src.utils.config import to_list, instantiate
 
 
 class BaseTask:
-    """ Abstract class that takes care of:
+    """Abstract class for all tasks.
+
+    This class takes care of:
     - loss function
     - arbitrary metrics
     - (optional) encoder module that interfaces with dataset (inputs) and model
@@ -50,9 +58,9 @@ class BaseTask:
             self.loss_val = U.discard_kwargs(self.loss_val)
 
     def _init_torchmetrics(self, prefix):
-        """
-        Instantiate torchmetrics.
-        """
+        """Instantiate torchmetrics."""
+        # TODO torchmetrics is better renamed to "epoch_metrics" or something
+
         self._tracked_torchmetrics[prefix] = {}
         for name in self.torchmetric_names:
             if name in ['AUROC', 'StatScores', 'Precision', 'Recall', 'F1', 'F1Score']:
@@ -65,9 +73,7 @@ class BaseTask:
                 self._tracked_torchmetrics[prefix][name] = getattr(tm, name)(compute_on_step=False).to('cuda')
 
     def _reset_torchmetrics(self, prefix=None):
-        """
-        Reset torchmetrics for a prefix
-        associated with a particular dataloader (e.g. train, val, test).
+        """Reset torchmetrics for a prefix associated with a particular dataloader (e.g. train, val, test).
 
         Generally do this at the start of an epoch.
         """
@@ -80,17 +86,15 @@ class BaseTask:
                     pass
 
     def get_torchmetrics(self, prefix):
-        """
-        Compute torchmetrics for a prefix associated with
-        a particular dataloader (e.g. train, val, test).
+        """Compute torchmetrics for a prefix associated with a particular dataloader (e.g. train, val, test).
 
         Generally do this at the end of an epoch.
         """
         return {name: self._tracked_torchmetrics[prefix][name].compute() for name in self.torchmetric_names}
 
     def torchmetrics(self, x, y, prefix):
-        """
-        Update torchmetrics with new x, y .
+        """Update torchmetrics with new data.
+
         Prefix corresponds to a particular dataloader (e.g. train, val, test).
 
         Generally call this every batch.
@@ -107,10 +111,11 @@ class BaseTask:
             self._tracked_torchmetrics[prefix][name].update(x, y)
 
     def metrics(self, x, y, **kwargs):
-        """
-        Metrics are just functions
-        output metrics are a function of output and target
-        loss metrics are a function of loss (e.g. perplexity)
+        """Add metrics to the task.
+
+        Metrics are just functions:
+        - output metrics are a function of output and target
+        - loss metrics are a function of loss (e.g. perplexity)
         """
         output_metrics = {
             name: U.discard_kwargs(M.output_metric_fns[name])(x, y, **kwargs)
@@ -228,9 +233,11 @@ class VideoTask(BaseTask):
         import copy
         loss_fn = copy.deepcopy(self.loss)
         self.loss = lambda x, y: loss_fn(x, y[0])
+        self.loss = U.discard_kwargs(self.loss)  # remove extra kwargs
         if hasattr(self, 'loss_val'):
             loss_val_fn = copy.deepcopy(self.loss_val)
             self.loss_val = lambda x, y: loss_val_fn(x, y[0])
+            self.loss_val = U.discard_kwargs(self.loss_val)  # remove extra kwargs
 
     def metrics(self, logits, y, **kwargs):
         labels, vids = y
@@ -318,6 +325,8 @@ class ImageNetTask(BaseTask):
     """
     Imagenet training uses mixup augmentations, which require a separate loss for train and val,
     which we overide the base task here.
+
+    Not really used anymore.
     """
 
     def __init__(self, **kwargs):

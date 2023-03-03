@@ -1,6 +1,6 @@
 """Implementations of several types of Discrete Sin/Cosine Transforms with various reductions to FFT.
 
-Currently not used by S4
+Currently not used by S4.
 """
 
 import torch
@@ -10,7 +10,7 @@ import scipy.fft
 from einops import rearrange, repeat
 
 class DCT(nn.Module):
-    """ Reductions adapted from https://dsp.stackexchange.com/questions/2807/fast-cosine-transform-via-fft """
+    """Reductions adapted from https://dsp.stackexchange.com/questions/2807/fast-cosine-transform-via-fft."""
 
     def __init__(self, N, norm='backward'):
         super().__init__()
@@ -38,12 +38,12 @@ class DCT(nn.Module):
             return self.forward_4n(x)
 
     def forward_dense(self, x):
-        """ Baseline DCT type II - matmul by DCT matrix """
+        """Baseline DCT type II - matmul by DCT matrix."""
         y = (self.P.to(x) @ x.unsqueeze(-1)).squeeze(-1)
         return y
 
     def forward_4n(self, x):
-        """ DCT type II - reduction to FFT size 4N """
+        """DCT type II - reduction to FFT size 4N."""
         assert self.N == x.shape[-1]
         x = torch.cat([x, x.flip(-1)], dim=-1)
         z = torch.zeros_like(x)
@@ -57,7 +57,7 @@ class DCT(nn.Module):
             return torch.real(y)
 
     def forward_2n(self, x):
-        """ DCT type II - reduction to FFT size 2N mirrored
+        """DCT type II - reduction to FFT size 2N mirrored.
 
         The reduction from the DSP forum is not quite correct in the complex input case.
         halfshift(FFT[a, b, c, d, d, c, b, a]) -> [A, B, C, D, 0, -D, -C, -B]
@@ -111,12 +111,12 @@ class IDCT(nn.Module):
             return self.forward_4n(x)
 
     def forward_dense(self, x):
-        """ Baseline DCT type II - matmul by DCT matrix """
+        """Baseline DCT type II - matmul by DCT matrix."""
         y = (self.P.to(x) @ x.unsqueeze(-1)).squeeze(-1)
         return y
 
     def forward_4n(self, x):
-        """ DCT type II - reduction to FFT size 4N """
+        """DCT type II - reduction to FFT size 4N."""
         assert self.N == x.shape[-1]
         z = x.new_zeros(x.shape[:-1] + (1,))
         x = torch.cat([x, z, -x.flip(-1), -x[..., 1:], z, x[..., 1:].flip(-1)], dim=-1)
@@ -128,7 +128,7 @@ class IDCT(nn.Module):
             return torch.real(y)
 
     def forward_2n(self, x):
-        """ DCT type II - reduction to FFT size 2N mirrored """
+        """DCT type II - reduction to FFT size 2N mirrored."""
         assert self.N == x.shape[-1]
         z = x.new_zeros(x.shape[:-1] + (1,))
         x = torch.cat([x, z, -x[..., 1:].flip(-1)], dim=-1)
@@ -140,57 +140,6 @@ class IDCT(nn.Module):
             return torch.real(y)
 
     def forward_n(self, x):
-        """ DCT type II - reduction to size N """
+        """DCT type II - reduction to size N."""
         assert self.N == x.shape[-1]
         raise NotImplementedError # Straightforward by inverting operations of DCT-II reduction
-
-def test_dct_ii():
-    N = 8
-    dct = DCT(N)
-
-    baseline = dct.forward_dense
-    methods = [dct.forward_4n, dct.forward_2n, dct.forward_n]
-
-    # Real case
-    print("DCT-II Real input")
-    x = torch.randn(1, N)
-    y = baseline(x)
-    print(y)
-    for fn in methods:
-        y_ = fn(x)
-        print("err", torch.norm(y-y_))
-
-    # Complex case
-    print("DCT-II Complex input")
-    x = torch.randn(N) + 1j * torch.randn(N)
-    y = baseline(x)
-    print(y)
-    for fn in methods:
-        y_ = fn(x)
-        print("err", torch.norm(y-y_))
-
-def test_dct_iii():
-    N = 8
-    dct = IDCT(N)
-
-    baseline = dct.forward_dense
-    methods = [dct.forward_4n, dct.forward_2n]
-
-    # Real case
-    print("DCT-III Real input")
-    x = torch.randn(1, N)
-    y = baseline(x)
-    print(y)
-    for fn in methods:
-        y_ = fn(x)
-        print("err", torch.norm(y-y_))
-
-    # Complex case
-    print("DCT-III Complex input")
-    # x = torch.randn(N) + 1j * torch.randn(N)
-    x = 1j * torch.ones(N)
-    y = baseline(x)
-    print(y)
-    for fn in methods:
-        y_ = fn(x)
-        print("err", torch.norm(y-y_))

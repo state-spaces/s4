@@ -1,0 +1,32 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: default
+  - /dataset: imagenet
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: timm_cosine
+
+task:
+  loss:
+    _name_: soft_cross_entropy
+  loss_val:
+    _name_: cross_entropy
+  metrics:
+    - accuracy
+    - accuracy@5
+    - accuracy@10
+
+train:
+  monitor: val/accuracy # Needed for plateau scheduler
+  mode: max
+
+# encoder:
+#   _name_: patch2d
+#   d_emb: 256
+#   filter_sizes: [8, 8]
+#   flat: False  # the input is not flattened yet
+
+# decoder:
+#   _name_: sequence
+#   mode: pool

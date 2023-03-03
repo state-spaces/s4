@@ -1,4 +1,4 @@
-""" The core RNN cell architecture of the HiPPO-RNN from the original HiPPO paper. """
+"""The core RNN cell architecture of the HiPPO-RNN from the original HiPPO paper."""
 
 import torch
 import torch.nn as nn
@@ -9,7 +9,7 @@ from scipy import signal
 from scipy import linalg as la
 
 from src.models.sequence.rnns.cells.basic import RNNCell
-from src.models.nn.components import LinearActivation, Activation # , get_initializer
+from src.models.nn import LinearActivation, Activation # , get_initializer
 from src.models.nn.gate import Gate
 
 
@@ -20,7 +20,7 @@ zoh_aliases       = ['zoh']
 
 
 class MemoryCell(RNNCell):
-    """ This class handles the general architectural wiring of the HiPPO-RNN, in particular the interaction between the hidden state and the linear memory state.
+    """This class handles the general architectural wiring of the HiPPO-RNN, in particular the interaction between the hidden state and the linear memory state.
 
     Specific variants can be instantiated by subclassing this with an appropriately defined update_memory() method.
     """
@@ -129,7 +129,7 @@ class MemoryCell(RNNCell):
 
 
     def forward_memory(self, input, h, m):
-        """ First part of forward pass to construct the memory state update """
+        """First part of forward pass to construct the memory state update."""
 
         input_to_memory = input if self.architecture['ux'] else input.new_empty((0,))
         xh = torch.cat((input_to_memory, h), dim=-1)
@@ -181,7 +181,7 @@ class MemoryCell(RNNCell):
 
     @property
     def state_to_tensor(self):
-        """ Converts a state into a single output (tensor) """
+        """Converts a state into a single output (tensor)."""
         def fn(state):
             h, m, time_step = state
             return h
@@ -197,7 +197,7 @@ class MemoryCell(RNNCell):
 
 
 class LTICell(MemoryCell):
-    """ A cell where the memory state follows Linear Time Invariant dynamics: c' = Ac + Bf. """
+    """A cell where the memory state follows Linear Time Invariant dynamics: c' = Ac + Bf."""
 
     def __init__(
             self, d_input, d_model, memory_size, memory_order,
@@ -223,7 +223,7 @@ class LTICell(MemoryCell):
         return m + F.linear(m, self.A) + F.linear(u, self.B)
 
 class LSICell(MemoryCell):
-    """ A cell where the memory state Linear 'Scale' Invariant dynamics: c' = 1/t (Ac + Bf). """
+    """A cell where the memory state Linear 'Scale' Invariant dynamics: c' = 1/t (Ac + Bf)."""
 
     def __init__(
             self, d_input, d_model, memory_size, memory_order,
@@ -233,9 +233,7 @@ class LSICell(MemoryCell):
             discretization='bilinear',
             **kwargs
         ):
-        """
         # TODO: make init_t start at arbitrary time (instead of 0 or 1)
-        """
 
         # B should have shape (N, 1)
         assert len(B.shape) == 2 and B.shape[1] == 1

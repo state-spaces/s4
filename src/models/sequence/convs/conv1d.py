@@ -1,9 +1,13 @@
-""" Wrapper around nn.Conv1d to adhere to SequenceModule interface. """
+"""Wrapper around nn.Conv1d to adhere to SequenceModule interface."""
 
 import torch
+import torch.nn.functional as F
 from torch import nn
+import hydra
+from models.sequence.base import SequenceModule
+from einops import rearrange
 
-from src.models.sequence.base import SequenceModule
+import src.models.nn.utils as U
 from src.models.nn import Activation
 
 class Conv1d(SequenceModule):

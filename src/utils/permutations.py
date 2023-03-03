@@ -178,3 +178,4 @@ def binary2gray(binary, axis=-1):
   gray = np.logical_xor(binary, shifted)
 
   return gray
+
