@@ -40,8 +40,8 @@ trainer:
   gradient_clip_val: 1.0
 
 scheduler:
-  num_warmup_steps: 5000
-  num_training_steps: 100000
+  num_warmup_steps: 4500
+  num_training_steps: 90000  # 100 epochs
 
 train:
   seed: 2222

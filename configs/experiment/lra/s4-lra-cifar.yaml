@@ -38,7 +38,8 @@ trainer:
   max_epochs: 200
 
 scheduler:
-  num_training_steps: 200000
+  num_warmup_steps: 900  # 1 epoch
+  num_training_steps: 180000  # 200 epochs
 
 train:
   seed: 2222

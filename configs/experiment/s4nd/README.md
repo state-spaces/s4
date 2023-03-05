@@ -66,7 +66,7 @@ Sample command for Conv2D model (baseline)
 
 Sample command for S4ND model
 
-```python -m train experiment=s4nd/cifar/s4-cifar-2d wandb=null dataset.augment=True model.layer.l_max=[32,32] loader.train_resolution=1 loader.img_size=32 model.layer.d_state=64 model.layer.final_act=glu model.layer.bidirectional=True trainer.max_epochs=100 scheduler.num_training_steps=100000 model.d_model=512 model.n_layers=6 model.dropout=0.1 optimizer.weight_decay=0.05 model.layer.dt_max=1.0 model.layer.dt_min=0.1 model.layer.bandlimit=null model.layer.init=legs model.layer.n_ssm=1 model.layer.rank=1```
+```python -m train experiment=s4nd/cifar/s4-cifar-2d wandb=null dataset.augment=True model.layer.l_max=[32,32] loader.train_resolution=1 loader.img_size=32 model.layer.d_state=64 model.layer.final_act=glu model.layer.bidirectional=True trainer.max_epochs=100 scheduler.num_training_steps=90000 model.d_model=512 model.n_layers=6 model.dropout=0.1 optimizer.weight_decay=0.05 model.layer.dt_max=1.0 model.layer.dt_min=0.1 model.layer.bandlimit=null model.layer.init=legs model.layer.n_ssm=1 model.layer.rank=1```
 
 #### Zero-shot resolution
 
