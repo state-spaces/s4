@@ -100,9 +100,10 @@ def dplr(
         z = torch.tensor(torch.exp(2j * pi / N), dtype=dtype)
         B = z ** torch.arange(0, N // 2)
         B = repeat(B, 'n -> h n', h=H).clone().contiguous()
-    elif B_init in ['legs', 'hippo', 'legsd']:
-        _, P, B, _ = hippo.nplr('legs', N)
-        if B_init == 'legsd': B *= 0.5
+    # elif B_init in ['legs', 'hippo', 'legsd']:
+    elif B_init.startswith('legs'):
+        _, P, B, _ = hippo.nplr(B_init, N)
+        B *= 0.5
         B = repeat(B, 'n -> h n', h=H).clone().contiguous()
     else: raise NotImplementedError
     B *= B_scale

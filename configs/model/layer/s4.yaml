@@ -20,6 +20,7 @@ measure: null  # Deprecated for 'init'
 rank: 1
 dt_min: 0.001
 dt_max: 0.1
+dt_transform: softplus  # Use 'exp' for any backwards-compatible experiments
 lr:
   dt: 0.001
   A: 0.001

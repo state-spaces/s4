@@ -74,6 +74,37 @@ if tuple(map(int, torch.__version__.split('.')[:2])) >= (1, 10):
 else:
     _resolve_conj = lambda x: x.conj()
 
+def inv_transform(param, transform='none'):
+    """Initialize a (positive) parameter under a transform."""
+    param = torch.clamp(param, min=1e-4)
+    if transform == 'none':
+        return param
+    elif transform == 'exp':
+        return torch.log(param) # Some of the HiPPO methods have real part 0
+    elif transform == 'relu':
+        return param
+    elif transform == 'sigmoid':
+        return torch.logit(param)
+    elif transform == 'softplus':
+        return torch.log(torch.exp(param)-1)
+    else: raise NotImplementedError
+
+def param_transform(param, transform='none'):
+    """Get a (positive) parameter under a transform."""
+    if transform == 'none':
+        p = param
+    elif transform == 'exp':
+        p = torch.exp(param)
+    elif transform == 'relu':
+        # JAX version seems to NaN if you allow 0's, although this code was fine without it
+        p = F.relu(param)+1e-4
+    elif transform == 'sigmoid':
+        p = F.sigmoid(param)
+    elif transform == 'softplus':
+        p = F.softplus(param)
+    else: raise NotImplementedError
+    return p
+
 
 class SSMKernel(Kernel):
     """Parent class for different SSM parameterizations.
@@ -88,6 +119,7 @@ class SSMKernel(Kernel):
 
     dt_min, dt_max: min and max values for the step size dt
     dt_tie: Keep dt tied across the N dimensions of the state. Although this theoretically makes more sense, models such as S5 and Mega have found slightly improvements by setting it to False.
+    dt_transform: Transform function for parameterization of dt (default 'softplus', used to be 'exp')
 
     rank: Rank of low-rank correction for DPLR mode. Needs to be increased for init "legt".
     n_ssm: Number of independent trainable (A, B) SSMs, e.g.
@@ -103,14 +135,18 @@ class SSMKernel(Kernel):
         # Generate dt
         if self.deterministic:  # Meant for debugging
             assert self.dt_tie, "Deterministic dt initialization is tied"
-            log_dt = torch.exp(torch.linspace(math.log(self.dt_min), math.log(self.dt_max), self.H)).unsqueeze(-1) # (H 1)
+            assert self.dt_transform == 'exp', "Deterministic dt transform should be 'exp' for simplicity"
+            inv_dt = torch.exp(torch.linspace(math.log(self.dt_min), math.log(self.dt_max), self.H)).unsqueeze(-1) # (H 1)
         else:
             shape = (self.H, 1) if self.dt_tie else (self.H, self.N//2)
-            log_dt = torch.rand(*shape, dtype=self.dtype) * (
+            # Initialize log dt
+            inv_dt = torch.rand(*shape, dtype=self.dtype) * (
                 math.log(self.dt_max) - math.log(self.dt_min)
             ) + math.log(self.dt_min)
+            if self.dt_transform != 'exp':
+                inv_dt = inv_transform(torch.exp(inv_dt), self.dt_transform)
 
-        return log_dt
+        return inv_dt
 
     def init_ssm_real(self):
         """Returns (dense, real) (A, B, C) parameters for init options."""
@@ -175,6 +211,7 @@ class SSMKernel(Kernel):
         dt_min: float = 0.001,
         dt_max: float = 0.1,
         dt_tie: bool = True,
+        dt_transform: str = 'exp',
         # (A, B, C) options
         rank: int = 1,
         n_ssm: Optional[int] = None,
@@ -191,6 +228,7 @@ class SSMKernel(Kernel):
         self.dt_min = dt_min
         self.dt_max = dt_max
         self.dt_tie = dt_tie
+        self.dt_transform = dt_transform
         # SSM options (A, B, C)
         self.rank = rank
         self.n_ssm = n_ssm if n_ssm is not None else self.H
@@ -284,7 +322,7 @@ class SSMKernelDense(SSMKernel):
         self.comp = comp
 
         # Initialize dt, A, B, C
-        log_dt = self.init_dt()
+        inv_dt = self.init_dt()
         A, P, B, C = self.init_ssm_dplr()
 
         # Materialize dense A, B, C
@@ -298,18 +336,18 @@ class SSMKernelDense(SSMKernel):
         B, C = _conj(B), _conj(C)
 
 
-        self.register_params(A, B, C, log_dt)
+        self.register_params(A, B, C, inv_dt)
 
-    def register_params(self, A, B, C, log_dt):
+    def register_params(self, A, B, C, inv_dt):
         assert self.N == A.size(-1)
-        assert self.H == log_dt.size(0)
+        assert self.H == inv_dt.size(0)
         assert self.n_ssm == A.size(0) == B.size(0)
         self.repeat = self.H // A.size(0)
 
         C = C.expand(torch.broadcast_shapes(C.shape, (1, self.H, self.N))) # (C, H, N)
 
         # Register parameters
-        self.register("log_dt", log_dt, self.lr_dict['dt'], self.wd_dict['dt'])
+        self.register("inv_dt", inv_dt, self.lr_dict['dt'], self.wd_dict['dt'])
         self.register("A", _c2r(A), self.lr_dict['A'], self.wd_dict['A'])
         self.register("B", _c2r(B), self.lr_dict['A'], self.wd_dict['B'])
         self.C = nn.Parameter(_c2r(_resolve_conj(C)))
@@ -368,7 +406,8 @@ class SSMKernelDense(SSMKernel):
             dA = dA.real + 0j
             dB = dB.real + 0j
         else:
-            dA, dB = SSMKernelDense.bilinear(torch.exp(self.log_dt), A, B)
+            dt = param_transform(self.inv_dt, self.dt_transform)
+            dA, dB = SSMKernelDense.bilinear(dt, A, B)
         return dA, dB
 
     def _setup_step(self):
@@ -386,12 +425,12 @@ class SSMKernelReal(SSMKernelDense):
     def __init__(self, **kwargs):
         super().__init__(comp=False, **kwargs)
 
-        log_dt = self.init_dt()
+        inv_dt = self.init_dt()
         A, B, C = self.init_ssm_real()
 
-        # SSMKernelDense designed to work with complex
+        # SSMKernelDense is designed to work with complex
         A, B, C = A.to(torch.cfloat), B.to(torch.cfloat), C.to(torch.cfloat)
-        self.register_params(A, B, C, log_dt)
+        self.register_params(A, B, C, inv_dt)
 
 
 class SSMKernelDiag(SSMKernel):
@@ -399,7 +438,7 @@ class SSMKernelDiag(SSMKernel):
 
     Options:
     disc: ['zoh' | 'bilinear' | 'dss'] Discretization options.
-    dt_fast:  (experimental) Parameterize log_dt under sinh function.
+    dt_fast:  (experimental) Parameterize inv_dt under sinh function.
         (Ohno et al. "Fast Saturating Gate for Learning Long Time Scales with RNNs")
     real_transform, imag_transform: ['none' | 'exp' | 'relu' | 'sigmoid' | 'softplus']
         Parameterize the real/imag parts of the diagonal of A under this function.
@@ -434,25 +473,25 @@ class SSMKernelDiag(SSMKernel):
         self.force_real = force_real
 
         # Initialize dt, A, B, C
-        log_dt = self.init_dt()
+        inv_dt = self.init_dt()
         A, _, B, C = self.init_ssm_dplr()
-        self.register_params(A, B, C, log_dt)
+        self.register_params(A, B, C, inv_dt)
 
-    def register_params(self, A, B, C, log_dt):
+    def register_params(self, A, B, C, inv_dt):
         assert self.kernel in ['cuda', 'keops', 'naive']
 
-        if self.dt_fast: log_dt = torch.asinh(log_dt)
+        if self.dt_fast: inv_dt = torch.asinh(inv_dt)
 
         if self.dt_merge:
             assert not self.dt_fast and self.real_transform=='exp' and self.imag_transform=='exp'
-            # Multiplication by exp(log_dt) is the same as adding to params in log space
-            A = repeat(A, 't n -> (t v) n', v=log_dt.size(0)//A.size(0))
-            B = repeat(B, 't n -> (t v) n', v=log_dt.size(0)//B.size(0))
-            A = A * log_dt.exp()
-            B = B * log_dt.exp()
+            # Multiplication by exp(inv_dt) is the same as adding to params in log space
+            A = repeat(A, 't n -> (t v) n', v=inv_dt.size(0)//A.size(0))
+            B = repeat(B, 't n -> (t v) n', v=inv_dt.size(0)//B.size(0))
+            A = A * inv_dt.exp()
+            B = B * inv_dt.exp()
 
         # Rank of low-rank correction
-        assert self.H == log_dt.size(0)
+        assert self.H == inv_dt.size(0)
         assert self.N == A.size(-1) == C.size(-1)
         assert self.n_ssm == A.size(-2) == B.size(-2) # Number of independent SSMs trained
         self.repeat = self.H // A.size(0)
@@ -468,53 +507,22 @@ class SSMKernelDiag(SSMKernel):
         self.C = nn.Parameter(_c2r(_resolve_conj(C)))
 
         # Register dt, B, A
-        if not self.dt_merge: self.register("log_dt", log_dt, self.lr_dict['dt'], self.wd_dict['dt'])
+        if not self.dt_merge: self.register("inv_dt", inv_dt, self.lr_dict['dt'], self.wd_dict['dt'])
         self.register("B", _c2r(B), self.lr_dict['B'], self.wd_dict['B'])
-        self.register("A_real", self._param_init(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
-        self.register("A_imag", self._param_init(-A.imag, self.imag_transform), self.lr_dict['A'], self.wd_dict['A'])
-
-    def _param_init(self, param, param_type='none'):
-        """Initialize a re-parameterized (positive) parameter."""
-        param = torch.clamp(param, min=1e-4)
-        if param_type == 'none':
-            return param
-        elif param_type == 'exp':
-            return torch.log(param) # Some of the HiPPO methods have real part 0
-        elif param_type == 'relu':
-            return param
-        elif param_type == 'sigmoid':
-            return torch.logit(param)
-        elif param_type == 'softplus':
-            return torch.log(torch.exp(param)-1)
-        else: raise NotImplementedError
-
-    def _param(self, param, param_type='none'):
-        """Get a re-parameterized (positive) parameter."""
-        if param_type == 'none':
-            p = param
-        elif param_type == 'exp':
-            p = torch.exp(param)
-        elif param_type == 'relu':
-            # JAX version seems to NaN if you allow 0's, although this code was fine without it
-            p = F.relu(param)+1e-4
-        elif param_type == 'sigmoid':
-            p = F.sigmoid(param)
-        elif param_type == 'softplus':
-            p = F.softplus(param)
-        else: raise NotImplementedError
-        return p
+        self.register("A_real", inv_transform(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
+        self.register("A_imag", inv_transform(-A.imag, self.imag_transform), self.lr_dict['A'], self.wd_dict['A'])
 
     def _A(self):
         """Get the internal A (diagonal) parameter."""
-        return -self._param(self.A_real, self.real_transform) - 1j * self._param(self.A_imag, self.imag_transform)
+        return -param_transform(self.A_real, self.real_transform) - 1j * param_transform(self.A_imag, self.imag_transform)
 
     def forward(self, L, state=None, rate=1.0):
         """See Kernel.forward() for argument documentation."""
 
         if not self.dt_merge:
-            if self.dt_fast: log_dt = torch.sinh(self.log_dt)
-            else: log_dt = self.log_dt
-            dt = torch.exp(log_dt) * rate # (H N)
+            if self.dt_fast: inv_dt = torch.sinh(self.inv_dt)
+            else: inv_dt = self.inv_dt
+            dt = param_transform(inv_dt, self.dt_transform) * rate # (H N)
         else:
             dt = 1.0
         A = self._A() # (H N)
@@ -605,7 +613,7 @@ class SSMKernelDiag(SSMKernel):
 
     def _setup_step(self):
         # These methods are organized like this to be compatible with the NPLR kernel interface
-        dt = torch.exp(self.log_dt) # (H)
+        dt = param_transform(self.inv_dt, self.dt_transform) # (H)
         B = _r2c(self.B) # (H N)
         C = _r2c(self.C) # (C H N)
         self.dC = C
@@ -654,7 +662,7 @@ class SSMKernelDPLR(SSMKernel):
     Stores a representation of and computes the SSMKernel function K_L(dt, A, B, C) corresponding to a discretized state space, where A is Diagonal + Low Rank (DPLR).
 
     Options:
-    dt_fast:  (experimental) Parameterize log_dt under sinh function.
+    dt_fast:  (experimental) Parameterize inv_dt under sinh function.
         (Ohno et al. "Fast Saturating Gate for Learning Long Time Scales with RNNs")
     real_transform, imag_transform: ['none' | 'exp' | 'relu' | 'sigmoid' | 'softplus']
         Parameterize the real/imag parts of the diagonal of A under this function.
@@ -732,11 +740,11 @@ class SSMKernelDPLR(SSMKernel):
         self.bandlimit = bandlimit
         self.kernel = kernel
 
-        log_dt = self.init_dt()
+        inv_dt = self.init_dt()
         A, P, B, C = self.init_ssm_dplr()
-        self.register_params(A, P, B, C, log_dt)
+        self.register_params(A, P, B, C, inv_dt)
 
-    def register_params(self, A, P, B, C, log_dt):
+    def register_params(self, A, P, B, C, inv_dt):
         """
         The SSM state matrix is represented by diag_embed(A) - PP^*
         Note that the A notation here is slightly overloaded:
@@ -770,14 +778,14 @@ class SSMKernelDPLR(SSMKernel):
         if self.verbose:
             log.info(f"Constructing S4 (H, N, L) = ({self.H}, {self.N}, {self.l_max})")
 
-        if self.dt_fast: log_dt = torch.asinh(log_dt)
+        if self.dt_fast: inv_dt = torch.asinh(inv_dt)
 
         assert self.kernel in ['cuda', 'keops', 'naive']
 
         # Rank of low-rank correction
         assert self.rank == P.shape[-3]
         assert self.N == A.size(-1) == P.size(-1) == B.size(-1) == C.size(-1)
-        assert self.H == log_dt.size(0)
+        assert self.H == inv_dt.size(0)
 
         # Check different SSM inits
         assert self.n_ssm == A.size(-2) == P.size(-2) == B.size(-2)
@@ -795,49 +803,18 @@ class SSMKernelDPLR(SSMKernel):
         # Register parameters
         self.C = nn.Parameter(_c2r(_resolve_conj(C)))
 
-        self.register('log_dt', log_dt, self.lr_dict['dt'], self.wd_dict['dt'])
+        self.register('inv_dt', inv_dt, self.lr_dict['dt'], self.wd_dict['dt'])
         self.register('B', _c2r(B), self.lr_dict['B'], self.wd_dict['B'])
         self.register('P', _c2r(P), self.lr_dict['A'], self.wd_dict['A'])
-        self.register('A_real', self._param_init(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
-        self.register('A_imag', self._param_init(-A.imag, self.imag_transform), self.lr_dict['A'], self.wd_dict['A'])
+        self.register('A_real', inv_transform(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
+        self.register('A_imag', inv_transform(-A.imag, self.imag_transform), self.lr_dict['A'], self.wd_dict['A'])
 
         # Track the current kernel length this is "attuned" to
         self.register_buffer('l_kernel', torch.tensor(0))
 
-    def _param_init(self, param, param_type='none'):
-        """Initialize a re-parameterized (positive) parameter."""
-        param = torch.clamp(param, min=1e-4)
-        if param_type == 'none':
-            return param
-        elif param_type == 'exp':
-            return torch.log(param) # Some of the HiPPO methods have real part 0
-        elif param_type == 'relu':
-            return param
-        elif param_type == 'sigmoid':
-            return torch.logit(param)
-        elif param_type == 'softplus':
-            return torch.log(torch.exp(param)-1)
-        else: raise NotImplementedError
-
-    def _param(self, param, param_type='none'):
-        """Get a re-parameterized (positive) parameter."""
-        if param_type == 'none':
-            p = param
-        elif param_type == 'exp':
-            p = torch.exp(param)
-        elif param_type == 'relu':
-            # JAX version seems to NaN if you allow 0's, although this code was fine without it
-            p = F.relu(param)+1e-4
-        elif param_type == 'sigmoid':
-            p = F.sigmoid(param)
-        elif param_type == 'softplus':
-            p = F.softplus(param)
-        else: raise NotImplementedError
-        return p
-
     def _A(self):
         """Get the internal A (diagonal) parameter."""
-        return -self._param(self.A_real, self.real_transform) - 1j * self._param(self.A_imag, self.imag_transform)
+        return -param_transform(self.A_real, self.real_transform) - 1j * param_transform(self.A_imag, self.imag_transform)
 
     def forward(self, state=None, rate=1.0, L=None):
         """See Kernel.forward() for argument documentation."""
@@ -857,9 +834,9 @@ class SSMKernelDPLR(SSMKernel):
             self._setup_C(continuous_L)
         discrete_L = round(self.l_kernel.item()/rate)
 
-        if self.dt_fast: log_dt = torch.sinh(self.log_dt)
-        else: log_dt = self.log_dt
-        dt = torch.exp(log_dt) * rate  # (H N)
+        if self.dt_fast: inv_dt = torch.sinh(self.inv_dt)
+        else: inv_dt = self.inv_dt
+        dt = param_transform(inv_dt, self.dt_transform) * rate  # (H N)
         B = _r2c(self.B)
         C = _r2c(self.C)
         P = _r2c(self.P)
@@ -996,7 +973,7 @@ class SSMKernelDPLR(SSMKernel):
         A = repeat(A, 't n -> (v t) n', v=self.repeat)
 
         # Prepare Linear stepping
-        dt = torch.exp(self.log_dt)
+        dt = param_transform(self.inv_dt, self.dt_transform)
         D = (2.0 / dt - A).reciprocal()  # (H, N)
         R = (torch.eye(self.rank, dtype=A.dtype, device=A.device) + 2*contract('r h n, h n, s h n -> h r s', Q, D, P).real) # (H R R)
         Q_D = rearrange(Q*D, 'r h n -> h r n')

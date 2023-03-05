@@ -206,6 +206,14 @@ def nplr(measure, N, rank=1, dtype=torch.float, diagonalize_precision=True):
     i.e. A = V[w - p q^*]V^*, B = V B
     """
 
+    tokens = measure.split('-')
+    measure = tokens[0]
+    if len(tokens) > 1:
+        assert len(tokens) == 2
+        B_clip = float(tokens[1])
+    else:
+        B_clip = None
+
     assert dtype == torch.float or dtype == torch.double
     cdtype = torch.cfloat if dtype == torch.float else torch.cdouble
 
@@ -262,6 +270,9 @@ def nplr(measure, N, rank=1, dtype=torch.float, diagonalize_precision=True):
     B = contract('ij, j -> i', V_inv, B.to(V)) # V^* B
     # C = contract('ij, j -> i', V_inv, C.to(V)) # V^* C
     P = contract('ij, ...j -> ...i', V_inv, P.to(V)) # V^* P
+
+    if B_clip is not None:
+        B = B.real + 1j*torch.clamp(B.imag, min=-B_clip, max=B_clip)
 
     # W represents the imaginary part of the DPLR form: A = W - PP^*
     # Downstream classes just call this A for simplicity,
