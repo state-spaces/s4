@@ -2,6 +2,7 @@ numpy
 scipy
 pandas
 sklearn
+scikit-learn # This is the sklearn required by pytorch-lightning
 matplotlib
 tqdm
 rich
@@ -20,6 +21,8 @@ transformers # For some schedulers
 
 # Dataset specific packages
 torchtext # LRA
+torchvision # LRA
+torchaudio # LRA
 datasets # LRA
 # gluonts
 # timm
