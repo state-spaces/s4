@@ -19,7 +19,6 @@ import torch.nn.functional as F
 from torch import Tensor # For type hints
 import numpy as np
 from einops import rearrange, repeat
-from opt_einsum import contract, contract_expression
 
 import src.models.hippo.hippo as hippo
 import src.models.sequence.kernels.dplr as dplr
@@ -28,7 +27,8 @@ import src.utils.train
 
 log = src.utils.train.get_logger(__name__)
 
-try: # Try CUDA extension
+# Try CUDA extension
+try:
     from extensions.kernels.cauchy import cauchy_mult as cauchy_cuda
     from extensions.kernels.vandermonde import log_vandermonde_cuda
     has_cuda_extension = True
@@ -61,6 +61,8 @@ from src.models.functional.vandermonde import log_vandermonde_transpose_naive
 # Base Kernel class
 from src.models.sequence.kernels.kernel import Kernel
 
+# Alias torch.einsum; can easily swap to opt_einsum if desired
+contract = torch.einsum
 
 _isnan = lambda x: torch.isnan(x).any()
 _isinf = lambda x: torch.isinf(x).any()
@@ -1017,7 +1019,6 @@ class SSMKernelDPLR(SSMKernel):
         else:
             assert state.size(-1) == 2*self.N
             step_params = {k: _conj(v) for k, v in step_params.items()}
-            # TODO worth setting up a contract_expression in default_state if we want to use this at inference time for stepping
             contract_fn = lambda p, x, y: contract('r h n, r h m, ... h m -> ... h n', p, x, y) # inner outer product
         D = step_params["D"]  # (H N)
         E = step_params["E"]  # (H N)
@@ -1051,7 +1052,8 @@ class SSMKernelDPLR(SSMKernel):
 
     def _step_state(self, u, state):
         """ Must be called after self.default_state() is used to construct an initial state!  """
-        next_state = self.state_contraction(self.dA, state) + self.input_contraction(self.dB, u)
+        next_state = (torch.einsum(self.state_contraction, self.dA, state)
+                     + torch.einsum(self.input_contraction, self.dB, u))
         return next_state
 
     def _setup_step(self, mode='dense'):
@@ -1109,30 +1111,14 @@ class SSMKernelDPLR(SSMKernel):
             N *= 2
 
             if step_mode == 'diagonal':
-                self.state_contraction = contract_expression(
-                    "h n, ... h n -> ... h n",
-                    (H, N),
-                    batch_shape + (H, N),
-                )
+                self.state_contraction = "h n, ... h n -> ... h n"
             else:
                 # Dense (quadratic) case: expand all terms
-                self.state_contraction = contract_expression(
-                    "h m n, ... h n -> ... h m",
-                    (H, N, N),
-                    batch_shape + (H, N),
-                )
+                self.state_contraction = "h m n, ... h n -> ... h m"
 
-            self.input_contraction = contract_expression(
-                "h n, ... h -> ... h n",
-                (H, N), # self.dB.shape
-                batch_shape + (H,),
-            )
+            self.input_contraction = "h n, ... h -> ... h n"
 
-        self.output_contraction = contract_expression(
-            "c h n, ... h n -> ... c h",
-            (C.shape[0], H, N), # self.dC.shape
-            batch_shape + (H, N),
-        )
+        self.output_contraction = "c h n, ... h n -> ... c h"
 
         state = torch.zeros(*batch_shape, H, N, dtype=C.dtype, device=C.device)
         return state
@@ -1144,5 +1130,5 @@ class SSMKernelDPLR(SSMKernel):
             new_state = self._step_state_linear(u, state)
         else:
             new_state = self._step_state(u, state)
-        y = self.output_contraction(self.dC, new_state)
+        y = torch.einsum(self.output_contraction, self.dC, new_state)
         return y.real, new_state

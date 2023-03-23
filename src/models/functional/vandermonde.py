@@ -2,7 +2,8 @@
 
 import torch
 from einops import rearrange, repeat
-from opt_einsum import contract
+
+contract = torch.einsum
 
 try:
     import pykeops

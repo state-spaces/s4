@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from opt_einsum import contract
 
 
 def stochastic_depth(input: torch.tensor, p: float, mode: str, training: bool = True):

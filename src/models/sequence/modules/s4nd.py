@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange, repeat, reduce
-from opt_einsum import contract
 
 from src.models.sequence import SequenceModule
 from src.models.sequence.kernels import registry as kernel_registry
@@ -14,6 +13,9 @@ import src.utils.train
 import src.utils as utils
 
 log = src.utils.train.get_logger(__name__)
+
+contract = torch.einsum
+
 
 def multiple_axis_slice(x, L):
     """

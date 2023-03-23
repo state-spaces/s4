@@ -6,7 +6,9 @@ import torch.nn.functional as F
 import numpy as np
 from scipy import special as ss
 from einops import rearrange, repeat
-from opt_einsum import contract
+
+contract = torch.einsum
+
 
 def embed_c2r(A):
     A = rearrange(A, '... m n -> ... m () n ()')

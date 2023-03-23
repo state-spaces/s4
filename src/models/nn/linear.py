@@ -6,9 +6,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from opt_einsum import contract
 
 from src.models.nn.activation import Activation
+
+contract = torch.einsum
 
 def get_initializer(name, activation=None):
     if activation in [ None, 'id', 'identity', 'linear', 'modrelu' ]:

@@ -10,13 +10,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig
 from einops import rearrange, repeat, reduce
-from opt_einsum import contract
 
 import src.utils as utils
 from src.models.sequence.base import SequenceModule
 from src.models.sequence.modules.pool import DownPool, UpPool, up_registry, registry as down_registry
 from src.models.sequence.backbones.block import SequenceResidualBlock
 
+contract = torch.einsum
 
 class SequenceUNet(SequenceModule):
     """UNet backbone for 1-D sequence models.

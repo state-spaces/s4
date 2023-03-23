@@ -4,11 +4,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange, repeat
-from opt_einsum import contract
 
 from src.models.sequence import SequenceModule
 from src.models.sequence.kernels import registry as kernel_registry
 from src.models.nn import Activation, DropoutNd
+
+contract = torch.einsum
 
 class FFTConv(SequenceModule):
     """Implements an FFT Convolution around a convolution kernel.
@@ -35,6 +36,7 @@ class FFTConv(SequenceModule):
         transposed=True,
         dropout=0.0,
         tie_dropout=False,
+        drop_kernel=0.0,
         mode='dplr',
         kernel=None,
         **kernel_args,  # Arguments passed into inner convolution kernel
@@ -75,6 +77,7 @@ class FFTConv(SequenceModule):
 
         dropout_fn = DropoutNd if tie_dropout else nn.Dropout
         self.drop = dropout_fn(dropout) if dropout > 0.0 else nn.Identity()
+        self.drop_kernel = nn.Dropout(drop_kernel) if drop_kernel > 0.0 else nn.Identity()
 
     def forward(self, x, state=None, rate=1.0, **kwargs): # absorbs return_output and transformer src mask
         """
@@ -100,6 +103,9 @@ class FFTConv(SequenceModule):
             # k = F.pad(k0, (0, L)) \
             #         + F.pad(k1[..., 1:].flip(-1), (L+1, 0)) \
             #         + F.pad(k1[..., :1], (0, l_kernel+L-1))
+
+        # Kernel dropout
+        k = self.drop_kernel(k)
 
         k_f = torch.fft.rfft(k, n=l_kernel+L) # (C H L)
         x_f = torch.fft.rfft(x, n=l_kernel+L) # (B H L)

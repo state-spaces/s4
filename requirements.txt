@@ -12,7 +12,6 @@ hydra-core
 omegaconf
 wandb
 einops
-opt_einsum
 cmake # For pykeops support
 pykeops # If there are installation problems with pykeops==2.x, try pykeops==1.5
 transformers # For some schedulers

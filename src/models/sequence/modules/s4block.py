@@ -6,7 +6,6 @@ import torch.nn.functional as F
 import torch.nn.utils as U
 from functools import partial
 from einops import rearrange, repeat
-from opt_einsum import contract
 
 from src.models.nn import LinearActivation, Activation, DropoutNd
 from src.models.sequence.base import SequenceModule
@@ -14,6 +13,9 @@ from src.models.sequence.kernels.fftconv import FFTConv
 
 import src.utils.train
 log = src.utils.train.get_logger(__name__)
+
+contract = torch.einsum
+
 
 class S4Block(SequenceModule):
     """General block design wrapping an inner layer. Currently only layer=FFTConv is supported, but easy to incorporate others.
