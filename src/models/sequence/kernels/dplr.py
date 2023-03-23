@@ -6,6 +6,9 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 import src.models.hippo.hippo as hippo
 
+import src.utils.train
+log = src.utils.train.get_logger(__name__)
+
 def dplr(
     init='hippo',
     N=64, rank=1, H=1,
@@ -71,7 +74,7 @@ def dplr(
         imag_part = 1/pi * N * (N/(1+imag_part)-1)
     elif init in ['quadratic', 'quad']:
         imag_part = 1/pi * (1+2*imag_part)**2
-    elif init in ['legs', 'hippo', 'legsd']:
+    elif init in ['legs', 'hippo']:
         A, _, _, _ = hippo.nplr('legsd', N)
         imag_part = -A.imag  # Positive
     else: raise NotImplementedError
@@ -84,7 +87,14 @@ def dplr(
     # Initialize B
     if B_random:
         log.warning("'B_random' is deprecated in favor of B_init='random' and will be deprecated in a future version.")
-    if B_init == 'constant':
+    if init in ['legs', 'hippo']:
+        log.info(f'Initializing with S4D-LegS and ignoring argument {B_init=}')
+        # Special initialization using the HiPPO B matrix
+        # Note that theory (from S4D paper) says that B should be halved
+        # to match DPLR but we drop this 0.5 factor for simplicity
+        _, P, B, _ = hippo.nplr('legs', N, B_clip=2.0)
+        B = repeat(B, 'n -> h n', h=H).clone().contiguous()
+    elif B_init == 'constant':
         B = torch.ones(H, N//2, dtype=dtype)
     elif B_init == 'random':
         B = torch.randn(H, N//2, dtype=dtype)
@@ -99,11 +109,6 @@ def dplr(
     elif B_init == 'unit-ccw':
         z = torch.tensor(torch.exp(2j * pi / N), dtype=dtype)
         B = z ** torch.arange(0, N // 2)
-        B = repeat(B, 'n -> h n', h=H).clone().contiguous()
-    # elif B_init in ['legs', 'hippo', 'legsd']:
-    elif B_init.startswith('legs'):
-        _, P, B, _ = hippo.nplr(B_init, N)
-        B *= 0.5
         B = repeat(B, 'n -> h n', h=H).clone().contiguous()
     else: raise NotImplementedError
     B *= B_scale

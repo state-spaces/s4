@@ -200,21 +200,19 @@ def initial_C(measure, N, dtype=torch.float):
     return C
 
 
-def nplr(measure, N, rank=1, dtype=torch.float, diagonalize_precision=True):
+def nplr(measure, N, rank=1, dtype=torch.float, diagonalize_precision=True, B_clip=2.0):
     """Constructs NPLR form of HiPPO matrices.
 
     Returns w, p, q, V, B such that
     (w - p q^*, B) is unitarily equivalent to the original HiPPO A, B by the matrix V
     i.e. A = V[w - p q^*]V^*, B = V B
-    """
 
-    tokens = measure.split('-')
-    measure = tokens[0]
-    if len(tokens) > 1:
-        assert len(tokens) == 2
-        B_clip = float(tokens[1])
-    else:
-        B_clip = None
+    measure: Name of HiPPO method.
+    N: Size of recurrent A matrix (also known as `d_state` elsewhere).
+    dtype: Single or double precision.
+    diagonalize_precision: Calculate diagonalization in double precision.
+    B_clip: Clip values of B, can help with stability. None for no clipping.
+    """
 
     assert dtype == torch.float or dtype == torch.double
     cdtype = torch.cfloat if dtype == torch.float else torch.cdouble
