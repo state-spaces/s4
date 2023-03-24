@@ -454,8 +454,6 @@ class SSMKernelDiag(SSMKernel):
         self,
         disc: str = 'zoh',  # Change to 'bilinear' to match S4, but should make little difference either way
         dt_fast: bool = False,
-        dt_merge: bool = False,
-        inter_head: bool = False,
         real_transform: str = 'exp',
         imag_transform: str = 'none',
         bandlimit: Optional[float] = None,
@@ -466,8 +464,6 @@ class SSMKernelDiag(SSMKernel):
         super().__init__(**kwargs)
         self.disc = disc
         self.dt_fast = dt_fast
-        self.dt_merge = dt_merge
-        self.inter_head = inter_head
         self.real_transform = real_transform
         self.imag_transform = imag_transform
         self.bandlimit = bandlimit
@@ -483,14 +479,6 @@ class SSMKernelDiag(SSMKernel):
         assert self.kernel in ['cuda', 'keops', 'naive']
 
         if self.dt_fast: inv_dt = torch.asinh(inv_dt)
-
-        if self.dt_merge:
-            assert not self.dt_fast and self.real_transform=='exp' and self.imag_transform=='exp'
-            # Multiplication by exp(inv_dt) is the same as adding to params in log space
-            A = repeat(A, 't n -> (t v) n', v=inv_dt.size(0)//A.size(0))
-            B = repeat(B, 't n -> (t v) n', v=inv_dt.size(0)//B.size(0))
-            A = A * inv_dt.exp()
-            B = B * inv_dt.exp()
 
         # Rank of low-rank correction
         assert self.H == inv_dt.size(0)
@@ -509,7 +497,7 @@ class SSMKernelDiag(SSMKernel):
         self.C = nn.Parameter(_c2r(_resolve_conj(C)))
 
         # Register dt, B, A
-        if not self.dt_merge: self.register("inv_dt", inv_dt, self.lr_dict['dt'], self.wd_dict['dt'])
+        self.register("inv_dt", inv_dt, self.lr_dict['dt'], self.wd_dict['dt'])
         self.register("B", _c2r(B), self.lr_dict['B'], self.wd_dict['B'])
         self.register("A_real", inv_transform(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
         self.register("A_imag", inv_transform(-A.imag, self.imag_transform), self.lr_dict['A'], self.wd_dict['A'])
@@ -521,12 +509,9 @@ class SSMKernelDiag(SSMKernel):
     def forward(self, L, state=None, rate=1.0):
         """See Kernel.forward() for argument documentation."""
 
-        if not self.dt_merge:
-            if self.dt_fast: inv_dt = torch.sinh(self.inv_dt)
-            else: inv_dt = self.inv_dt
-            dt = param_transform(inv_dt, self.dt_transform) * rate # (H N)
-        else:
-            dt = 1.0
+        if self.dt_fast: inv_dt = torch.sinh(self.inv_dt)
+        else: inv_dt = self.inv_dt
+        dt = param_transform(inv_dt, self.dt_transform) * rate # (H N)
         A = self._A() # (H N)
         C = _r2c(self.C) # (C H N)
         B = _r2c(self.B)
@@ -541,12 +526,8 @@ class SSMKernelDiag(SSMKernel):
             C = C * mask
 
         # Incorporate dt into A and B
-        if self.inter_head:
-            A = repeat(A, 't n -> (t v) n', v=self.repeat)
-            B = repeat(B, 'b t n -> b (t v) n', v=self.repeat)
-        else:
-            A = repeat(A, 't n -> (v t) n', v=self.repeat)
-            B = repeat(B, 'b t n -> b (v t) n', v=self.repeat)
+        A = repeat(A, 't n -> (v t) n', v=self.repeat)
+        B = repeat(B, 'b t n -> b (v t) n', v=self.repeat)
         dtA = A * dt  # (H N)
 
 
