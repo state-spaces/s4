@@ -13,7 +13,7 @@ python -m generate experiment=lm/s4-wt103 checkpoint_path=checkpoints/s4-wt103.c
 
 The evaluation script `evaluate.py` follows a similar interface to the generation script.
 ```
-python -m evaluate wandb=null experiment=lm/s4-wt103 train.ckpt='/dfs/scratch1/albertgu/projects/hippo/checkpoints/new_wt103_test_new.ckpt' trainer.devices=1 loader.batch_size=1
+python -m checkpoints.evaluate wandb=null experiment=lm/s4-wt103 train.ckpt='/dfs/scratch1/albertgu/projects/hippo/checkpoints/new_wt103_test_new.ckpt' trainer.devices=1 loader.batch_size=1
 ```
 Note that the numbers reported in papers are those logged during training, not numbers reported by this script, which may differ slightly.
 

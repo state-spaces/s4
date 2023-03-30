@@ -14,9 +14,7 @@ from tqdm.auto import tqdm
 
 from src import utils
 from src.dataloaders.audio import mu_law_decode
-from src.models.baselines.samplernn import SampleRNN
 from src.models.baselines.wavenet import WaveNetModel
-from src.models.sequence.ss.s4 import S4
 from train import SequenceLightningModule
 
 def test_step(model):

@@ -33,8 +33,17 @@ See [CHANGELOG.md](CHANGELOG.md)
 ## Setup
 
 ### Requirements
-This repository requires Python 3.8+ and Pytorch 1.10+.
+This repository requires Python 3.9+ and Pytorch 1.10+.
+It has been tested up to Pytorch 1.13.1.
 Other packages are listed in [requirements.txt](./requirements.txt).
+Some care may be needed to make some of the library versions compatible, particularly torch/torchvision/torchaudio/torchtext.
+
+Example installation:
+```
+conda install pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.6 -c pytorch -c nvidia
+pip install -r requirements.txt
+```
+
 
 ### Structured Kernels
 
@@ -241,7 +250,7 @@ generate.py      Autoregressive generation script
 
 
 ## Citation
-If you use this codebase, or otherwise found our work valuable, please cite the S4 paper and [other relevant papers](models/README.md#citations)
+If you use this codebase, or otherwise found our work valuable, please cite S4 and [other relevant papers](models/README.md#citations).
 
 ```
 @inproceedings{gu2022efficiently,

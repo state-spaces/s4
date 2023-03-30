@@ -2,7 +2,7 @@ This README provides configs for various experiments in the S4 papers.
 
 As documented in the main README, adding `wandb=null` to any command line turns off logging.
 
-Some of these datasets may require downloading and preparing data, documented in the [src/dataloaders](./src/dataloaders/) subdirectory.
+Some of these datasets may require downloading and preparing data, documented in the [src/dataloaders](/src/dataloaders/) subdirectory.
 
 ## Long Range Arena (LRA)
 
