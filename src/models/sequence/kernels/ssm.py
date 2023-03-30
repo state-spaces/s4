@@ -185,6 +185,7 @@ class SSMKernel(Kernel):
         assert self.n_ssm % B.size(-2) == 0 \
                 and self.n_ssm % P.size(-2) == 0 \
                 and self.n_ssm % A.size(-2) == 0
+
         # Broadcast tensors to n_ssm copies
         # These will be the parameters, so make sure tensors are materialized and contiguous
         B = repeat(B, 't n -> (v t) n', v=self.n_ssm // B.size(-2)).clone().contiguous()
@@ -446,7 +447,7 @@ class SSMKernelDiag(SSMKernel):
         Parameterize the real/imag parts of the diagonal of A under this function.
     bandlimit: Mask high frequencies of the kernel (indices corresponding to
         diagonal elements with large imaginary part). Introduced in S4ND paper.
-    kernel: ['cuda' | 'keops' | 'naive'] Options for Cauchy kernel (in order of efficiency).
+    kernel: ['cuda' | 'keops' | 'naive'] Options for Vandermonde/Cauchy kernel (in order of efficiency).
     force_real : Force A to have 0 imaginary part, to emulate EMA.
     """
 
@@ -472,17 +473,37 @@ class SSMKernelDiag(SSMKernel):
 
         # Initialize dt, A, B, C
         inv_dt = self.init_dt()
-        A, _, B, C = self.init_ssm_dplr()
-        self.register_params(A, B, C, inv_dt)
+        A, P, B, C = self.init_ssm_dplr()
+        # Note that in the Diag case, P will be ignored
+        # The DPLR case subclasses this and uses P
+        self.register_params(A, B, C, inv_dt, P)
 
-    def register_params(self, A, B, C, inv_dt):
+    def register_params(self, A, B, C, inv_dt, P):
+        """Process the initialization into form of trainable parameters.
+
+        A: (S, N) diagonal matrix
+        B: (S, N)
+        C: (C, H, N)
+        dt: (H) timescale per feature
+
+        Dimensions:
+        N (or d_state): state size
+        H (or d_model): total SSM copies
+        S (or n_ssm): number of trainable copies of (A, B, dt); must divide H
+        C (or channels): system is 1-dim to C-dim
+
+        The forward pass of this Module returns a tensor of shape (C, H, L)
+
+        Note: tensor shape N here denotes half the true state size, because of conjugate symmetry
+        """
+
         assert self.kernel in ['cuda', 'keops', 'naive']
 
         if self.dt_fast: inv_dt = torch.asinh(inv_dt)
 
         # Rank of low-rank correction
         assert self.H == inv_dt.size(0)
-        assert self.N == A.size(-1) == C.size(-1)
+        assert self.N == A.size(-1) == B.size(-1) == C.size(-1)
         assert self.n_ssm == A.size(-2) == B.size(-2) # Number of independent SSMs trained
         self.repeat = self.H // A.size(0)
 
@@ -491,6 +512,8 @@ class SSMKernelDiag(SSMKernel):
         # since it may be constructed by a diagonalization)
         assert torch.all(A.real < 1e-4) and torch.all(A.imag <= 0.0)
 
+        # Broadcast everything to correct shapes
+        C = C.expand(torch.broadcast_shapes(C.shape, (1, self.H, self.N))) # (C, H, N)  # TODO originally this was only in DPLR, check safe for Diag
         B = B.unsqueeze(0) # (1, H, N)
 
         assert self.channels == C.shape[0]
@@ -502,19 +525,17 @@ class SSMKernelDiag(SSMKernel):
         self.register("A_real", inv_transform(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
         self.register("A_imag", inv_transform(-A.imag, self.imag_transform), self.lr_dict['A'], self.wd_dict['A'])
 
-    def _A(self):
-        """Get the internal A (diagonal) parameter."""
-        return -param_transform(self.A_real, self.real_transform) - 1j * param_transform(self.A_imag, self.imag_transform)
+    def _get_params(self, rate=1.0):
+        """Process the internal parameters."""
 
-    def forward(self, L, state=None, rate=1.0):
-        """See Kernel.forward() for argument documentation."""
+        # (S N) where S=n_ssm
+        A = -param_transform(self.A_real, self.real_transform) - 1j * param_transform(self.A_imag, self.imag_transform)
+        B = _r2c(self.B) # (1 S N)
+        C = _r2c(self.C) # (C H N)
 
         if self.dt_fast: inv_dt = torch.sinh(self.inv_dt)
         else: inv_dt = self.inv_dt
         dt = param_transform(inv_dt, self.dt_transform) * rate # (H N)
-        A = self._A() # (H N)
-        C = _r2c(self.C) # (C H N)
-        B = _r2c(self.B)
 
         # Force A to be real valued, so the whole kernel can be interpreted as a "multi-head EMA"
         if self.force_real:
@@ -526,10 +547,21 @@ class SSMKernelDiag(SSMKernel):
             C = C * mask
 
         # Incorporate dt into A and B
-        A = repeat(A, 't n -> (v t) n', v=self.repeat)
-        B = repeat(B, 'b t n -> b (v t) n', v=self.repeat)
-        dtA = A * dt  # (H N)
+        A = repeat(A, 't n -> (v t) n', v=self.repeat)  # (H N)
+        B = repeat(B, 'b t n -> b (v t) n', v=self.repeat)  # (1 H N)
 
+        # TODO: The downstream algorithm should only need to access dt*A
+        # However the current DPLR kernel still uses dt and A separately
+        # Once that is fixed, this should return dtA instead of dt and A
+        dtA = dt * A  # (H N)
+
+        return dt, A, B, C
+
+    def forward(self, L, state=None, rate=1.0):
+        """See Kernel.forward() for argument documentation."""
+
+        dt, A, B, C = self._get_params(rate)
+        dtA = dt * A
 
         # Augment B with state
         if state is not None:
@@ -582,7 +614,7 @@ class SSMKernelDiag(SSMKernel):
 
             C = C * num * r             # [C H N]
             K = contract('chn,hnl->chl', C, S).float()
-        else: assert False, f"{self.disc} not supported"
+        else: raise ValueError(f"Discretization {self.disc} not supported")
 
         K = K.view(-1, self.channels, self.H, L) # (1+B C H L)
 
@@ -595,25 +627,20 @@ class SSMKernelDiag(SSMKernel):
         return K, K_state
 
     def _setup_step(self):
-        # These methods are organized like this to be compatible with the NPLR kernel interface
-        dt = param_transform(self.inv_dt, self.dt_transform) # (H)
-        B = _r2c(self.B) # (H N)
-        C = _r2c(self.C) # (C H N)
-        self.dC = C
-        A = self._A() # (H N)
+        """Set up dA, dB, dC discretized parameters for stepping."""
 
-        A = repeat(A, 't n -> (v t) n', v=self.repeat)       # (H N)
-        B = repeat(B, '1 t n -> (v t) n', v=self.repeat)[0]  # (H N)
-
+        dt, A, B, C, = self._get_params()
         # Incorporate dt into A
-        dtA = A * dt  # (H N)
+        dtA = dt * A  # (H N)
+
         if self.disc == 'zoh':
             self.dA = torch.exp(dtA) # (H N)
             self.dB = B * (torch.exp(dtA)-1.) / A # (C H N)
         elif self.disc == 'bilinear':
             self.dA = (1. + dtA/2) / (1. - dtA/2)
             self.dB = B * (1. - dtA/2).reciprocal() * dt # or * dtA / A
-
+        self.dB = rearrange(self.dB, '1 h n -> h n')
+        self.dC = C
 
     def default_state(self, *batch_shape):
         C = _r2c(self.C)
@@ -627,6 +654,7 @@ class SSMKernelDiag(SSMKernel):
         return 2*y.real, next_state
 
     def forward_state(self, u, state):
+        """Pass the state forward through an entire sequence."""
         self._setup_step()
         AL = self.dA ** u.size(-1)
         u = u.flip(-1).to(self.dA).contiguous() # (B H L)
@@ -639,20 +667,8 @@ class SSMKernelDiag(SSMKernel):
         next_state = AL * state + v
         return next_state
 
-class SSMKernelDPLR(SSMKernel):
-    """SSM kernel for diagonal + low rank state matrices (original S4 model).
-
-    Stores a representation of and computes the SSMKernel function K_L(dt, A, B, C) corresponding to a discretized state space, where A is Diagonal + Low Rank (DPLR).
-
-    Options:
-    dt_fast:  (experimental) Parameterize inv_dt under sinh function.
-        (Ohno et al. "Fast Saturating Gate for Learning Long Time Scales with RNNs")
-    real_transform, imag_transform: ['none' | 'exp' | 'relu' | 'sigmoid' | 'softplus']
-        Parameterize the real/imag parts of the diagonal of A under this function.
-    bandlimit: Mask high frequencies of the kernel (indices corresponding to
-        diagonal elements with large imaginary part). Introduced in S4ND paper.
-    kernel: ['cuda' | 'keops' | 'naive'] Options for Cauchy kernel (in order of efficiency).
-    """
+class SSMKernelDPLR(SSMKernelDiag):
+    """SSM kernel for diagonal + low rank (DPLR) state matrices, corresponding to the original S4 model."""
 
     @torch.no_grad()
     def _setup_C(self, L):
@@ -706,44 +722,22 @@ class SSMKernelDPLR(SSMKernel):
             self.z = z
         return omega, z
 
-    def __init__(
-        self,
-        dt_fast: bool = False,
-        real_transform: str = 'exp',
-        imag_transform: str = 'none',
-        bandlimit: Optional[float] = None,
-        kernel: str = 'cuda',
-        **kwargs,
-    ):
 
-        super().__init__(**kwargs)
-        self.dt_fast = dt_fast
-        self.real_transform = real_transform
-        self.imag_transform = imag_transform
-        self.bandlimit = bandlimit
-        self.kernel = kernel
+    def register_params(self, A, B, C, inv_dt, P):
+        """Process the initialization into form of trainable parameters.
 
-        inv_dt = self.init_dt()
-        A, P, B, C = self.init_ssm_dplr()
-        self.register_params(A, P, B, C, inv_dt)
-
-    def register_params(self, A, P, B, C, inv_dt):
-        """
         The SSM state matrix is represented by diag_embed(A) - PP^*
         Note that the A notation here is slightly overloaded:
         normally A refers to the full SSM state matrix (DPLR in this case)
         but here we're using it to refer to the diagonal part of the matrix.
         This is to make variable names compatible with the SSMKernelDiag class (DSS/S4D)
-        and is a much simpler variable name (e.g. as opposed to Lambda)
+        and is a much simpler variable name (e.g. as opposed to Lambda).
 
         A: (S, N) diagonal part
         P: (R, S, N) low-rank part
-
         B: (S, N)
         C: (C, H, N)
-        L: Maximum length; this module computes an SSM kernel of length L
         dt: (H) timescale per feature
-        lr: [dict | float | None] hook to set lr of special parameters (A, B, dt)
 
         Dimensions:
         N (or d_state): state size
@@ -761,43 +755,26 @@ class SSMKernelDPLR(SSMKernel):
         if self.verbose:
             log.info(f"Constructing S4 (H, N, L) = ({self.H}, {self.N}, {self.l_max})")
 
-        if self.dt_fast: inv_dt = torch.asinh(inv_dt)
+        # Register the basic params for diagonal SSM (A, B, C, dt)
+        super().register_params(A, B, C, inv_dt, P)
 
-        assert self.kernel in ['cuda', 'keops', 'naive']
-
-        # Rank of low-rank correction
+        # Check shapes
         assert self.rank == P.shape[-3]
-        assert self.N == A.size(-1) == P.size(-1) == B.size(-1) == C.size(-1)
-        assert self.H == inv_dt.size(0)
+        assert self.N == P.size(-1)
+        assert self.n_ssm == P.size(-2)
 
-        # Check different SSM inits
-        assert self.n_ssm == A.size(-2) == P.size(-2) == B.size(-2)
-        self.repeat = self.H // A.size(0)  # Each trainable SSM needs to be duplicated this many times
-
-        # Check that diagonal part has negative real and imag part
-        # (allow some tolerance for numerical precision on real part
-        # since it may be constructed by a diagonalization)
-        assert torch.all(A.real < 1e-4) and torch.all(A.imag <= 0.0)
-
-        # Broadcast everything to correct shapes
-        C = C.expand(torch.broadcast_shapes(C.shape, (1, self.H, self.N))) # (C, H, N)
-        B = B.unsqueeze(0) # (1, H, N)
-
-        # Register parameters
-        self.C = nn.Parameter(_c2r(_resolve_conj(C)))
-
-        self.register('inv_dt', inv_dt, self.lr_dict['dt'], self.wd_dict['dt'])
-        self.register('B', _c2r(B), self.lr_dict['B'], self.wd_dict['B'])
         self.register('P', _c2r(P), self.lr_dict['A'], self.wd_dict['A'])
-        self.register('A_real', inv_transform(-A.real, self.real_transform), self.lr_dict['A'], self.wd_dict['A'])
-        self.register('A_imag', inv_transform(-A.imag, self.imag_transform), self.lr_dict['A'], self.wd_dict['A'])
 
         # Track the current kernel length this is "attuned" to
         self.register_buffer('l_kernel', torch.tensor(0))
 
-    def _A(self):
-        """Get the internal A (diagonal) parameter."""
-        return -param_transform(self.A_real, self.real_transform) - 1j * param_transform(self.A_imag, self.imag_transform)
+    def _get_params(self, rate=1.0):
+        dt, A, B, C = super()._get_params(rate=rate)
+        P = _r2c(self.P)  # (R S N)
+        P = repeat(P, 'r t n -> r (v t) n', v=self.repeat)  # (R H N)
+        Q = P.conj()
+
+        return dt, A, B, C, P, Q
 
     def forward(self, state=None, rate=1.0, L=None):
         """See Kernel.forward() for argument documentation."""
@@ -817,30 +794,10 @@ class SSMKernelDPLR(SSMKernel):
             self._setup_C(continuous_L)
         discrete_L = round(self.l_kernel.item()/rate)
 
-        if self.dt_fast: inv_dt = torch.sinh(self.inv_dt)
-        else: inv_dt = self.inv_dt
-        dt = param_transform(inv_dt, self.dt_transform) * rate  # (H N)
-        B = _r2c(self.B)
-        C = _r2c(self.C)
-        P = _r2c(self.P)
-        Q = P.conj()
-        A = self._A() # (S, N) where S=n_ssm
-
-        # Address bandlimiting
-        if self.bandlimit is not None:
-            freqs = A.imag.abs() / (2*math.pi)  # (H, N)
-            freqs = dt / rate * freqs  # (H, N)
-            mask = torch.where(freqs < self.bandlimit * .5, 1, 0)
-            C = C * mask
+        dt, A, B, C, P, Q = self._get_params(rate)
 
         # Get FFT nodes of right length
         omega, z = self._omega(discrete_L, dtype=A.dtype, device=A.device, cache=(rate==1.0))
-
-        # Broadcast parameters to same hidden features H
-        B = repeat(B, '1 t n -> 1 (v t) n', v=self.repeat)
-        P = repeat(P, 'r t n -> r (v t) n', v=self.repeat)
-        Q = repeat(Q, 'r t n -> r (v t) n', v=self.repeat)
-        A = repeat(A, 't n -> (v t) n', v=self.repeat)
 
         # Augment B
         if state is not None:
@@ -943,20 +900,10 @@ class SSMKernelDPLR(SSMKernel):
 
     @torch.no_grad()
     def _setup_linear(self):
-        """ Create parameters that allow fast linear stepping of state """
-        A = self._A()
-        B = _r2c(self.B) # (H N)
-        P = _r2c(self.P)
-        Q = P.conj()
-
-        # Broadcast shapes properly
-        B = repeat(B, '1 t n -> 1 (v t) n', v=self.repeat)
-        P = repeat(P, 'r t n -> r (v t) n', v=self.repeat)
-        Q = repeat(Q, 'r t n -> r (v t) n', v=self.repeat)
-        A = repeat(A, 't n -> (v t) n', v=self.repeat)
+        """Preprocessing that allows fast linear-time (in state dimension) stepping."""
+        dt, A, B, C, P, Q = self._get_params()
 
         # Prepare Linear stepping
-        dt = param_transform(self.inv_dt, self.dt_transform)
         D = (2.0 / dt - A).reciprocal()  # (H, N)
         R = (torch.eye(self.rank, dtype=A.dtype, device=A.device) + 2*contract('r h n, h n, s h n -> h r s', Q, D, P).real) # (H R R)
         Q_D = rearrange(Q*D, 'r h n -> h r n')
@@ -979,11 +926,12 @@ class SSMKernelDPLR(SSMKernel):
         """
         Version of the step function that has time O(N) instead of O(N^2) per step, which takes advantage of the DPLR form and bilinear discretization.
 
-        Unfortunately, as currently implemented it's about 2x slower because it calls several sequential operations. Perhaps a fused CUDA kernel implementation would be much faster
+        Unfortunately, as currently implemented it's about 2x slower because it calls several sequential operations.
+        Perhaps a fused CUDA kernel implementation would be much faster.
 
-        u: (H) input
-        state: (H, N/2) state with conjugate pairs
-          Optionally, the state can have last dimension N
+        u: (H) Input
+        state: (H, N/2) State with conjugate pairs. Optionally, the state can have last dimension N.
+
         Returns: same shape as state
         """
         C = _r2c(self.C) # View used for dtype/device
@@ -1015,7 +963,7 @@ class SSMKernelDPLR(SSMKernel):
         return new_state
 
     def _setup_state(self):
-        """ Construct dA and dB for discretized state equation """
+        """Construct dA and dB for discretized state equation."""
 
         # Construct dA and dB by using the stepping
         self._setup_linear()
@@ -1032,13 +980,13 @@ class SSMKernelDPLR(SSMKernel):
         return dA, dB
 
     def _step_state(self, u, state):
-        """ Must be called after self.default_state() is used to construct an initial state!  """
+        """Must be called after self.default_state() is used to construct an initial state!"""
         next_state = (torch.einsum(self.state_contraction, self.dA, state)
                      + torch.einsum(self.input_contraction, self.dB, u))
         return next_state
 
     def _setup_step(self, mode='dense'):
-        """ Set up dA, dB, dC discretized parameters for stepping """
+        """Set up dA, dB, dC discretized parameters for stepping."""
         self.dA, self.dB = self._setup_state()
 
         # Calculate original C
@@ -1105,7 +1053,7 @@ class SSMKernelDPLR(SSMKernel):
         return state
 
     def step(self, u, state):
-        """ Must have called self._setup_step() and created state with self.default_state() before calling this """
+        """Must have called self._setup_step() and created state with self.default_state() before calling this."""
 
         if self._step_mode == 'linear':
             new_state = self._step_state_linear(u, state)
@@ -1113,3 +1061,15 @@ class SSMKernelDPLR(SSMKernel):
             new_state = self._step_state(u, state)
         y = torch.einsum(self.output_contraction, self.dC, new_state)
         return y.real, new_state
+
+    def forward_state(self, *args, **kwargs):
+        # Dispatch directly to generic state forwarding
+        # instead of using the Diag version
+
+        # TODO design pattern is ugly. Can be fixed with an intermediate
+        # subclass above Diag/DPLR that has the shared logic (parameter construction)
+        # but not the state/step logic.
+        # Fine to keep like this for now since we want Diag to be the standard
+        # instead of having too many layers of subclassing.
+
+        return SSMKernel.forward_state(self, *args, **kwargs)

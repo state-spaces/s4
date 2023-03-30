@@ -172,7 +172,7 @@ class S4Block(SequenceModule):
         self.layer.setup_step(**kwargs)
 
     def step(self, x, state):
-        """ Step one time step as a recurrent model. Intended to be used during validation.
+        """Step one time step as a recurrent model. Intended to be used during validation.
 
         x: (B H)
         state: (B H N)
