@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - /pipeline: pathfinder
+  - /model: baseline/resnet2d
+
+encoder: null
+decoder: nd
+
+dataset:
+  sequential: false
+  resolution: 128
+
+train:
+  seed: 1111
+
+optimizer:
+  lr: 0.001
+
+loader:
+  batch_size: 100
+
+trainer:
+  max_epochs: 100
+
+scheduler:
+  patience: 10

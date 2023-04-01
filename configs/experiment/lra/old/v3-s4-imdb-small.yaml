@@ -1,0 +1,44 @@
+# @package _global_
+defaults:
+  - /pipeline: imdb
+  - /model: s4
+  - override /scheduler: cosine_warmup
+
+model:
+  dropout: 0.0
+  n_layers: 4
+  d_model: 128
+  prenorm: true
+  norm: batch
+  layer:
+    d_state: 64
+    lr:
+      dt: null
+      A: 0.001
+      B: 0.001
+    dt_min: 0.001
+    dt_max: 0.1
+    init: legs
+    bidirectional: true
+    final_act: glu
+    n_ssm: ${..d_model}
+
+dataset:
+  l_max: 4096
+  level: char
+
+loader:
+  batch_size: 50
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.0
+
+scheduler:
+  num_training_steps: 25000
+
+trainer:
+  max_epochs: 50
+
+train:
+  seed: 2222

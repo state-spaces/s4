@@ -1,0 +1,39 @@
+# @package _global_
+defaults:
+  - /pipeline: pathx
+  - /model: s4
+  - override /scheduler: cosine_warmup
+
+scheduler:
+  num_training_steps: 500000 # 50 epochs
+  num_warmup_steps: 50000
+
+model:
+  dropout: 0.
+  n_layers: 6
+  prenorm: true
+  d_model: 256
+  norm: batch
+  layer:
+    d_state: 64
+    lr: 0.001
+    dt_min: 0.0001
+    dt_max: 0.1
+    init: legs
+    bidirectional: true
+    final_act: glu
+    n_ssm: null
+
+loader:
+  batch_size: 16
+
+optimizer:
+  lr: 0.002
+  weight_decay: 0.05
+
+trainer:
+  max_epochs: 50
+
+train:
+  seed: 3333
+  interval: step # For cosine scheduler
