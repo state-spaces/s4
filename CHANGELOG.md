@@ -2,22 +2,29 @@
 
 ### Roadmap
 
+<!--
 - Incorporate FlashConv implementation of faster FFT convolution.
 - Add setup.py file for independent installation
-- Some small improvements to S4 and improve experiment configs (e.g. LRA)
+-->
 
 
-### [4.0.0a] - 2023-02-28
+### [4.0.0] - 2023-03-31
 
 
 #### Breaking Changes to Models
 - The CUDA kernel has been updated and must be recompiled.
-- The shape of the `log_dt` parameter inside the S4 kernel now has shape `(H, 1)` instead of `(H,)`, where `H` is the model dimension (`d_model`).
-- The DPLR S4 kernel had a parameter `inv_w_real` and the diagonal S4 kernel (S4D) had a parameter called called `inv_A_real`. They are now both called `A_real`. The NPLR S4 kernel's parameter `w_imag` is now called `A_imag`.
+- A few parameters inside the S4(D) kernels have had their name change
 
 To address differences between models trained on earlier versions and the current V4:
 - The CUDA kernel should be re-compiled if moving between versions of this codebase.
 - The script `checkpoints/port_v3_to_v4.py` can be used to convert models (see below).
+
+
+#### New models
+- [S4ND](models/s4nd/)
+- Recent new models based on or closely related to S4, such as [GSS and Mega](models/related/)
+- Other [long convolution kernels](src/models/sequence/kernels/) such as simple "wide kernel CNN" baseline (`model.layer.mode=conv`)
+
 
 #### Repository Restructuring
 
@@ -36,11 +43,6 @@ To address differences between models trained on earlier versions and the curren
 - `/checkpoints/evaluate.py` takes a trained model and prints metrics on evaluation datasets.
 - `/checkpoints/port_v3_to_v4.py` converts a model from V3 to V4 code.
 
-
-#### New models
-- [S4ND](models/s4nd/)
-- Recent new models based on or closely related to S4, such as [GSS and Mega](models/related/)
-- Other [long convolution kernels](src/models/sequence/kernels/) such as simple "wide kernel CNN" baseline (`model.layer.mode=conv`)
 
 #### S4 layer
 - `model.layer.measure` has been renamed to `model.layer.init`. The name `measure` originally referred to approximation measures in the HiPPO theory, but they are only used as initialization in trainable SSM models. There are also many more initializations not based on the HiPPO theory, even the simple S4D-Lin model from the [minimal S4D standalone](models/s4/).

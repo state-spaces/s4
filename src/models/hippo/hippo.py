@@ -19,7 +19,7 @@ def embed_c2r(A):
 # TODO take in 'torch' option to return torch instead of numpy, and converts the shape of B from (N, 1) to (N)
 # TODO remove tlagt
 def transition(measure, N, **measure_args):
-    """ A, B transition matrices for different measures
+    """A, B transition matrices for different measures.
 
     measure: the type of measure
       legt - Legendre (translated)

@@ -76,7 +76,7 @@ model = {
 layer = {
     "id":         "src.models.sequence.base.SequenceIdentity",
     "lstm":       "src.models.baselines.lstm.TorchLSTM",
-    "standalone": "src.models.s4.s4.S4",
+    "standalone": "models.s4.s4.S4Block",
     "s4d":        "src.models.s4.s4d.S4D",
     "ffn":        "src.models.sequence.modules.ffn.FFN",
     "sru":        "src.models.sequence.rnns.sru.SRURNN",

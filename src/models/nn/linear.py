@@ -46,7 +46,7 @@ def LinearActivation(
         weight_norm=False,
         **kwargs,
     ):
-    """Returns a linear nn.Module with control over axes order, initialization, and activation"""
+    """Returns a linear nn.Module with control over axes order, initialization, and activation."""
 
     # Construct core module
     # linear_cls = partial(nn.Conv1d, kernel_size=1) if transposed else nn.Linear
@@ -72,8 +72,9 @@ def LinearActivation(
     return linear
 
 class TransposedLinear(nn.Module):
-    """ Linear module on the second-to-last dimension
-    Assumes shape (B, D, L), where L can be 1 or more axis
+    """Linear module on the second-to-last dimension.
+
+    Assumes shape (B, D, L), where L can be 1 or more axis.
     """
 
     def __init__(self, d_input, d_output, bias=True):
