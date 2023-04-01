@@ -15,13 +15,13 @@ model:
   prenorm: true
   layer:
     rank: 1
-    measure: legs
+    init: legs
     deterministic: false
     d_state: 256
     lr: 0.001
     bidirectional: true
-    postact: glu
-    n_ssm: 2
+    final_act: glu
+    n_ssm: 1
 
 decoder:
   mode: pool

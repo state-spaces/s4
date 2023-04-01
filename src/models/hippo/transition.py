@@ -1,4 +1,4 @@
-""" Utilities to calculate the transitions of the HiPPO ODE x' = Ax + Bu and discrete-time recurrence approximation.
+"""Utilities to calculate the transitions of the HiPPO ODE x' = Ax + Bu and discrete-time recurrence approximation.
 
 Note that these modules were heavily used in LSSL, but is no longed needed for S4.
 """
@@ -10,11 +10,8 @@ import numpy as np
 from scipy import special as ss
 from einops import rearrange
 
-# from extensions.legt.legt import legt_gbt_forward, legt_gbt_backward, legt_gbt_forward_t, legt_gbt_backward_t
-# from trid.trid import trid_gbt_forward, trid_gbt_backward, trid_solve
-# from models.nn.krylov import krylov
 from src.models.hippo.hippo import transition
-from src.models.functional.toeplitz import causal_convolution, causal_convolution_inverse, causal_convolution_inverse_wrong, construct_toeplitz
+from src.models.functional.toeplitz import causal_convolution, causal_convolution_inverse, construct_toeplitz
 
 # TODO figure out if we actually need this
 try:
@@ -32,7 +29,7 @@ except:
 class AdaptiveTransition(nn.Module):
     def __init__(self, N, params, trainable=False, lr=1.0, batch=()):
         """
-        params: dict of Tensors that encode the parameters of the state system A, B
+        params: dict of Tensors that encode the parameters of the state system A, B.
         """
 
         super().__init__()
@@ -87,7 +84,7 @@ class AdaptiveTransition(nn.Module):
         raise NotImplementedError
 
     def forward_mult(self, u, delta):
-        """ Computes (I + delta A) u
+        """Computes (I + delta A) u.
 
         A: (n, n)
         u: (..., n)
@@ -98,15 +95,17 @@ class AdaptiveTransition(nn.Module):
         raise NotImplementedError
 
     def inverse_mult(self, u, delta): # TODO swap u, delta everywhere
-        """ Computes (I - d A)^-1 u """
+        """Computes (I - d A)^-1 u."""
         raise NotImplementedError
 
     def forward_diff(self, d, u, v):
-        """ Computes the 'forward diff' or Euler update rule: (I - d A)^-1 u + d B v
+        """Computes the 'forward diff' or Euler update rule: (I - d A)^-1 u + d B v.
+
         d: (...)
         u: (..., n)
         v: (...)
         """
+
         v = d * v
         v = v.unsqueeze(-1) * self.B
         x = self.forward_mult(u, d)
@@ -114,11 +113,13 @@ class AdaptiveTransition(nn.Module):
         return x
 
     def backward_diff(self, d, u, v):
-        """ Computes the 'forward diff' or Euler update rule: (I - d A)^-1 u + d (I - d A)^-1 B v
+        """Computes the 'forward diff' or Euler update rule: (I - d A)^-1 u + d (I - d A)^-1 B v.
+
         d: (...)
         u: (..., n)
         v: (...)
         """
+
         v = d * v
         v = v.unsqueeze(-1) * self.B
         x = u + v
@@ -126,7 +127,7 @@ class AdaptiveTransition(nn.Module):
         return x
 
     def bilinear(self, dt, u, v, alpha=.5):
-        """ Computes the bilinear (aka trapezoid or Tustin's) update rule.
+        """Computes the bilinear (aka trapezoid or Tustin's) update rule.
 
         (I - d/2 A)^-1 (I + d/2 A) u + d B (I - d/2 A)^-1 B v
 
@@ -134,6 +135,7 @@ class AdaptiveTransition(nn.Module):
         u: (..., N)
         v: (...)
         """
+
         x = self.forward_mult(u, (1-alpha)*dt)
         v = dt * v
         v = v.unsqueeze(-1) * self.B
@@ -145,12 +147,13 @@ class AdaptiveTransition(nn.Module):
         raise NotImplementedError
 
     def gbt_A(self, dt, alpha=.5):
-        """ Compute the transition matrices associated with bilinear transform
+        """Compute the transition matrices associated with bilinear transform.
 
         dt: (...) broadcastable with self.batch_shape
         returns: (..., N, N)
         """
-        # solve (N, ...) parallel problems of size N
+
+        # Solve (N, ...) parallel problems of size N
         dims = max(len(dt.shape), len(self.batch))
         I = self.I.view([self.N] + [1]*dims + [self.N])
         A = self.bilinear(dt, I, dt.new_zeros(*dt.shape), alpha=alpha) # (N, ..., N)
@@ -185,15 +188,16 @@ class ManualAdaptiveTransition(AdaptiveTransition):
 
 
     def quadratic(self, x, y):
-        """ Implements the quadratic form given by the A matrix
+        """Implements the quadratic form given by the A matrix.
         x : (..., N)
         y : (..., N)
         returns: x^T A y (...)
         """
+
         return torch.sum((self.A @ y.unsqueeze(-1)).squeeze(-1) * x, dim=-1)
 
     def forward_mult(self, u, delta, transpose=False):
-        """ Computes (I + d A) u
+        """Computes (I + d A) u.
 
         A: (n, n)
         u: (b1* d, n) d represents memory_size
@@ -213,7 +217,7 @@ class ManualAdaptiveTransition(AdaptiveTransition):
 
 
     def inverse_mult(self, u, delta, transpose=False):
-        """ Computes (I - d A)^-1 u """
+        """Computes (I - d A)^-1 u."""
 
         if isinstance(delta, torch.Tensor):
             delta = delta.unsqueeze(-1).unsqueeze(-1)
@@ -241,11 +245,8 @@ class OPManualAdaptiveTransition(ManualAdaptiveTransition):
         delta: optional list of step sizes to cache the transitions for
         """
         A, B = transition(type(self).measure, N, **measure_args)
-        # super().__init__(N, A, B[:, 0])
         A = torch.as_tensor(A, dtype=torch.float)
         B = torch.as_tensor(B, dtype=torch.float)[:, 0]
-        # A = torch.Tensor(A)
-        # B = torch.Tensor(B)[:, 0]
         super().__init__(N, A, B, **kwargs)
 
 
@@ -272,11 +273,12 @@ class GLagTAdaptiveTransitionManual(OPManualAdaptiveTransition):
 # TODO this class is not learnable for now (will have to change the shape of a, b to [1])
 class CumsumAdaptiveTransition(AdaptiveTransition):
     def __init__(self, N, a, b):
-        """ Implements update for matrix A = -(L+aI) for forward, backward, bilinear, zoh discretizations.
+        """Implements update for matrix A = -(L+aI) for forward, backward, bilinear, zoh discretizations.
         a: scalar, the element on the diagonal
         b: scalar, so that B = b * ones vector
         """
-        # can't wrap scalars with torch.Tensor(), while torch.tensor(a) gives double instead of float or something
+
+        # Can't wrap scalars with torch.Tensor(), while torch.tensor(a) gives double instead of float or something
         # super().__init__(N, {'a': [a], 'b': [b]}, **kwargs) # TODO this should register b and then construct self.B using a @property, like in Toeplitz (but is slightly slower in the non-learnable case)
         params = {
             'a': torch.tensor(a, dtype=torch.float),
@@ -313,7 +315,8 @@ class CumsumAdaptiveTransition(AdaptiveTransition):
         return torch.sum((self.A @ y.unsqueeze(-1)).squeeze(-1) * x, dim=-1)
 
     def precompute_forward(self, delta):
-        """ Store elements along the diagonals of (I + d A) """
+        """Store elements along the diagonals of (I + d A)."""
+
         if isinstance(delta, float):
             delta = torch.tensor(delta).to(self.I)
         if isinstance(delta, torch.Tensor):
@@ -324,12 +327,13 @@ class CumsumAdaptiveTransition(AdaptiveTransition):
         return torch.cat((a_, -delta*delta.new_ones(self.N-1)), -1) # (..., N)
 
     def precompute_backward(self, delta): # TODO should be called inverse?
-        """ Store elements along the diagonals of (I - d A)^{-1}
+        """Store elements along the diagonals of (I - d A)^{-1}.
 
         # a' = a + 1/dt
         delta: (...)
         output: (..., N)
         """
+
         if isinstance(delta, float):
             delta = torch.tensor(delta).to(self.I)
         if isinstance(delta, torch.Tensor):
@@ -360,19 +364,19 @@ class CumsumAdaptiveTransition(AdaptiveTransition):
         # return ret
 
     def precompute_gbt_A(self, delta, alpha=0.5):
-        """ Return the A matrix of the gbt discretization """
+        """Return the A matrix of the gbt discretization."""
         c = self.precompute_forward((1.-alpha)*delta)
         d = self.precompute_backward(alpha*delta)
         return causal_convolution(c, d)
 
     def precompute_gbt_B(self, delta, alpha=0.5):
-        """ Return the B matrix of the gbt discretization """
+        """Return the B matrix of the gbt discretization."""
         d = self.precompute_backward(alpha*delta)
         # return causal_convolution(d, torch.ones_like(d)) * self.b
         return torch.cumsum(d, -1) * self.b
 
     def forward_mult(self, u, delta, transpose=False):
-        """ Computes (I + delta A) u
+        """Computes (I + delta A) u.
 
         A: (n, n)
         u: (..., n)
@@ -380,6 +384,7 @@ class CumsumAdaptiveTransition(AdaptiveTransition):
 
         output: (..., n)
         """
+
         if isinstance(delta, torch.Tensor):
             delta = delta.unsqueeze(-1)
 
@@ -392,7 +397,7 @@ class CumsumAdaptiveTransition(AdaptiveTransition):
         return x
 
     def inverse_mult(self, u, delta, transpose=False):
-        """ Computes (I - d A)^-1 u """
+        """Computes (I - d A)^-1 u."""
         # if isinstance(delta, torch.Tensor):
         #     delta = delta.unsqueeze(-1)
         # if isinstance(delta, float) and delta in self.backward_cache:
@@ -454,16 +459,17 @@ class LegTAdaptiveTransition(AdaptiveTransition):
         else: return legt_gbt_backward(-delta, u)
 
     def quadratic(self, x, y):
-        # TODO should use fast mult... also check if we even need this anymore
         """
         x : (..., N)
         y : (..., N)
         returns: x^T A y (...)
         """
+
+        # TODO Should use fast mult... also check if we even need this anymore
         return torch.sum((self.A @ y.unsqueeze(-1)).squeeze(-1) * x, dim=-1)
 
 class TriDInverseAdaptiveTransition(AdaptiveTransition):
-    """ NOTE stores matrix for x' = -Ax + Bu instead of x' = Ax + Bu """
+    # NOTE stores matrix for x' = -Ax + Bu instead of x' = Ax + Bu.
 
     def __init__(self, N, dl, d, du, pl, pr, c, b, **kwargs):
         params = {
@@ -476,8 +482,10 @@ class TriDInverseAdaptiveTransition(AdaptiveTransition):
             'b': b,
         }
         super().__init__(N, params, **kwargs)
+
     def _A(self):
-        """ The matrix A for system x' = -Ax + Bu """
+        """The matrix A for system x' = -Ax + Bu."""
+
         A = trid_solve(self.I, self.dl, self.d, self.du).transpose(-1, -2)
         A = A + self.c*self.I
         A = self.pl.unsqueeze(-1) * A * self.pr
@@ -630,10 +638,10 @@ class ChebIITriDInverseAdaptiveTransition(TriDInverseAdaptiveTransition):
         super().__init__(N, dl, d, du, p, p, c, torch.ones(N), **kwargs)
 
 class ToeplitzAdaptiveTransition(AdaptiveTransition):
-    """ NOTE stores matrix for x' = -Ax + Bu instead of x' = Ax + Bu """
+    # NOTE stores matrix for x' = -Ax + Bu instead of x' = Ax + Bu
 
     def __init__(self, N, a, b, c, **kwargs):
-        """ Implements update for lower triangular Toeplitz transitions A.
+        """Implements update for lower triangular Toeplitz transitions A.
 
         a: represents the diagonals of a lower triangular Toeplitz transition matrix
         b: B transition matrix
@@ -641,6 +649,7 @@ class ToeplitzAdaptiveTransition(AdaptiveTransition):
 
         A = c a c^{-1}, B = c b (note that c represents \Lambda^{-1} in the HiPPO paper)
         """
+
         super().__init__(N, {'a': a, 'c': c, 'b': b}, **kwargs)
         e = torch.zeros(N)
         e[0] = 1.0
@@ -684,7 +693,7 @@ class ToeplitzAdaptiveTransition(AdaptiveTransition):
         return x
 
     def forward_mult(self, u, delta, transpose=False):
-        """ Computes y = (I - delta A) u
+        """Computes y = (I - delta A) u.
 
         self.a: (..., n)
         u: (..., n)
@@ -697,10 +706,9 @@ class ToeplitzAdaptiveTransition(AdaptiveTransition):
         return self._mult(t, u, transpose)
 
     def inverse_mult(self, u, delta, transpose=False):
-        """ Computes (I + d A)^-1 u """
+        """Computes (I + d A)^-1 u."""
 
         t = self.e + delta.unsqueeze(-1) * self.a
-        # t_ = causal_convolution_inverse_wrong(t, self.e) # represents (I + delta A)^-1
         t_ = causal_convolution_inverse(t) # represents (I + delta A)^-1
         return self._mult(t_, u, transpose)
 

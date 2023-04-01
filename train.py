@@ -285,7 +285,7 @@ class SequenceLightningModule(pl.LightningModule):
             else:
                 self._state = self._detach_state(self._state)
 
-    def on_epoch_start(self):
+    def _on_epoch_start(self):
         self._initialize_state()
 
     def forward(self, batch):
@@ -345,6 +345,7 @@ class SequenceLightningModule(pl.LightningModule):
         return loss
 
     def on_train_epoch_start(self):
+        self._on_epoch_start()
         # Reset training torchmetrics
         self.task._reset_torchmetrics("train")
 
@@ -361,6 +362,7 @@ class SequenceLightningModule(pl.LightningModule):
         )
 
     def on_validation_epoch_start(self):
+        self._on_epoch_start()
         # Reset all validation torchmetrics
         for name in self.val_loader_names:
             self.task._reset_torchmetrics(name)
@@ -379,6 +381,7 @@ class SequenceLightningModule(pl.LightningModule):
             )
 
     def on_test_epoch_start(self):
+        self._on_epoch_start()
         # Reset all test torchmetrics
         for name in self.test_loader_names:
             self.task._reset_torchmetrics(name)
@@ -546,7 +549,16 @@ class SequenceLightningModule(pl.LightningModule):
         return [optimizer], [scheduler]
 
     def train_dataloader(self):
-        return self.dataset.train_dataloader(**self.hparams.loader)
+        train_loader = self.dataset.train_dataloader(**self.hparams.loader)
+        # Print stats in a try block since some dataloaders might not have a length?
+        try:
+            log.info(
+                f"Loaded 'train' dataloader:".ljust(30) +
+                f"{len(train_loader.dataset):7} examples | {len(train_loader):6} steps"
+            )
+        except:
+            pass
+        return train_loader
 
     def _eval_dataloaders_names(self, loaders, prefix):
         """Process loaders into a list of names and loaders"""
@@ -577,14 +589,27 @@ class SequenceLightningModule(pl.LightningModule):
 
         # adding option to only have val loader at eval (eg if test is duplicate)
         if self.hparams.train.get("remove_test_loader_in_eval", None) is not None:
-            return val_loader_names, val_loaders
+            eval_loader_names = val_loader_names
+            eval_loaders = val_loaders
         # default behavior is to add test loaders in eval
         else:
-            return val_loader_names + test_loader_names, val_loaders + test_loaders
+            eval_loader_names = val_loader_names + test_loader_names
+            eval_loaders = val_loaders + test_loaders
+
+        return eval_loader_names, eval_loaders
 
     def val_dataloader(self):
         val_loader_names, val_loaders = self._eval_dataloaders()
         self.val_loader_names = val_loader_names
+        try:
+            for name, loader in zip(val_loader_names, val_loaders):
+                log.info(
+                    f"Loaded '{name}' dataloader:".ljust(30) +
+                    f"{len(loader.dataset):7} examples | {len(loader):6} steps"
+                )
+        except:
+            pass
+
         return val_loaders
 
     def test_dataloader(self):
@@ -595,7 +620,7 @@ class SequenceLightningModule(pl.LightningModule):
 
 ### pytorch-lightning utils and entrypoint ###
 
-def create_trainer(config, **kwargs):
+def create_trainer(config):
     callbacks: List[pl.Callback] = []
     logger = None
 
@@ -614,22 +639,24 @@ def create_trainer(config, **kwargs):
     # Lightning callbacks
     if "callbacks" in config:
         for _name_, callback in config.callbacks.items():
+            if callback is None: continue
             if config.get("wandb") is None and _name_ in ["learning_rate_monitor"]:
                 continue
             log.info(f"Instantiating callback <{registry.callbacks[_name_]}>")
             callback._name_ = _name_
             callbacks.append(utils.instantiate(registry.callbacks, callback))
 
+    # Profiler
+    profiler = None
+    if config.trainer.get("profiler", None) is not None:
+        profiler = hydra.utils.instantiate(config.trainer.profiler)
+        config.trainer.pop("profiler")
+
+
     # Configure ddp automatically
-    if config.trainer.gpus > 1:
+    if config.trainer.accelerator == 'gpu' and config.trainer.devices > 1:
         print("ddp automatically configured, more than 1 gpu used!")
-        kwargs["plugins"] = [
-            pl.plugins.DDPPlugin(
-                find_unused_parameters=True,
-                gradient_as_bucket_view=False,  # https://pytorch-lightning.readthedocs.io/en/stable/advanced/advanced_gpu.html#ddp-optimizations
-            )
-        ]
-        kwargs["accelerator"] = "ddp"
+        config.trainer.strategy = "ddp"
 
     # Add ProgressiveResizing callback
     if config.callbacks.get("progressive_resizing", None) is not None:
@@ -639,11 +666,11 @@ def create_trainer(config, **kwargs):
             # Stage params are resolution and epochs, pretty print
             print(f"\tStage {i}: {e['resolution']} @ {e['epochs']} epochs")
 
-    kwargs.update(config.trainer)
     trainer = pl.Trainer(
         logger=logger,
         callbacks=callbacks,
-        **kwargs,
+        profiler=profiler,
+        **config.trainer,
     )
     return trainer
 
@@ -665,9 +692,6 @@ def train(config):
         trainer.fit(model)
     if config.train.test:
         trainer.test(model)
-
-
-
 
 @hydra.main(config_path="configs", config_name="config.yaml")
 def main(config: OmegaConf):

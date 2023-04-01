@@ -11,10 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Implements data loaders for language modeling (LM)."""
 
 import logging
 import os
-import re
 import subprocess
 from pathlib import Path
 
@@ -24,9 +24,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import functools
-from omegaconf import DictConfig
-from pytorch_lightning import LightningDataModule
 
 
 from src.utils import distributed
@@ -38,6 +35,7 @@ from src.dataloaders.base import SequenceDataset, default_data_path
 from src.dataloaders.utils.vocabulary import OpenAIVocab, Vocab
 import src.utils as utils
 
+# TODO: create a package so we don't have to mess with sys.path?
 project_root = Path(__file__).parent.parent.absolute()
 data_path = Path(__file__).absolute().parent / 'data'
 
@@ -505,3 +503,85 @@ class LM1B(WikiText2):
 
     def test_dataloader(self, *args, **kwargs):
         return LMShuffledIterator(self.test, *args, **kwargs)
+
+
+
+class Corpus(object):
+    # AG: only used in get_lm_corpus which is only called in the unit test
+    def __init__(self, path, dataset, vocab, *args, **kwargs):
+        self.dataset = dataset
+        if vocab == "word":
+            self.vocab = Vocab(*args, **kwargs)
+        elif vocab == "bpe":
+            self.vocab = OpenAIVocab()
+        else:
+            raise RuntimeError("Unsupported vocab")
+
+        if self.dataset in ["ptb", "wt2", "enwik8", "text8"]:
+            self.vocab.count_file(os.path.join(path, "train.txt"))
+            self.vocab.count_file(os.path.join(path, "valid.txt"))
+            self.vocab.count_file(os.path.join(path, "test.txt"))
+        elif self.dataset == "wt103":
+            self.vocab.count_file(os.path.join(path, "train.txt"))
+        elif self.dataset == "lm1b":
+            train_path_pattern = os.path.join(
+                path,
+                "1-billion-word-language-modeling-benchmark-r13output",
+                "training-monolingual.tokenized.shuffled",
+                "news.en-*",
+            )
+            train_paths = glob.glob(train_path_pattern)
+            # the vocab will load from file when build_vocab() is called
+
+        self.vocab.build_vocab()
+
+        if self.dataset in ["ptb", "wt2", "wt103"]:
+            self.train = self.vocab.encode_file(
+                os.path.join(path, "train.txt"), ordered=True
+            )
+            self.valid = self.vocab.encode_file(
+                os.path.join(path, "valid.txt"), ordered=True
+            )
+            self.test = self.vocab.encode_file(
+                os.path.join(path, "test.txt"), ordered=True
+            )
+        elif self.dataset in ["enwik8", "text8"]:
+            self.train = self.vocab.encode_file(
+                os.path.join(path, "train.txt"), ordered=True, add_eos=False
+            )
+            self.valid = self.vocab.encode_file(
+                os.path.join(path, "valid.txt"), ordered=True, add_eos=False
+            )
+            self.test = self.vocab.encode_file(
+                os.path.join(path, "test.txt"), ordered=True, add_eos=False
+            )
+        elif self.dataset == "lm1b":
+            self.train = train_paths
+            self.valid = self.vocab.encode_file(
+                os.path.join(path, "valid.txt"),
+                ordered=False,
+                add_double_eos=True,
+            )
+            self.test = self.vocab.encode_file(
+                os.path.join(path, "test.txt"),
+                ordered=False,
+                add_double_eos=True,
+            )
+
+    def get_iterator(self, split, *args, **kwargs):
+        if split == "train":
+            if self.dataset in ["ptb", "wt2", "wt103", "enwik8", "text8"]:
+                data_iter = LMOrderedIterator(self.train, *args, **kwargs)
+            elif self.dataset == "lm1b":
+                kwargs["shuffle"] = True
+                data_iter = LMMultiFileIterator(
+                    self.train, self.vocab, *args, **kwargs
+                )
+        elif split in ["valid", "test"]:
+            data = self.valid if split == "valid" else self.test
+            if self.dataset in ["ptb", "wt2", "wt103", "enwik8", "text8"]:
+                data_iter = LMOrderedIterator(data, *args, **kwargs)
+            elif self.dataset == "lm1b":
+                data_iter = LMShuffledIterator(data, *args, **kwargs)
+
+        return data_iter

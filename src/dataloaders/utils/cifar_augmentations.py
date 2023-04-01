@@ -1,6 +1,8 @@
-"""
+"""Implementation of CIFAR augmentations. Not currently used.
+
 Borrowed from https://github.com/hysts/pytorch_image_classification/tree/9ff4248905850c68aa9c09c17914307eb81769e7/pytorch_image_classification/transforms
 """
+
 import torch
 import numpy as np
 import PIL

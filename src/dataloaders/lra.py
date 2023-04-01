@@ -1,4 +1,5 @@
-"""Long Range Arena datasets"""
+"""Long Range Arena datasets."""
+
 import io
 import logging
 import os
@@ -430,6 +431,7 @@ class PathFinder(ImageResolutionSequenceDataset):
             "resolution": 32,
             "sequential": True,
             "tokenize": False,
+            "center": True,
             "pool": 1,
             "val_split": 0.1,
             "test_split": 0.1,
@@ -452,7 +454,8 @@ class PathFinder(ImageResolutionSequenceDataset):
                 torchvision.transforms.Lambda(lambda x: (x * 255).long())
             )
         else:
-            transform_list.append(torchvision.transforms.Normalize(mean=0.5, std=0.5))
+            if self.center:
+                transform_list.append(torchvision.transforms.Normalize(mean=0.5, std=0.5))
         if self.sequential:
             # If tokenize, it makes more sense to get rid of the channel dimension
             transform_list.append(

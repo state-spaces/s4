@@ -1,3 +1,5 @@
+"""Custom video dataloader for ImageNet-P dataset, which comes in .mp4."""
+
 import cv2
 # from skvideo.io import VideoCapture
 # import skvideo.io
@@ -10,10 +12,6 @@ import os
 import os.path
 import sys
 
-"""
-Custom video dataloader for imagenet-p dataset, which comes in .mp4
-
-"""
 
 
 class VideoFolder(DatasetFolder):

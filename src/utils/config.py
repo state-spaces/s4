@@ -1,4 +1,5 @@
-""" Utilities for dealing with collection objects (lists, dicts) and configs """
+"""Utilities for dealing with collection objects (lists, dicts) and configs."""
+
 from typing import Sequence, Mapping, Optional, Callable
 import functools
 import hydra
@@ -14,7 +15,7 @@ def is_dict(x):
 
 
 def to_dict(x, recursive=True):
-    """Convert Sequence or Mapping object to dict
+    """Convert Sequence or Mapping object to dict.
 
     lists get converted to {0: x[0], 1: x[1], ...}
     """
@@ -56,7 +57,8 @@ def extract_attrs_from_obj(obj, *attrs):
 
 
 def instantiate(registry, config, *args, partial=False, wrap=None, **kwargs):
-    """
+    """Instantiate a class or Callable. Wraps hydra.utils.instantiate.
+
     registry: Dictionary mapping names to functions or target paths (e.g. {'model': 'models.SequenceModel'})
     config: Dictionary with a '_name_' key indicating which element of the registry to grab, and kwargs to be passed into the target constructor
     wrap: wrap the target class (e.g. ema optimizer or tasks.wrap)
@@ -104,9 +106,8 @@ def get_class(registry, _name_):
 
 
 def omegaconf_filter_keys(d, fn=None):
-    """Only keep keys where fn(key) is True. Support nested DictConfig.
+    """Only keep keys where fn(key) is True. Support nested DictConfig."""
     # TODO can make this inplace?
-    """
     if fn is None:
         fn = lambda _: True
     if is_list(d):
@@ -117,5 +118,3 @@ def omegaconf_filter_keys(d, fn=None):
         )
     else:
         return d
-
-

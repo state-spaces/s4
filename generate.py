@@ -14,9 +14,7 @@ from tqdm.auto import tqdm
 
 from src import utils
 from src.dataloaders.audio import mu_law_decode
-from src.models.baselines.samplernn import SampleRNN
 from src.models.baselines.wavenet import WaveNetModel
-from src.models.sequence.ss.s4 import S4
 from train import SequenceLightningModule
 
 def test_step(model):
@@ -171,11 +169,14 @@ def main(config: OmegaConf):
     if config.train.seed is not None:
         pl.seed_everything(config.train.seed, workers=True)
 
+    # Define checkpoint path smartly
     if not config.experiment_path:
         ckpt_path = hydra.utils.to_absolute_path(config.checkpoint_path)
     else:
         ckpt_path = os.path.join(config.experiment_path, config.checkpoint_path)
+    print("Full checkpoint path:", ckpt_path)
 
+    # Load model
     if ckpt_path.endswith('.ckpt'):
         model = SequenceLightningModule.load_from_checkpoint(ckpt_path, config=config)
         model.to('cuda')
@@ -189,7 +190,7 @@ def main(config: OmegaConf):
 
     # Setup: required for S4 modules in SaShiMi
     for module in model.modules():
-        if hasattr(module, 'setup_step'): module.setup_step()
+        if hasattr(module, '_setup_step'): module._setup_step()
     model.eval()
 
     if config.load_data:
@@ -207,7 +208,7 @@ def main(config: OmegaConf):
     os.makedirs(save_dir, exist_ok=True)
 
     # Test
-    if config.test_generation:
+    if config.test_model:
         test_step(model)
 
 

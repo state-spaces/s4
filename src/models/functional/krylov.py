@@ -1,9 +1,17 @@
-""" Compute a Krylov function efficiently. (S4 renames the Krylov function to a "state space kernel")
+"""Compute a Krylov function efficiently.
 
-A : (N, N)
-b : (N,)
-c : (N,)
-Return: [c^T A^i b for i in [L]]
+Note that LSSL called this a Krylov function for lack of better terminology,
+while S4 renames the Krylov function to a "state space kernel".
+An existing term in the literature is "Markov parameters" of an SSM.
+
+The interface for this function is:
+Inputs:
+  A : (N, N)
+  B : (N,)
+  C : (N,)
+
+Returns:
+  [C^T A^i B for i in [L]]
 """
 
 import torch
@@ -13,7 +21,7 @@ from einops import rearrange, repeat
 from src.models.functional.toeplitz import causal_convolution
 
 def krylov_sequential(L, A, b, c=None):
-    """ Constant matrix A
+    """Compute the krylov function naively by sequential powering.
 
     A : (..., N, N)
     b : (..., N)
@@ -48,8 +56,7 @@ def krylov_sequential(L, A, b, c=None):
 
 
 def krylov(L, A, b, c=None, return_power=False):
-    """
-    Compute the Krylov matrix (b, Ab, A^2b, ...) using the squaring trick.
+    """Compute the Krylov matrix (b, Ab, A^2b, ...) using the squaring trick.
 
     If return_power=True, return A^{L-1} as well
     """
@@ -93,7 +100,7 @@ def krylov(L, A, b, c=None, return_power=False):
 
 @torch.no_grad()
 def power(L, A, v=None):
-    """ Compute A^L and the scan sum_i A^i v_i
+    """Compute A^L and the scan sum_i A^i v_i.
 
     A: (..., N, N)
     v: (..., N, L)
@@ -138,7 +145,7 @@ def power(L, A, v=None):
     return I, v.squeeze(-1)
 
 def krylov_toeplitz(L, A, b, c=None):
-    """ Specializes to lower triangular Toeplitz matrix A represented by its diagonals
+    """Specializes to lower triangular Toeplitz matrix A represented by its diagonals.
 
     A : (..., N)
     b : (..., N)

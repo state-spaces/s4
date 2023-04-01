@@ -1,0 +1,22 @@
+# @package _global_
+defaults:
+  - /trainer: default
+  - /loader: imresolution
+  - /dataset: cifar
+  - /task: multiclass_classification
+  - /optimizer: adamw
+  - /scheduler: plateau
+
+train:
+  monitor: val/accuracy # Needed for plateau scheduler
+  mode: max
+
+dataset:
+  permute: 2d
+  augment: False
+
+encoder: linear
+
+decoder:
+  _name_: nd
+  mode: pool

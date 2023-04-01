@@ -1,0 +1,55 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar-2d
+  - /model: s4
+  - override /model/layer: conv2d
+  - override /scheduler: cosine_warmup
+
+encoder: linear
+
+callbacks:
+  progressive_resizing:
+    stage_params:
+      - resolution: 4
+        epochs: 50
+        bandlimit: null
+      - resolution: 2
+        epochs: 25
+        bandlimit: null
+      - resolution: 1
+        epochs: 25
+        bandlimit: null
+
+dataset:
+  permute: 2d
+  augment: false
+
+model:
+  dropout: 0.1
+  tie_dropout: true
+  n_layers: 4
+  d_model: 128
+  prenorm: true
+  layer:
+    kernel_size: 5
+    stride: 1
+    dilation: 1
+
+loader:
+  batch_size: 50
+  eval_resolutions: [1, 2]
+  img_size: 32
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.03
+
+trainer:
+  max_epochs: 100
+
+scheduler:
+  num_warmup_steps: 900  # 1 epoch
+  num_training_steps: 90000  # 100 epochs
+
+train:
+  seed: 2222

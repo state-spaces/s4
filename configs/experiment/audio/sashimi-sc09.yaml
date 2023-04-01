@@ -35,8 +35,5 @@ decoder:
 loader:
   batch_size: 32
 
-scheduler:
-  patience: 20
-
 trainer:
   max_epochs: 1000

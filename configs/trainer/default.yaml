@@ -1,11 +1,14 @@
-gpus: 1                    # set `1` to train on GPU, `0` to train on CPU only
+# See Docs for full flags and descriptions
+# https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#trainer-class-api
+accelerator: gpu
+strategy: null
+devices: 1
 accumulate_grad_batches: 1 # Gradient accumulation every n batches
 max_epochs: 200
                            # accelerator: ddp # Automatically set if gpus > 1
-gradient_clip_val: 0.0
+gradient_clip_val: null
 log_every_n_steps: 10
 limit_train_batches: 1.0   # train on full dataset, can be used to toggle quick run
 limit_val_batches: 1.0     # validate on full dataset, can be used to toggle quick run
-weights_summary: top       # Set to 'full' to see every layer
-progress_bar_refresh_rate: 1
+enable_model_summary: false # Can turn on if RichModelSummary is disabled
 track_grad_norm: -1        # Set to 2 to track norms of gradients

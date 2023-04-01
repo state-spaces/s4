@@ -6,7 +6,9 @@ defaults:
 
 scheduler:
   num_training_steps: 500000 # 50 epochs
-  num_warmup_steps: 10000 # 1 epoch
+  # The original S4D/HTTYH papers used 1 epoch warmup
+  # This seems to be better
+  num_warmup_steps: 50000 # 5 epoch
 
 model:
   dropout: 0.
@@ -19,16 +21,17 @@ model:
     lr: 0.0005
     dt_min: 0.0001
     dt_max: 0.1
-    measure: legs
+    init: legs
     bidirectional: true
-    postact: glu
+    final_act: glu
     n_ssm: null
 
 loader:
   batch_size: 16
 
 optimizer:
-  lr: 0.0005
+  # The original S4D/HTTYH papers use lr=5e-4
+  lr: 0.001
   weight_decay: 0.05
 
 trainer:

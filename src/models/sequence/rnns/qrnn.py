@@ -1,4 +1,4 @@
-""" Implements variant of HiPPO-RNN that doesn't feed the hidden and memory states into each other time-wise, instead using simpler linear recurrences in time and letting them interact depthwise.
+"""Implements variant of HiPPO-RNN that doesn't feed the hidden and memory states into each other time-wise, instead using simpler linear recurrences in time and letting them interact depthwise.
 
 [21-10-22] AG: This was old experimental code. It should still work (perhaps with some minimal modifications), but there is not much reason to use this now. This was the initial step toward "deep linear parallelizable" versions of the HiPPO RNN which culminated in LSSL and S3.
 """
@@ -16,7 +16,7 @@ from src.models.hippo.transition import TLagTAdaptiveTransitionManual, LagTAdapt
 from src.models.sequence.base import SequenceModule
 
 class MemoryProjection(nn.Module):
-    """ Implements the memory projection operator for fixed dt """
+    """Implements the memory projection operator for fixed dt."""
 
     def __init__(self, order, measure, dt, discretization='bilinear'):
         super().__init__()
@@ -55,9 +55,10 @@ class MemoryProjection(nn.Module):
         return output
 
 class VariableMemoryProjection(nn.Module):
-    """ Version of MemoryProjection with variable discretization.
+    """Version of MemoryProjection with variable discretization.
 
-    Materializes the transition matrices"""
+    Materializes the transition matrices.
+    """
 
     def __init__(self, order=1, measure='legs', dt=None):
         super().__init__()

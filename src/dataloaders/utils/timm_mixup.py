@@ -1,3 +1,5 @@
+"""Implementation of Mixup from timm."""
+
 import torch
 
 from timm.data import Mixup
@@ -5,8 +7,7 @@ from timm.data.mixup import mixup_target
 
 
 class TimmMixup(Mixup):
-    """ Wrap timm.data.Mixup that avoids the assert that batch size must be even.
-    """
+    """Wrap timm.data.Mixup that avoids the assert that batch size must be even."""
     def __call__(self, x, target, *args):
         if self.mode == 'elem':
             lam = self._mix_elem(x)

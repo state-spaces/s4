@@ -1,4 +1,4 @@
-""" Utils for the training loop. Copied from https://github.com/HazyResearch/transformers/blob/master/src/utils/utils.py """
+"""Utils for the training loop. Adapted from https://github.com/HazyResearch/transformers/blob/master/src/utils/utils.py."""
 import logging
 import os
 import warnings
@@ -14,6 +14,7 @@ from src.utils.config import omegaconf_filter_keys
 
 
 # Copied from https://docs.python.org/3/howto/logging-cookbook.html#using-a-context-manager-for-selective-logging
+# [21-09-17 AG] copied from Tri's infra, doesn't appear to be used
 class LoggingContext:
     def __init__(self, logger, level=None, handler=None, close=True):
         self.logger = logger
@@ -99,6 +100,15 @@ def process_config(config: DictConfig) -> DictConfig: # TODO because of filter_k
 @rank_zero_only
 def print_config(
     config: DictConfig,
+    # fields: Sequence[str] = (
+    #     "trainer",
+    #     "model",
+    #     "datamodule",
+    #     "train",
+    #     "callbacks",
+    #     "logger",
+    #     "seed",
+    # ),
     resolve: bool = True,
     save_cfg=True,
 ) -> None:
@@ -139,3 +149,6 @@ def log_optimizer(logger, optimizer, keys):
             f"Optimizer group {i}",
             f"{len(g['params'])} tensors",
         ] + [f"{k} {v}" for k, v in group_hps.items()]))
+        # print(f"Optimizer group {i} | {len(g['params'])} tensors | lr {g['lr']} | wd {g.get('weight_decay', None)}")
+
+"""Old code for resuming logic moved to tests/"""

@@ -1,3 +1,5 @@
+"""Decoders that interface between targets and model."""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,14 +7,11 @@ from einops import rearrange, reduce
 
 import src.models.nn.utils as U
 import src.utils as utils
-import src.utils.config
-import src.utils.train
-
-log = src.utils.train.get_logger(__name__)
 
 
 class Decoder(nn.Module):
-    """This class doesn't do much but just signals the interface that Decoders are expected to adhere to
+    """Abstract class defining the interface for Decoders.
+
     TODO: is there a way to enforce the signature of the forward method?
     """
 
@@ -142,7 +141,7 @@ class SequenceDecoder(Decoder):
         return self.output_transform(x)
 
 class NDDecoder(Decoder):
-    """Decoder for single target (e.g. classification or regression)"""
+    """Decoder for single target (e.g. classification or regression)."""
     def __init__(
         self, d_model, d_output=None, mode="pool"
     ):
@@ -165,7 +164,7 @@ class NDDecoder(Decoder):
         return x
 
 class StateDecoder(Decoder):
-    """Use the output state to decode (useful for stateful models such as RNNs or perhaps Transformer-XL if it gets implemented"""
+    """Use the output state to decode (useful for stateful models such as RNNs or perhaps Transformer-XL if it gets implemented."""
 
     def __init__(self, d_model, state_to_tensor, d_output):
         super().__init__()
@@ -222,7 +221,7 @@ class RetrievalHead(nn.Module):
 
 
 class RetrievalDecoder(Decoder):
-    """Combines the standard FeatureDecoder to extract a feature before passing through the RetrievalHead"""
+    """Combines the standard FeatureDecoder to extract a feature before passing through the RetrievalHead."""
 
     def __init__(
         self,
@@ -284,6 +283,7 @@ dataset_attrs = {
     "sequence": ["d_output", "l_output"],
     "nd": ["d_output"],
     "retrieval": ["d_output"],
+    # TODO rename d_output to n_classes?
     "state": ["d_output"],
     "forecast": ["d_output", "l_output"],
 }

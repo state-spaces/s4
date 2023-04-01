@@ -1,6 +1,6 @@
 _name_: lssl
 d_model: 256
-measure: legs
+init: legs
 learn: 1
 lr: 0.0001
 noise: 0.0

@@ -19,9 +19,9 @@ model:
       B: 0.001
     dt_min: 0.001
     dt_max: 0.1
-    measure: legs
+    init: legs
     bidirectional: true
-    postact: glu
+    final_act: glu
     n_ssm: 2
 
 dataset:
@@ -38,7 +38,8 @@ trainer:
   max_epochs: 200
 
 scheduler:
-  num_training_steps: 200000
+  num_warmup_steps: 900  # 1 epoch
+  num_training_steps: 180000  # 200 epochs
 
 train:
   seed: 2222

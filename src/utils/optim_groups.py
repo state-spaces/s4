@@ -1,13 +1,11 @@
 """Utilities for special optimizer hyperparameters.
 
-group_parameters_for_optimizer is a modification of timm's optimizer logic, which is currently unused
-add_optimizer_hooks is an improved version that uses this codebase's _optim dictionary
+`group_parameters_for_optimizer` is a modification of timm's optimizer logic, which is currently unused.
+`add_optimizer_hooks` is an improved version that uses this codebase's _optim dictionary.
 """
 
 import inspect
-
 import torch.nn as nn
-
 import hydra
 
 
@@ -16,7 +14,9 @@ def add_optimizer_hooks(
     bias_weight_decay=False,
     normalization_weight_decay=False,
 ):
-    """Set weight_decay=0.0 for parameters in model.no_weight_decay, for parameters with
+    """Handle special optimizer logic by setting _optim attribute.
+
+    Set weight_decay=0.0 for parameters in model.no_weight_decay, for parameters with
     attribute _no_weight_decay==True, for bias parameters if bias_weight_decay==False, for
     normalization parameters if normalization_weight_decay==False
     """
@@ -44,7 +44,9 @@ def group_parameters_for_optimizer(
     bias_weight_decay=False,
     normalization_weight_decay=False,
 ):
-    """Set weight_decay=0.0 for parameters in model.no_weight_decay, for parameters with
+    """Handle special optimizer logic (adapted from timm).
+
+    Set weight_decay=0.0 for parameters in model.no_weight_decay, for parameters with
     attribute _no_weight_decay==True, for bias parameters if bias_weight_decay==False, for
     normalization parameters if normalization_weight_decay==False
     """

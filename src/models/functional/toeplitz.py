@@ -1,4 +1,4 @@
-""" Utilities for computing convolutions.
+"""Utilities for computing convolutions.
 
 There are 3 equivalent views:
     1. causal convolution
@@ -9,7 +9,6 @@ There are 3 equivalent views:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 
 def construct_toeplitz(v, f=0.0):
     """Explicit construction of Krylov matrix [v  A @ v  A^2 @ v  ...  A^{n-1} @ v]
@@ -155,3 +154,30 @@ def causal_convolution(u, v, fast=True, pad=False):
         return triangular_toeplitz_multiply_padded(u, v)
     if pad and fast:
         return triangular_toeplitz_multiply_padded_fast(u, v)
+
+def _fft(x, N): return torch.fft.rfft(F.pad(x, (0, 2*N-x.shape[-1])), n=2*N, dim=-1)
+def _ifft(x, N): return torch.fft.irfft(x, n=2*N, dim=-1)[..., :N]
+
+def causal_convolution_inverse(u):
+    """ Invert the causal convolution/polynomial/triangular Toeplitz matrix represented by u.
+
+    This is easiest in the polynomial view:
+    https://www.csa.iisc.ac.in/~chandan/courses/CNT/notes/lec5.pdf
+    The idea is that
+    h = g^{-1} (mod x^m) => 2h - gh^2 = g^{-1} (mod x^{2m})
+
+    # TODO this can be numerically unstable if input is "poorly conditioned",
+    # for example if u[0] is magnitudes different from the rest of u
+    """
+    N = u.shape[-1]
+    v = u[..., :1].reciprocal()
+    while v.shape[-1] < N:
+        M = v.shape[-1]
+        v_f = _fft(v, 2*M)
+        u_f = _fft(u[..., :2*M], 2*M)
+        _v = -_ifft(u_f * v_f**2, 2*M)
+        _v[..., :M] = _v[..., :M] + 2*v
+        v = _v
+    # TODO contiguous?
+    v = v[..., :N]
+    return v

@@ -5,10 +5,10 @@ d_state: 64
 channels: 1
 bidirectional: false
 activation: gelu
-postact: glu
+final_act: glu
 dropout: ${..dropout} # Same as null
 mode: nplr
-measure: legs
+init: legs
 dt_min: 0.001
 dt_max: 0.1
 lr:

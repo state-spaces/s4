@@ -1,0 +1,36 @@
+_name_: imagenet
+__l_max: ${eval:${.image_size}**2 // ${model.patch_size}**2}
+data_dirname: "imagenet"  # path to splits
+cache_dir: None
+image_size: 224
+val_split: 0.
+shuffle: True  # for train
+num_aug_repeats: 3  # Repeat Aug - only works when num_gpus > 1
+num_gpus: ${trainer.devices}
+loader_fft: false
+train_transforms:
+  _target_: timm.data.create_transform
+  input_size: ${dataset.image_size}
+  is_training: True
+  auto_augment: rand-m9-mstd0.5-inc1  # Use AutoAugment policy
+  interpolation: random
+  re_prob:  0.25  # Random erase prob1
+  re_mode: pixel  # Random erase mode
+val_transforms:  # Taken from model definition in t2t_vit.py
+  _target_: timm.data.create_transform
+  input_size: ${dataset.image_size}
+  interpolation: bicubic
+  crop_pct: 0.9
+test_transforms:
+  _target_: timm.data.create_transform
+  input_size: ${dataset.image_size}
+  interpolation: bicubic
+  crop_pct: 0.9
+mixup:
+  # _target_: src.dataloaders.timm_mixup.TimmMixup
+  _target_: src.dataloaders.utils.timm_mixup.TimmMixup
+  mixup_alpha: 0.8
+  cutmix_alpha: 1.0
+  # if using timm soft cross entropy, pass label_smoothing here
+  # if using pytorch soft cross entropy instead, would need to remove label_smoothing here, since PT handles it itself
+  # label_smoothing: 0.1

@@ -38,6 +38,3 @@ trainer:
 
 optimizer:
   lr: 0.004
-
-scheduler:
-  patience: 20

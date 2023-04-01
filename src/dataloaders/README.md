@@ -54,6 +54,13 @@ For the SC09 audio generation dataset, copy the digit subclasses of the `./data/
 The WikiText-103 language modeling dataset can be downloaded by the `getdata.sh` script from the [Transformer-XL codebase](https://github.com/kimiyoung/transformer-xl).
 By default, the datamodule looks for it under `$DATA_PATH/wt103`.
 
+```
+cd {repo}/data
+wget https://raw.githubusercontent.com/kimiyoung/transformer-xl/master/getdata.sh
+bash getdata.sh
+mv data/wikitext-103 wt103
+```
+
 A trained model checkpoint can be found [here](https://huggingface.co/krandiash/sashimi-release/tree/main/checkpoints). (Note that this uses a vanilla isotropic S4 model and is only located in the SaShiMi release for convenience.)
 
 ## BIDMC
@@ -69,16 +76,16 @@ The ETTH, ETTM, Weather, and ECL experiments originally from the [Informer]() pa
 ## Other Audio
 
 Instructions for other audio datasets used by the SaShiMi paper, including Beethoven and YoutubeMix,
-can be found in the [SaShiMi README](../../sashimi/).
+can be found in the [SaShiMi README](/models/sashimi/).
 
 # Adding a Dataset [WIP]
 Datasets generally consist of two components.
 
 1. The first is the `torch.utils.data.Dataset` class which defines the raw data, or (data, target) pairs.
 
-2. The second is a [SequenceDataset](src/dataloaders/base.py) class, which defines how to set up the dataset as well as the dataloaders. This class is very similar to PyTorch Lightning's `LightningDataModule` and satisfies an interface described below.
+2. The second is a [SequenceDataset](/src/dataloaders/base.py) class, which defines how to set up the dataset as well as the dataloaders. This class is very similar to PyTorch Lightning's `LightningDataModule` and satisfies an interface described below.
 
-Datasets are sometimes defined in the [datasets/](./datasets/) subfolder, while Datamodules are all defined in the top-level files in this folder and imported by [__init__.py](./__init__.py).
+Datasets are sometimes defined in the [datasets/](./datasets/) subfolder, while Datamodules are all defined in the top-level files in this folder and imported by [\_\_init\_\_.py](./__init__.py).
 
 Basic examples of datamodules are provided [here](./basic.py).
 

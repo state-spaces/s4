@@ -21,14 +21,13 @@ def get_parameters(model):
 
 
 class Parametrization(nn.Module):
-    """
-    Implements the parametrization of a manifold in terms of a Euclidean space
+    """Implements the parametrization of a manifold in terms of a Euclidean space.
 
-    It gives the parametrized matrix through the attribute `B`
+    It gives the parametrized matrix through the attribute `B`.
 
-    To use it, subclass it and implement the method `retraction` and the method `forward` (and optionally `project`). See the documentation in these methods for details
+    To use it, subclass it and implement the method `retraction` and the method `forward` (and optionally `project`). See the documentation in these methods for details.
 
-    You can find an example in the file `orthogonal.py` where we implement the Orthogonal class to optimize over the Stiefel manifold using an arbitrary retraction
+    You can find an example in the file `orthogonal.py` where we implement the Orthogonal class to optimize over the Stiefel manifold using an arbitrary retraction.
     """
 
     def __init__(self, A, base, mode):
@@ -104,12 +103,12 @@ class Parametrization(nn.Module):
         return self._B
 
     def retraction(self, A, base):
-        """
-        It computes r_{base}(A).
-        Notice that A will not always be in the tangent space of our manifold
+        """Computes r_{base}(A).
+
+        Notice that A will not always be in the tangent space of our manifold.
           For this reason, we first have to use A to parametrize the tangent space,
-          and then compute the retraction
-        When dealing with Lie groups, raw_A is always projected into the Lie algebra, as an optimization (cf. Section E in the paper)
+          and then compute the retraction.
+        When dealing with Lie groups, raw_A is always projected into the Lie algebra, as an optimization (cf. Section E in the paper).
         """
         raise NotImplementedError
 

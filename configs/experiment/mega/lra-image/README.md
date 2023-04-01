@@ -7,10 +7,10 @@ This folder thus contains a limited set of ablations comparing these components.
 
 ### Disclaimers
 
-**Reproducibility:** These ablations were run from an internal codebase in Nov 2022 which should be equivalent to this PR (https://github.com/HazyResearch/state-spaces/commit/e9ce652126cc773dcb6bb7d6f7270c425d4a36a2), although they have not been reproduced in this codebase and may have slight discrepancies. Furthermore other parts of the code have changed since then.
+**Reproducibility:** These ablations were run from an internal codebase in Nov. 2022 which should be equivalent to this PR (https://github.com/HazyResearch/state-spaces/commit/e9ce652126cc773dcb6bb7d6f7270c425d4a36a2), although they have not been reproduced in this codebase and may have slight discrepancies. Furthermore other parts of the code have changed since then.
 
 **Limited datasets:**
-These ablations were run only on the LRA-Image task, which is a toy task, and with the single setting where the Mega chunk size is $c=128$. Although the results below show S4 variants to outperform EMA in this setting, **the full Mega-chunk model $c=1024$ performs much better** and preliminary ablations showed that for $c=1024$, Mega-EMA outperformed Mega-S4D by 0.5-1 points on these particular hyperparameter settings.
+These ablations were run only on the LRA-Image task, which is a toy task, and with the single setting where the Mega chunk size is $c=128$. The full Mega model uses full (non-chunked) attention which performs better.
 
 
 ### Results
@@ -117,7 +117,7 @@ python -m train experiment=mega/lra-image/small-mega-s4d-real
 ```
 Same as above, but replaces EMA with an S4D layer that is forced to be real-valued instead of complex-valued.
 
-**Details**: Exactly the same as above but replaces `EMAKernel` with `SSKernelDiag` with the option `force_real=True`. Note that the latter has more features, but the minimal version of it ([here](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/s4/s4d.py#L16)) is nearly identical to the EMA kernel.
+**Details**: Exactly the same as above but replaces `EMAKernel` with `SSMKernelDiag` with the option `force_real=True`. Note that the latter has more features, but the minimal version of it ([here](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/s4/s4d.py#L16)) is nearly identical to the EMA kernel.
 
 ```
 python -m train experiment=mega/lra-image/small-mega-s4d

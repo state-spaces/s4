@@ -1,6 +1,7 @@
-""" Taken from https://github.com/ChangWeiTan/TS-Extrinsic-Regression/blob/master/utils/data_loader.py
+"""Utilities for working with .ts files.
 
-Required to handle the @targetlabel tag which sktime.data_io.load_from_tsfile_to_dataframe does not support
+Taken from https://github.com/ChangWeiTan/TS-Extrinsic-Regression/blob/master/utils/data_loader.py.
+Required to handle the @targetlabel tag which sktime.data_io.load_from_tsfile_to_dataframe does not support.
 """
 
 import numpy as np

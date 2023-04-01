@@ -1,6 +1,9 @@
+"""Implementations of general metric functions."""
+
 import math
 import torch
 import torch.nn.functional as F
+from src.tasks.mixture import mixture_loss, mixture_loss_kd
 from sklearn.metrics import f1_score, roc_auc_score
 from functools import partial
 
@@ -53,10 +56,10 @@ def cross_entropy(logits, y):
     return F.cross_entropy(logits, y)
 
 
-def soft_cross_entropy(logits, y, **kwargs):
+def soft_cross_entropy(logits, y, label_smoothing=0.0):
     logits = logits.view(-1, logits.shape[-1])
     # target is now 2d (no target flattening)
-    return F.cross_entropy(logits, y, **kwargs)
+    return F.cross_entropy(logits, y, label_smoothing=label_smoothing)
 
 
 def accuracy(logits, y):
@@ -156,22 +159,22 @@ def mae(outs, y, len_batch=None):
         return F.l1_loss(outs_masked, y_masked)
 
 
-# Metrics that can depend on the loss
+"""Metrics that can depend on the loss."""
 def loss(x, y, loss_fn):
-    """ This metric may be useful because the training loss may add extra regularization (e.g. weight decay implemented as L2 penalty), while adding this as a metric skips the additional losses """
+    """Metric that just returns the loss function.
+
+    This metric may be useful because the training loss may add extra regularization (e.g. weight decay implemented as L2 penalty), while adding this as a metric skips the additional losses """
     return loss_fn(x, y)
 
-
 def bpb(x, y, loss_fn):
-    """ bits per byte (image density estimation, speech generation, char LM) """
+    """Bits per byte (for image density estimation, speech generation, char LM)."""
     return loss_fn(x, y) / math.log(2)
-
 
 def ppl(x, y, loss_fn):
     return torch.exp(loss_fn(x, y))
 
 
-# should have a better way to do this
+# Should be a better way to do this
 output_metric_fns = {
     "binary_cross_entropy": binary_cross_entropy,
     "cross_entropy": cross_entropy,
@@ -181,6 +184,8 @@ output_metric_fns = {
     'accuracy@5': partial(accuracy_at_k, k=5),
     'accuracy@10': partial(accuracy_at_k, k=10),
     "eval_loss": loss,
+    "mixture": mixture_loss,
+    "mixture_kd": mixture_loss_kd,
     "mse": mse,
     "mae": mae,
     "forecast_rmse": forecast_rmse,
@@ -213,4 +218,6 @@ loss_metric_fns = {
     "ppl": ppl,
 }
 metric_fns = {**output_metric_fns, **loss_metric_fns}  # TODO py3.9
+
+
 

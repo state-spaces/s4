@@ -1,8 +1,9 @@
 # Adapted from https://github.com/HazyResearch/zoo
 # in turn adapted from https://github.com/idiap/fast-transformers/blob/master/fast_transformers/feature_maps/fourier_features.py
+"""Implementation of Performer model (https://arxiv.org/abs/2009.14794)."""
+
 import math
 import torch
-
 from einops import rearrange, repeat
 
 from fast_transformers.feature_maps.base import FeatureMap

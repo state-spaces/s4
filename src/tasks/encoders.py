@@ -1,3 +1,5 @@
+"""Encoders that interface between input data and model."""
+
 import datetime
 import math
 from typing import ForwardRef
@@ -10,11 +12,12 @@ from einops import rearrange
 import src.models.nn.utils as U
 import src.utils as utils
 import src.utils.config
-from src.models.sequence.block import SequenceResidualBlock
-from src.models.nn.components import Normalization
+from src.models.sequence.backbones.block import SequenceResidualBlock
+from src.models.nn import Normalization
 
 class Encoder(nn.Module):
-    """Encoder abstraction
+    """Encoder abstraction.
+
     Accepts a tensor and optional kwargs. Outside of the main tensor, all other arguments should be kwargs.
     Returns a tensor and optional kwargs.
     Encoders are combined via U.PassthroughSequential which passes these kwargs through in a pipeline. The resulting kwargs are accumulated and passed into the model backbone.
@@ -198,6 +201,34 @@ class TimestampEmbeddingEncoder(Encoder):
             #x = x + self.embedding(timestamps[attr].to(torch.float)).unsqueeze(1)
         return x
 
+# TODO is this used anymore?
+class TSIndexEmbeddingEncoder(Encoder):
+    """
+    Embeds location of sample in the time series
+    """
+
+    def __init__(self, n_ts, d_model, table=True):
+        super().__init__()
+
+        self.table = table
+        self.n_ts = n_ts
+        if table:
+            self.embedding = nn.Embedding(n_ts, d_model)
+        else:
+            # self.embedding = nn.Linear(1, d_model)
+            # self.linear = nn.Linear(2 * d_model, d_model)
+
+            self.linear = nn.Linear(d_model + 1, d_model)
+
+    def forward(self, x, z=None, idxs=None):
+        if self.table:
+            x = x + self.embedding(idxs.to(torch.long)).unsqueeze(1)
+        else:
+            # x = self.linear(torch.cat([x, self.embedding((2 * idxs / self.n_ts - 1)[:, None, None]).repeat((1, x.shape[1], 1))], axis=-1))
+            x = self.linear(torch.cat([x, ((2 * idxs / self.n_ts - 1)[:, None, None]).repeat((1, x.shape[1], 1))], axis=-1))
+        #x = x + self.embedding(idxs.unsqueeze(1).to(torch.float)).unsqueeze(1)
+        return x
+
 
 class TimeEncoder(Encoder):
     def __init__(self, n_tokens_time, d_model, timeenc=0):
@@ -225,6 +256,14 @@ class TimeEncoder(Encoder):
         mask_encode = self.mask_embed(mask.squeeze(-1))
         return x + time_encode + mask_encode  # (B, L, d_model)
 
+class EEGAgeEncoder(Encoder):
+    def __init__(self, d_model):
+        super().__init__()
+        self.encoder = nn.Linear(1, d_model)
+
+    def forward(self, x, age=None):
+        z = self.encoder(((age - 50.0) / 100.0).unsqueeze(1))
+        return x + z.unsqueeze(1)
 
 class PackedEncoder(Encoder):
     def forward(self, x, len_batch=None):
@@ -245,22 +284,49 @@ class OneHotEncoder(Encoder):
         return F.one_hot(x.squeeze(-1), self.d_model).float()
 
 
-class Conv2DPatchEncoder(Encoder):
+class Conv3DPatchEncoder(Encoder):
+    """For encoding 3D data (e.g. videos) into a sequence of patches.
 
+    Arguments:
+      - d_emb: dim of embedding output
+      - filter_sizes: tuple, with ft, fh, fw
+      - max_len: int, max seq len
     """
-    For encoding images into a sequence of patches.
+    def __init__(self, d_emb, filter_sizes, pos_enc=False, max_len=2352):
+        self.pos_enc = pos_enc
+        ft, fh, fw = filter_sizes
+
+        super().__init__()
+        assert len(filter_sizes) == 3
+
+        self.encoder = nn.Conv3d(3, d_emb, kernel_size=(ft, fh, fw), stride=(ft, fh, fw))
+
+    def forward(self, x):
+        """
+        x: shape = [b, c, t, h, w]
+
+        Returns tuple with x, with new shape = [b, seq_len, c_out]
+        """
+        x = self.encoder(x)
+        b, c, t, h, w = x.shape
+
+        x = x.reshape([b, c, t*h*w])  # flatten spatial / temporal dim
+        x = x.permute(0, 2, 1)  # permute the c and seq len for s4
+
+        return x
+
+class Conv2DPatchEncoder(Encoder):
+    """For encoding images into a sequence of patches.
+
+    Arguments:
+      - d_input: dim of encoder input (data dimension)
+      - d_model: dim of encoder output (model dimension)
+      - filter_sizes: tuple with fh, fw
+      - flat: if image is flattened from dataloader (like in cifar),
+        then we need to reshape back to 2D before conv
     """
 
     def __init__(self, d_input, d_model, filter_sizes, flat=False):
-
-        """
-        d_input: dim of encoder input (data dimension)
-        d_model: dim of encoder output (model dimension)
-        filter_sizes: tuple with fh, fw
-        flat: if image is flattened from dataloader (like in cifar),
-            then we need to reshape back to 2D before conv
-        """
-
         fh, fw = filter_sizes
         self.flat = flat
 
@@ -270,17 +336,74 @@ class Conv2DPatchEncoder(Encoder):
         self.encoder = nn.Conv2d(d_input, d_model, kernel_size=(fh, fw), stride=(fh, fw))
 
     def forward(self, x):
-
         """
-        x shape expected = [b, h, w, c]
-        returns tuple with x, with new shape = [b, seq_len, c_out]
-
+        x shape = [b, h, w, c]
+        Returns tuple with x, with new shape = [b, seq_len, c_out]
         """
 
         x = rearrange(x, 'b h w c -> b c h w')
         x = self.encoder(x)
         x = rearrange(x, 'b c h w -> b (h w) c')
         return x
+
+class TextConditionalEncoder(Encoder):
+
+    def __init__(self, vocab_size, d_model, n_layers, layer, reversal=False):
+        super().__init__()
+        # d_model = 2 * d_model
+        self.reversal = reversal
+        self.padding_idx = vocab_size - 1
+        self.text_embedding = nn.Embedding(vocab_size, d_model)
+
+        # Simple stack of blocks
+        self.text_encoder = nn.ModuleList([
+            SequenceResidualBlock(
+                d_input=d_model,
+                i_layer=i,
+                prenorm=True,
+                layer=layer,
+                residual='R',
+                norm='layer',
+                pool=None,
+                transposed=True,
+            ) for i in range(n_layers)
+        ])
+
+        # self.output_linear = nn.Linear(d_model, d_model // 2)
+
+        # self.norm = Normalization(d_model, transposed=True, _name_='layer')
+
+    def forward(self, x, tokens=None, text_lengths=None):
+        # Arguments must be in this order
+        # lengths, tokens, text_lengths = args
+        assert tokens is not None and text_lengths is not None
+
+
+        # Calculate the text embedding
+        text_embedding = self.text_embedding(tokens) # (B, L, D)
+        text_embedding = text_embedding.transpose(1, 2) # (B, D, L)
+        for layer in self.text_encoder:
+            text_embedding, _ = layer(text_embedding)
+
+            if self.reversal:
+                # Reverse the sequence
+                text_embedding = text_embedding.fliplr()
+        # text_embedding = self.norm(text_embedding)
+        text_embedding = text_embedding.transpose(1, 2)
+
+        # Zero out the embedding for padding tokens
+        mask = (tokens != self.padding_idx).unsqueeze(2)
+        text_embedding = text_embedding * mask.float()
+
+        # Calculate the mean embedding for each sequence (normalizing by appropriate token lengths)
+        text_embedding = text_embedding.sum(dim=1) / text_lengths.float().unsqueeze(1)
+        # text_embedding = self.output_linear(text_embedding)
+
+        # Add the text embedding to the sequence embedding (for global conditioning)
+        x = x + text_embedding.unsqueeze(1)
+
+        return x
+
 
 
 # For every type of encoder/decoder, specify:
@@ -299,21 +422,28 @@ registry = {
     "time": TimeEncoder,
     "onehot": OneHotEncoder,
     "conv1d": Conv1DEncoder,
+    "eegage": EEGAgeEncoder,
+    "patch3d": Conv3DPatchEncoder,
     "patch2d": Conv2DPatchEncoder,
+    "textcond": TextConditionalEncoder,
     "timestamp_embedding": TimestampEmbeddingEncoder,
+    "tsindex_embedding": TSIndexEmbeddingEncoder,
     "layer": LayerEncoder,
 }
 dataset_attrs = {
     "embedding": ["n_tokens"],
+    "textcond": ["vocab_size"],
     "linear": ["d_input"],  # TODO make this d_data?
     "class": ["n_classes"],
     "time": ["n_tokens_time"],
     "onehot": ["n_tokens"],
     "conv1d": ["d_input"],
     "patch2d": ["d_input"],
+    "tsindex_embedding": ["n_ts"],
 }
 model_attrs = {
     "embedding": ["d_model"],
+    "textcond": ["d_model"],
     "linear": ["d_model"],
     "position": ["d_model"],
     "class": ["d_model"],
@@ -321,7 +451,9 @@ model_attrs = {
     "onehot": ["d_model"],
     "conv1d": ["d_model"],
     "patch2d": ["d_model"],
+    "eegage": ["d_model"],
     "timestamp_embedding": ["d_model"],
+    "tsindex_embedding": ["d_model"],
     "layer": ["d_model"],
 }
 

@@ -1,8 +1,10 @@
-"""
+"""Speech Commands dataset.
+
 Adapted from https://github.com/dwromero/ckconv/blob/dc84dceb490cab2f2ddf609c380083367af21890/datasets/speech_commands.py
 which is
 adapted from https://github.com/patrick-kidger/NeuralCDE/blob/758d3a7134e3a691013e5cc6b7f68f277e9e6b69/experiments/datasets/speech_commands.py
 """
+
 import os
 import pathlib
 import tarfile

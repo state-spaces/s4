@@ -17,7 +17,7 @@ model:
   prenorm: true
   layer:
     rank: 2
-    measure: fourier
+    init: fourier
     deterministic: true
     dt_min: ${eval:${model.n_layers}/${dataset.l_memorize}} # 0.0008
     dt_max: ${eval:${model.n_layers}/${dataset.l_memorize}} # 0.001

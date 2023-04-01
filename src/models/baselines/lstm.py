@@ -1,4 +1,4 @@
-""" Wrapper around nn.LSTM to make it compatible with our RNN interface """
+"""Wrapper around nn.LSTM to make it compatible with our RNN interface."""
 
 import torch
 from torch import nn
@@ -26,6 +26,11 @@ class TorchLSTM(nn.LSTM, SequenceModule):
             self.h0 = nn.Parameter(torch.zeros(self.num_layers * self.num_directions, 1, self.real_hidden_size))
             self.c0 = nn.Parameter(torch.zeros(self.num_layers * self.num_directions, 1, self.hidden_size))
 
+    # def forward(self, x, state=None, **kwargs):
+    #     # Note that state is (h_n, c_n)
+    #     y = super().forward(x, state)
+    #     return y, state
+
     def step(self, x, state):
         raise NotImplementedError("Needs to be implemented.")
 
@@ -52,7 +57,7 @@ class TorchLSTM(nn.LSTM, SequenceModule):
 
     @property
     def d_output(self):
-        return self.d_model
+        return self.d_hidden
 
     @property
     def state_to_tensor(self):

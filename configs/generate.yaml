@@ -15,4 +15,4 @@ split: val                                 # If conditioning, which split of the
 save_dir: sashimi/samples                  # Save directory. Pass in 'null' (None) to save in Hydra directory to ensure that samples are not overridden
 load_data: true                            # Load the dataset (set to false to disable if not conditioning)
 decode: audio                              # Decoding mode ['audio' | 'text' | None]. The pretrained WikiText-103 model currently does not generate correctly
-test_generation: false                     # Test that stepping and forward match before generating
+test_model: false                     # Test that stepping and forward match before generating

@@ -14,7 +14,7 @@ model:
   layer:
     bidirectional: true
     mode: diag
-    measure: diag-lin
+    init: diag-lin
     disc: zoh
     lr: 0.001
     force_real: false
@@ -34,9 +34,9 @@ trainer:
   max_epochs: 200
 
 scheduler:
-  num_warmup_steps: 10000
-  num_training_steps: 200000
+  num_warmup_steps: 9000  # 10 epochs
+  num_training_steps: 180000  # 200 epochs
 
 train:
   seed: 2222
-  name: Large SSM block - EMA
+  name: Large SSM block - S4D

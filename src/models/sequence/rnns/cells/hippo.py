@@ -1,3 +1,5 @@
+"""Implementation of full HiPPO-RNN variants."""
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -36,17 +38,17 @@ class HiPPOLSICell(LSICell):
         super().__init__(d_input, d_model, memory_size, memory_order, A, B, **kwargs)
 
 class LegTCell(HiPPOLTICell):
-    """ Translated Legendre """
+    """Translated Legendre."""
     name = 'legt'
     measure = 'legt'
 
 class LegSCell(HiPPOLSICell):
-    """ Scaled Legendre """
+    """Scaled Legendre."""
     name = 'legs'
     measure = 'legs'
 
 class LagTCell(HiPPOLTICell):
-    """ Translated Laguerre """
+    """Translated Laguerre."""
     name = 'lagt'
     measure = 'lagt'
 
@@ -54,7 +56,7 @@ class LagTCell(HiPPOLTICell):
         super().__init__(d_input, d_model, dt=dt, **kwargs)
 
 class GLagTCell(HiPPOLTICell):
-    """ Translated Generalized Laguerre """
+    """Translated Generalized Laguerre."""
     name = 'glagt'
     measure = 'glagt'
 
@@ -62,7 +64,7 @@ class GLagTCell(HiPPOLTICell):
         super().__init__(d_input, d_model, dt=dt, **kwargs)
 
 class LMUCell(HiPPOLTICell):
-    """ This cell differs from the HiPPO-LegT cell by a normalization in the recurrent matrix A, and different RNN connections and initialization
+    """This cell differs from the HiPPO-LegT cell by a normalization in the recurrent matrix A, and different RNN connections and initialization.
 
     https://papers.nips.cc/paper/2019/file/952285b9b7e7a1be5aa7849f32ffff05-Paper.pdf
     """

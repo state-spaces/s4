@@ -19,7 +19,7 @@ def cayley_init_(A):
 
 # We include a few more initializations that could be useful for other problems
 def haar_init_(A):
-    """ Haar initialization on SO(n) """
+    """Haar initialization on SO(n)."""
     torch.nn.init.orthogonal_(A)
     with torch.no_grad():
         if A.det() < 0.:
@@ -33,7 +33,7 @@ def haar_init_(A):
 
 
 def haar_diag_init_(A):
-    """ Block-diagonal skew-symmetric matrix with eigenvalues distributed as those from a Haar """
+    """Block-diagonal skew-symmetric matrix with eigenvalues distributed as those from a Haar."""
     haar_init_(A)
     with torch.no_grad():
         An = A.data.cpu().numpy()

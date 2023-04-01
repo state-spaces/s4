@@ -2,4 +2,4 @@ defaults:
   - s4
 
 mode: diag
-measure: diag-lin
+init: diag-lin

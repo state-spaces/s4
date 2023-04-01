@@ -1,3 +1,5 @@
+"""Data utilities for generating signals."""
+
 import numpy as np
 
 def whitesignal(period, dt, freq, rms=0.5, batch_shape=()):

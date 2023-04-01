@@ -4,10 +4,12 @@ import torch
 import torch.nn as nn
 
 from .parametrization import Parametrization
+from src.models.nn.activation import ModReLU
 
 
 class Orthogonal(Parametrization):
-    """ Class that implements optimization restricted to the Stiefel manifold """
+    """Class that implements optimization restricted to the Stiefel manifold."""
+
     def __init__(self, d_input, d_output, initializer_skew, mode, param):
         """
         mode: "static" or a tuple such that:
@@ -61,26 +63,6 @@ class Orthogonal(Parametrization):
             return ret
 
 
-class modrelu(nn.Module):
-    def __init__(self, features):
-        # For now we just support square layers
-        super(modrelu, self).__init__()
-        self.features = features
-        self.b = nn.Parameter(torch.Tensor(self.features))
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        self.b.data.uniform_(-0.01, 0.01)
-
-    def forward(self, inputs):
-        norm = torch.abs(inputs)
-        biased_norm = norm + self.b
-        magnitude = nn.functional.relu(biased_norm)
-        phase = torch.sign(inputs)
-
-        return phase * magnitude
-
-
 class OrthogonalRNN(nn.Module):
     def __init__(self, d_input, d_model, initializer_skew, mode, param):
         super(OrthogonalRNN, self).__init__()
@@ -88,7 +70,7 @@ class OrthogonalRNN(nn.Module):
         self.d_model = d_model
         self.recurrent_kernel = Orthogonal(d_model, d_model, initializer_skew, mode, param=param)
         self.input_kernel = nn.Linear(in_features=self.d_input, out_features=self.d_model, bias=False)
-        self.nonlinearity = modrelu(d_model)
+        self.nonlinearity = ModReLU(d_model)
 
         self.reset_parameters()
 

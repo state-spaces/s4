@@ -206,5 +206,3 @@ class RnnModels(SequenceModule): #(nn.Module):
         # return out
 
         return h.unsqueeze(1), None
-
-

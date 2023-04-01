@@ -3,9 +3,11 @@ l_noise: 100 # length
 l_memorize: 10  # number of tokens to memorize
 n_tokens: 10  # alphabet size
 variable: false # Randomly distribute memorization tokens throughout sequence instead of frontloading them
+variable_length: false # Randomize number of tokens to memorize
 n_train: 10000 # Training samples per epoch (random)
 n_eval: 1000 # Evaluation samples per epoch (fixed)
 one_hot: false
+reverse: false
 static: false
 lag: false
 # test_samples: 5000

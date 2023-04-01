@@ -1,0 +1,46 @@
+# @package _global_
+defaults:
+  - /pipeline: cifar-2d
+  - /model: s4
+  - override /model/layer: s4nd
+  - override /scheduler: cosine_warmup
+
+dataset:
+  augment: false
+
+loader:
+  batch_size: 50
+  img_size: 32
+  train_resolution: 2
+  eval_resolutions: [1, 2]
+
+model:
+  dropout: 0.1
+  tie_dropout: true
+  n_layers: 6
+  d_model: 256
+  prenorm: true
+  layer:
+    init: diag-lin
+    d_state: 64
+    bidirectional: true
+    final_act: glu
+    n_ssm: 1
+    dt_min: 0.1
+    dt_max: 1.0
+    l_max: [32, 32]
+    bandlimit: 0.2  # used for resolutions experiments
+
+optimizer:
+  lr: 0.01
+  weight_decay: 0.03
+
+trainer:
+  max_epochs: 100
+
+scheduler:
+  num_warmup_steps: 900  # 1 epoch
+  num_training_steps: 90000  # 100 epochs
+
+train:
+  seed: 2222

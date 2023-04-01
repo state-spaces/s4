@@ -13,7 +13,7 @@ model:
   norm: batch
   layer:
     mode: diag
-    measure: diag-real # Simple initialization for real
+    init: diag-real # Simple initialization for real
     d_state: 64
     bidirectional: true
     disc: zoh
@@ -35,8 +35,8 @@ trainer:
   max_epochs: 100
 
 scheduler:
-  num_warmup_steps: 5000
-  num_training_steps: 100000
+  num_warmup_steps: 4500
+  num_training_steps: 90000  # 100 epochs
 
 train:
   seed: 2222

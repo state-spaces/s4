@@ -1,16 +1,16 @@
 - _name_: s4
   l_max: ${dataset.__l_max}
-  postact: glu
+  final_act: glu
   dropout: ${...dropout} # Same as null
   lr: ${optimizer.lr}
   n_ssm: 1
 - _name_: s4
   l_max: ${dataset.__l_max}
-  postact: glu
+  final_act: glu
   dropout: ${...dropout} # Same as null
   lr: ${optimizer.lr}
   n_ssm: 1
-- _name_: ff
+- _name_: ffn
   expand: 4
   activation: gelu
   dropout: ${...dropout} # Same as null

@@ -1,3 +1,5 @@
+"""Callbacks for progressive resizing of images, used in S4ND paper."""
+
 import numpy as np
 from pytorch_lightning.callbacks import Callback
 

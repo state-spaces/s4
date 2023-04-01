@@ -1,9 +1,12 @@
-""" UnICORNN implementation adapted from https://github.com/tk-rusch/unicornn/blob/main/health_care/network.py """
+"""Implementation of UnICORNN model.
 
-"""
+Adapted from https://github.com/tk-rusch/unicornn/blob/main/health_care/network.py.
+
+Original docstring:
 This code implements a fast CUDA version of the stacked UnICORNN model.
-We emphasise that this code builds up on the fast CUDA implementation of the IndRNN https://github.com/Sunnydreamrain/IndRNN_pytorch
+We emphasise that this code builds up on the fast CUDA implementation of the IndRNN https://github.com/Sunnydreamrain/IndRNN_pytorch.
 """
+
 import torch
 import torch.nn as nn
 from torch.autograd import Function
@@ -355,7 +358,14 @@ class UnICORNN(SequenceModule):
                 rnnoutputs["outlayer%d" % x], self.dropout, self.training
             )
 
+        # temp = rnnoutputs["outlayer%d" % (len(self.RNNs) - 1)][-1]
+        # output = self.classifier(temp)
         output = rnnoutputs["outlayer%d" % (len(self.RNNs) - 1)]
         output = output.transpose(0, 1)
+
+        # if self.l_output == 0:
+        #     output = output[:, -1]
+        # else:
+        #     output = output[:, -self.l_output :]
 
         return output

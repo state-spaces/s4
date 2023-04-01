@@ -1,10 +1,16 @@
-""" Defines flexible gating mechanisms based on ideas from LSSL paper and UR-LSTM paper https://arxiv.org/abs/1910.09890 """
+"""Defines flexible gating mechanisms.
+
+Based on ideas from LSSL paper and UR-LSTM paper (https://arxiv.org/abs/1910.09890).
+"""
 
 import torch
 import torch.nn as nn
 
 class Gate(nn.Module):
-    """ Implements gating mechanisms. TODO update this with more detailed description with reference to LSSL paper when it's on arxiv
+    """Implements gating mechanisms.
+
+    LSSL paper elaborates on the most import connection: A standard sigmoid gate
+    is equivalent to an exponential parameterization + Backwards Euler disc.
 
     Mechanisms:
     N  - No gate
@@ -19,6 +25,7 @@ class Gate(nn.Module):
     TR - Trapezoid discretization, Relu activation
     TS - Trapezoid discretization, Sigmoid activation (0 to 2)
     """
+
     def __init__(self, size, preact_ctor, preact_args, mechanism='N'):
         super().__init__()
         self.size      = size
