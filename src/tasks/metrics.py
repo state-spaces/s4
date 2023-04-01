@@ -3,7 +3,6 @@
 import math
 import torch
 import torch.nn.functional as F
-from src.tasks.mixture import mixture_loss, mixture_loss_kd
 from sklearn.metrics import f1_score, roc_auc_score
 from functools import partial
 
@@ -184,8 +183,6 @@ output_metric_fns = {
     'accuracy@5': partial(accuracy_at_k, k=5),
     'accuracy@10': partial(accuracy_at_k, k=10),
     "eval_loss": loss,
-    "mixture": mixture_loss,
-    "mixture_kd": mixture_loss_kd,
     "mse": mse,
     "mae": mae,
     "forecast_rmse": forecast_rmse,
