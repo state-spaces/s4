@@ -32,8 +32,8 @@ import torchvision.transforms as transforms
 import os
 import argparse
 
-from src.models.s4.s4 import S4
-from src.models.s4.s4d import S4D
+from models.s4.s4 import S4
+from models.s4.s4d import S4D
 from tqdm.auto import tqdm
 
 # Dropout broke in PyTorch 1.11
