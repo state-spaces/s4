@@ -2,7 +2,7 @@
 SaShiMi backbone.
 
 Use this backbone in your own models. You'll also need to copy over the
-standalone S4 layer, which can be found at `state-spaces/src/models/s4/`
+standalone S4 layer, which can be found at `state-spaces/models/s4/`
 
 It's Raw! Audio Generation with State-Space Models
 Karan Goel, Albert Gu, Chris Donahue, Christopher Re.
@@ -16,7 +16,7 @@ import torch.nn.functional as F
 
 from einops import rearrange
 
-from src.models.s4.s4 import LinearActivation, S4
+from models.s4.s4 import LinearActivation, S4Block as S4
 
 class DownPool(nn.Module):
     def __init__(self, d_input, expand, pool):

@@ -36,7 +36,7 @@ model = {
     "model":                 "src.models.sequence.backbones.model.SequenceModel",
     "unet":                  "src.models.sequence.backbones.unet.SequenceUNet",
     "sashimi":               "src.models.sequence.backbones.sashimi.Sashimi",
-    "sashimi_standalone":    "sashimi.sashimi.Sashimi",
+    "sashimi_standalone":    "models.sashimi.sashimi.Sashimi",
     # Baseline RNNs
     "lstm":                  "src.models.baselines.lstm.TorchLSTM",
     "gru":                   "src.models.baselines.gru.TorchGRU",
@@ -46,12 +46,8 @@ model = {
     "stackedrnn":            "src.models.baselines.samplernn.StackedRNN",
     "stackedrnn_baseline":   "src.models.baselines.samplernn.StackedRNNBaseline",
     "samplernn":             "src.models.baselines.samplernn.SampleRNN",
-    "dcgru":                 "src.models.baselines.dcgru.DCRNNModel_classification",
-    "dcgru_ss":              "src.models.baselines.dcgru.DCRNNModel_nextTimePred",
     # Baseline CNNs
     "ckconv":                "src.models.baselines.ckconv.ClassificationCKCNN",
-    "wavegan":               "src.models.baselines.wavegan.WaveGANDiscriminator", # DEPRECATED
-    "denseinception":        "src.models.baselines.dense_inception.DenseInception",
     "wavenet":               "src.models.baselines.wavenet.WaveNetModel",
     "torch/resnet2d":        "src.models.baselines.resnet.TorchVisionResnet",  # 2D ResNet
     # Nonaka 1D CNN baselines
@@ -69,15 +65,13 @@ model = {
     "timm/convnext_micro":   "src.models.baselines.convnext_timm.convnext_micro",
     "timm/resnet50":         "src.models.baselines.resnet_timm.resnet50", # Can also register many other variants in resnet_timm
     "timm/convnext_tiny_3d": "src.models.baselines.convnext_timm.convnext3d_tiny",
-    # Segmentation models
-    "convnext_unet_tiny":    "src.models.segmentation.convnext_unet.convnext_tiny_unet",
 }
 
 layer = {
     "id":         "src.models.sequence.base.SequenceIdentity",
     "lstm":       "src.models.baselines.lstm.TorchLSTM",
     "standalone": "models.s4.s4.S4Block",
-    "s4d":        "src.models.s4.s4d.S4D",
+    "s4d":        "models.s4.s4d.S4D",
     "ffn":        "src.models.sequence.modules.ffn.FFN",
     "sru":        "src.models.sequence.rnns.sru.SRURNN",
     "rnn":        "src.models.sequence.rnns.rnn.RNN",  # General RNN wrapper
@@ -90,8 +84,6 @@ layer = {
     "s4":         "src.models.sequence.modules.s4block.S4Block",
     "s4nd":       "src.models.sequence.modules.s4nd.S4ND",
     "mega":       "src.models.sequence.modules.mega.MegaBlock",
-    "h3":         "src.models.sequence.experimental.h3.H3",
-    "h4":         "src.models.sequence.experimental.h4.H4",
     # 'packedrnn': 'models.sequence.rnns.packedrnn.PackedRNN',
 }
 

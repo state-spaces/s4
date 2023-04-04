@@ -68,7 +68,7 @@ Installation usually works out of the box with `pip install pykeops cmake` which
 
 ### S4 Module
 
-Self-contained files for the S4 layer and variants can be found in [src/models/s4/](./src/models/s4/),
+Self-contained files for the S4 layer and variants can be found in [models/s4/](./models/s4/),
 which includes instructions for calling the module.
 
 See [notebooks/](notebooks/) for visualizations explaining some concepts behind HiPPO and S4.
@@ -97,7 +97,7 @@ One important feature of this codebase is supporting parameters that require dif
 In particular, the SSM kernel is particularly sensitive to the $(A, B)$ (and sometimes $\Delta$ parameters),
 so the learning rate on these parameters is sometimes lowered and the weight decay is always set to $0$.
 
-See the method `register` in the model (e.g. [s4d.py](src/models/s4/s4d.py)) and the function `setup_optimizer` in the training script (e.g. [example.py](example.py)) for an examples of how to implement this in external repos.
+See the method `register` in the model (e.g. [s4d.py](py)) and the function `setup_optimizer` in the training script (e.g. [example.py](example.py)) for an examples of how to implement this in external repos.
 
 <!--
 Our logic for setting these parameters can be found in the `OptimModule` class under `src/models/sequence/ss/kernel.py` and the corresponding optimizer hook in `SequenceLightningModule.configure_optimizers` under `train.py`
