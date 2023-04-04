@@ -20,7 +20,7 @@ class S4DKernel(nn.Module):
         ) + math.log(dt_min)
 
         C = torch.randn(H, N // 2, dtype=torch.cfloat)
-        self.C = nn.Parameter(torch.view_as_view(C))
+        self.C = nn.Parameter(torch.view_as_real(C))
         self.register("log_dt", log_dt, lr)
 
         log_A_real = torch.log(0.5 * torch.ones(H, N//2))
