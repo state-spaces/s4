@@ -458,7 +458,7 @@ class SSMKernelDiag(SSMKernel):
         real_transform: str = 'exp',
         imag_transform: str = 'none',
         bandlimit: Optional[float] = None,
-        kernel: str = 'cuda',
+        backend: str = 'cuda',
         force_real: bool = False,
         **kwargs,
     ):
@@ -468,7 +468,7 @@ class SSMKernelDiag(SSMKernel):
         self.real_transform = real_transform
         self.imag_transform = imag_transform
         self.bandlimit = bandlimit
-        self.kernel = kernel
+        self.backend = backend
         self.force_real = force_real
 
         # Initialize dt, A, B, C
@@ -497,7 +497,7 @@ class SSMKernelDiag(SSMKernel):
         Note: tensor shape N here denotes half the true state size, because of conjugate symmetry
         """
 
-        assert self.kernel in ['cuda', 'keops', 'naive']
+        assert self.backend in ['cuda', 'keops', 'naive']
 
         if self.dt_fast: inv_dt = torch.asinh(inv_dt)
 
@@ -577,9 +577,9 @@ class SSMKernelDiag(SSMKernel):
         C = (B[:, None, :, :] * C).view(-1, self.H, self.N)
 
         # Dispatch which Vandermonde kernel to use
-        if has_cuda_extension and C.dtype == torch.cfloat and C.device.type == 'cuda' and self.kernel == 'cuda':
+        if has_cuda_extension and C.dtype == torch.cfloat and C.device.type == 'cuda' and self.backend == 'cuda':
             log_vandermonde = log_vandermonde_cuda
-        elif has_pykeops and self.kernel in ['cuda', 'keops']:
+        elif has_pykeops and self.backend in ['cuda', 'keops']:
             log_vandermonde = log_vandermonde_keops
         else:
             log_vandermonde = log_vandermonde_naive
@@ -659,7 +659,7 @@ class SSMKernelDiag(SSMKernel):
         AL = self.dA ** u.size(-1)
         u = u.flip(-1).to(self.dA).contiguous() # (B H L)
         # Dispatch which Vandermonde kernel to use
-        if has_pykeops and self.kernel in ['cuda', 'keops']:
+        if has_pykeops and self.backend in ['cuda', 'keops']:
             log_vandermonde_transpose = log_vandermonde_transpose_keops
         else:
             log_vandermonde_transpose = log_vandermonde_transpose_naive
@@ -827,9 +827,9 @@ class SSMKernelDPLR(SSMKernelDiag):
         v = v * dt  # Incorporate dt into B
 
         # Dispatch which Cauchy kernel to use
-        if has_cuda_extension and z.dtype == torch.cfloat and z.device.type == 'cuda' and self.kernel == 'cuda':
+        if has_cuda_extension and z.dtype == torch.cfloat and z.device.type == 'cuda' and self.backend == 'cuda':
             cauchy_mult = cauchy_cuda
-        elif has_pykeops and self.kernel in ['cuda', 'keops']:
+        elif has_pykeops and self.backend in ['cuda', 'keops']:
             cauchy_mult = cauchy_keops
         else:
             cauchy_mult = cauchy_naive
