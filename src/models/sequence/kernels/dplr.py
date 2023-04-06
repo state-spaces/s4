@@ -89,6 +89,9 @@ def dplr(
         log.warning("'B_random' is deprecated in favor of B_init='random' and will be deprecated in a future version.")
     if init in ['legs', 'hippo']:
         log.info(f'Initializing with S4D-LegS and ignoring argument {B_init=}')
+        B_init = 'legs'
+
+    if B_init in ['legs', 'hippo']:
         # Special initialization using the HiPPO B matrix
         # Note that theory (from S4D paper) says that B should be halved
         # to match DPLR but we drop this 0.5 factor for simplicity
@@ -121,7 +124,7 @@ def dplr(
         B = B / zeta**.5
 
     # Initialize P
-    if B_init in ['legs', 'hippo', 'legsd']:
+    if B_init in ['legs', 'hippo']:
         # P constructed earlier
         P = repeat(P, 'r n -> r h n', h=H).clone().contiguous()
     else:
