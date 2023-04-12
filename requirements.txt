@@ -6,6 +6,7 @@ matplotlib
 tqdm
 rich
 torchtext
+lit # Getting installation errors with torch 2.0 if this isn't installed
 # torchvision
 pytorch-lightning==1.9.3
 hydra-core
@@ -13,7 +14,7 @@ omegaconf
 wandb
 einops
 cmake # For pykeops support
-pykeops # If there are installation problems with pykeops==2.x, try pykeops==1.5
+# pykeops # Seems to cause various issues; leaving uninstalled by default
 transformers # For some schedulers
 
 # Model specific packges
