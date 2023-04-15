@@ -79,6 +79,16 @@ For each dataset, you only need to download and unzip the` <dataset>.zip` file i
 
 Details about the training-validation-test splits used are also included in the README files on the dataset pages. If you reproduce our results, this splitting will be handled automatically by our training scripts. The specific data processing code that we use can be found at `/src/dataloaders/audio.py`, and dataset definitions for use with our training code are included in `/src/dataloaders/datasets.py`. The dataset configs can be found at `/configs/datasets/`.
 
+### SC09 alternative
+There is an easier way to set up SC09 through the standard SpeechCommands dataset available in this repository, without duplicating data:
+```
+python -m train wandb=null experiment=sc/s4-sc  # Start SC experiment, which auto-downloads data; can kill experiment once started
+cd data
+mkdir sc09
+ln -s $PWD/SpeechCommands/{zero,one,two,three,four,five,six,seven,eight,nine} sc09/  # Symlink relevant SC subsets
+cp SpeechCommands/{testing_list.txt,validation_list.txt} sc09
+```
+
 ## Model Training
 SaShiMi models rely on the same training framework as S4 (see the [README](/README.md) for details). To reproduce our results or train new SaShiMi models, you can use the following commands:
 ```bash
