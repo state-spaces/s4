@@ -75,7 +75,7 @@ def dplr(
     elif init in ['quadratic', 'quad']:
         imag_part = 1/pi * (1+2*imag_part)**2
     elif init in ['legs', 'hippo']:
-        A, _, _, _ = hippo.nplr('legsd', N)
+        A, _, _, _ = hippo.nplr('legs', N)
         imag_part = -A.imag  # Positive
     else: raise NotImplementedError
     imag_part = imag_scale * imag_part

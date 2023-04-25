@@ -50,6 +50,7 @@ Alternative inits are supported, such as `init=fout` which is the S4-FouT model 
 ### S4D
 
 S4D is activated by the argument `mode=diag` which uses the diagonal kernel.
+The default initialization (`init=legs`) does not need to be changed, which corresponds to the S4D-LegS method from the paper that approximates the original S4.
 Pass in `init=diag-lin` or `init=diag-inv` for S4D-Lin or S4D-Inv.
 Other options described in the S4D paper include
 - `disc={'bilinear','zoh'}`: Bilinear vs. ZOH discretization
