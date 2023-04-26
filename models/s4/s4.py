@@ -516,7 +516,7 @@ def dplr(
     elif init in ['quadratic', 'quad']:
         imag_part = 1/pi * (1+2*imag_part)**2
     elif init in ['legs', 'hippo']:
-        A, _, _, _ = nplr('legsd', N)
+        A, _, _, _ = nplr('legs', N)
         imag_part = -A.imag  # Positive
     else: raise NotImplementedError
     imag_part = imag_scale * imag_part
@@ -562,7 +562,7 @@ def dplr(
         B = B / zeta**.5
 
     # Initialize P
-    if B_init in ['legs', 'hippo', 'legsd']:
+    if B_init in ['legs', 'hippo']:
         # P constructed earlier
         P = repeat(P, 'r n -> r h n', h=H).clone().contiguous()
     else:
