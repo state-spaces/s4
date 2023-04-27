@@ -9,15 +9,15 @@ s4/          Standalone S4 modules
 sequence/    Modular sequence model interface
 ```
 
-## HiPPO
-
-HiPPO is the mathematical framework upon which the papers HiPPO, LSSL, and S4 are built on.
-HiPPO operators are defined in [hippo/hippo.py](hippo/hippo.py).
-Function reconstruction experiments and visualizations are presented in [hippo/visualizations.py](hippo/visualizations.py).
+<!-- ## HiPPO -->
+<!---->
+<!-- HiPPO is the mathematical framework upon which the papers HiPPO, LSSL, and S4 are built on. -->
+<!-- HiPPO operators are defined in [hippo/hippo.py](hippo/hippo.py). -->
+<!-- Function reconstruction experiments and visualizations are presented in [hippo/visualizations.py](hippo/visualizations.py). -->
 
 ## S4
 
-In V3, a standalone implementation of S4 could be found inside `s4/`. It has been moved to TODO.
+In v3, a standalone implementation of S4 could be found inside `s4/`. It has been moved to [/models/s4/](/models/s4/).
 The fully tested S4 implementation is inside [sequence/](sequence/).
 
 ## Modular Sequence Model Interface
