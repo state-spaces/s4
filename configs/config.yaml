@@ -39,6 +39,10 @@ train:
 
   ckpt: null # Resume training
 
+  optimizer_param_grouping:
+    bias_weight_decay: False
+    normalization_weight_decay: False
+
   disable_dataset: False # Disable dataset loading
   validate_at_start: false
 
@@ -52,6 +56,10 @@ train:
   layer_decay: # Used for ImageNet finetuning
     _name_: null
     decay: 0.7
+
+  # PL 2.0 seems to have gotten rid of the trainer.track_grad_norm flag
+  # We have a custom Callback (TrackNorms) that implements something similar
+  track_grad_norms: False
 
 tolerance: # fault tolerance for training on preemptible machines
   logdir: ./resume

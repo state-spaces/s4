@@ -145,9 +145,11 @@ def log_optimizer(logger, optimizer, keys):
     keys = sorted(keys)
     for i, g in enumerate(optimizer.param_groups):
         group_hps = {k: g.get(k, None) for k in keys}
+        n_params = sum(p.numel() for p in g['params'])
         logger.info(' | '.join([
             f"Optimizer group {i}",
             f"{len(g['params'])} tensors",
+            f"{n_params} parameters",
         ] + [f"{k} {v}" for k, v in group_hps.items()]))
         # print(f"Optimizer group {i} | {len(g['params'])} tensors | lr {g['lr']} | wd {g.get('weight_decay', None)}")
 
