@@ -11,12 +11,12 @@ from functools import partial
 import torch
 from torch import nn
 
-import src.utils.registry as registry
-import src.utils as utils
 from src.models.nn import Normalization, StochasticDepth, DropoutNd
 from src.models.sequence import SequenceModule
 from src.models.sequence.modules.pool import registry as pool_registry
 from src.models.nn.residual import registry as residual_registry
+import src.utils as utils
+import src.utils.registry as registry
 
 
 class SequenceResidualBlock(SequenceModule):

@@ -13,6 +13,8 @@ initializer: null
 weight_norm: false
 # dropout: ${model.dropout} # Same as null
 tie_dropout: ${oc.select:model.tie_dropout,null}
+# Layer arguments
+layer: fftconv
 # Kernel arguments
 mode: nplr
 init: legs  # Initialization option; new name for 'measure'
@@ -27,6 +29,7 @@ lr:
   B: 0.001
 wd: 0.0 # Can be dictionary like lr
 n_ssm: 1
+drop_kernel: 0.0
 deterministic: false # Special C init
 l_max: ${oc.select:dataset.__l_max,null} # Grab dataset length if exists, otherwise set to 1 and kernel will automatically resize
 verbose: true

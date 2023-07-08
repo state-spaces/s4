@@ -46,8 +46,12 @@ model = {
     "stackedrnn":            "src.models.baselines.samplernn.StackedRNN",
     "stackedrnn_baseline":   "src.models.baselines.samplernn.StackedRNNBaseline",
     "samplernn":             "src.models.baselines.samplernn.SampleRNN",
+    "dcgru":                 "src.models.baselines.dcgru.DCRNNModel_classification",
+    "dcgru_ss":              "src.models.baselines.dcgru.DCRNNModel_nextTimePred",
     # Baseline CNNs
     "ckconv":                "src.models.baselines.ckconv.ClassificationCKCNN",
+    "wavegan":               "src.models.baselines.wavegan.WaveGANDiscriminator", # DEPRECATED
+    "denseinception":        "src.models.baselines.dense_inception.DenseInception",
     "wavenet":               "src.models.baselines.wavenet.WaveNetModel",
     "torch/resnet2d":        "src.models.baselines.resnet.TorchVisionResnet",  # 2D ResNet
     # Nonaka 1D CNN baselines
@@ -65,6 +69,8 @@ model = {
     "timm/convnext_micro":   "src.models.baselines.convnext_timm.convnext_micro",
     "timm/resnet50":         "src.models.baselines.resnet_timm.resnet50", # Can also register many other variants in resnet_timm
     "timm/convnext_tiny_3d": "src.models.baselines.convnext_timm.convnext3d_tiny",
+    # Segmentation models
+    "convnext_unet_tiny":    "src.models.segmentation.convnext_unet.convnext_tiny_unet",
 }
 
 layer = {
@@ -82,8 +88,11 @@ layer = {
     "performer":  "src.models.sequence.attention.linear.Performer",
     "lssl":       "src.models.sequence.modules.lssl.LSSL",
     "s4":         "src.models.sequence.modules.s4block.S4Block",
+    "fftconv":    "src.models.sequence.kernels.fftconv.FFTConv",
     "s4nd":       "src.models.sequence.modules.s4nd.S4ND",
     "mega":       "src.models.sequence.modules.mega.MegaBlock",
+    "h3":         "src.models.sequence.experimental.h3.H3",
+    "h4":         "src.models.sequence.experimental.h4.H4",
     # 'packedrnn': 'models.sequence.rnns.packedrnn.PackedRNN',
 }
 

@@ -10,6 +10,8 @@ from einops import rearrange, repeat
 from src.models.nn import LinearActivation, Activation, DropoutNd
 from src.models.sequence.base import SequenceModule
 from src.models.sequence.kernels.fftconv import FFTConv
+import src.utils as utils
+import src.utils.registry as registry
 
 import src.utils.train
 log = src.utils.train.get_logger(__name__)
@@ -40,6 +42,7 @@ class S4Block(SequenceModule):
         self,
         d_model,
         bottleneck=None,
+        activation='gelu',
         gate=None,
         gate_act=None,
         mult_act=None,
@@ -50,6 +53,7 @@ class S4Block(SequenceModule):
         dropout=0.0,
         tie_dropout=False,
         transposed=True,
+        layer='fftconv',
         **layer_args,  # Arguments into inner layer (e.g. FFTConv)
     ):
         super().__init__()
@@ -97,9 +101,16 @@ class S4Block(SequenceModule):
         # But the options here are all agnostic to the inner block
         # If other types of inner layers are desired, it is easy
         # to add an option to swap a different module in
-        self.layer = FFTConv(d_model, transposed=False, dropout=dropout, tie_dropout=tie_dropout, **layer_args)
+        # self.layer = FFTConv(d_model, transposed=False, dropout=dropout, tie_dropout=tie_dropout, **layer_args)
+        layer_cfg = layer_args.copy()
+        layer_cfg['_name_'] = layer
+        layer_cfg['transposed'] = False
+        layer_cfg['dropout'] = dropout
+        self.layer = utils.instantiate(registry.layer, layer_cfg, d_model)
 
         # Pointwise operations
+        # Activation after layer
+        self.activation = Activation(activation)
 
         # Activation after (optional) multiplication by gate branch
         self.mult_activation = Activation(mult_act)
@@ -156,6 +167,7 @@ class S4Block(SequenceModule):
 
         y, state = self.layer(x, **kwargs)
 
+        y = self.activation(y)
 
         if self.gate is not None:
             y = self.output_gate(y)

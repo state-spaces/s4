@@ -32,7 +32,7 @@ class FFTConv(SequenceModule):
         channels=1,
         swap_channels=False,
         bidirectional=False,
-        activation='gelu', # Activation after layer
+        activation=None, # Activation after layer
         transposed=True,
         dropout=0.0,
         tie_dropout=False,
@@ -145,7 +145,7 @@ class FFTConv(SequenceModule):
         self.kernel._setup_step(**kwargs)
 
     def step(self, x, state):
-        """ Step one time step as a recurrent model. Intended to be used during validation.
+        """Step one time step as a recurrent model. Intended to be used during validation.
 
         x: (B H)
         state: (B H N)

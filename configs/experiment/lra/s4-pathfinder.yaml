@@ -21,7 +21,6 @@ model:
     dt_max: 0.1
     init: legs
     bidirectional: true
-    final_act: glu
     n_ssm: null
 
 decoder:
