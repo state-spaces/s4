@@ -447,7 +447,7 @@ class SSMKernelDiag(SSMKernel):
         Parameterize the real/imag parts of the diagonal of A under this function.
     bandlimit: Mask high frequencies of the kernel (indices corresponding to
         diagonal elements with large imaginary part). Introduced in S4ND paper.
-    kernel: ['cuda' | 'keops' | 'naive'] Options for Vandermonde/Cauchy kernel (in order of efficiency).
+    backend: ['cuda' | 'keops' | 'naive'] Options for Vandermonde/Cauchy kernel (in order of efficiency).
     force_real : Force A to have 0 imaginary part, to emulate EMA.
     """
 
