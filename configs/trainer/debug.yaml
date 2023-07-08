@@ -17,5 +17,4 @@ overfit_batches: 0
 limit_train_batches: 0.1
 limit_val_batches: 0.1
 limit_test_batches: 0.1
-track_grad_norm: -1
 terminate_on_nan: False

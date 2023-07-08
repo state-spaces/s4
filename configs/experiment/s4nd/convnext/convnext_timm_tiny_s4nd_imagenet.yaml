@@ -31,7 +31,7 @@ trainer:
   max_epochs: 310
   precision: 16
   devices: 8
-  replace_sampler_ddp: ${eval:"${dataset.num_aug_repeats} == 0"}  # only true if using RepeatAug
+  use_distributed_sampler: ${eval:"${dataset.num_aug_repeats} == 0"}  # only true if using RepeatAug
   accumulate_grad_batches: ${eval:${train.global_batch_size} // ${.devices} // ${loader.batch_size}}
 
 train:

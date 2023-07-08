@@ -7,11 +7,10 @@ gradient_clip_val: null # Gradient clipping
 log_every_n_steps: 10
 precision: 16
 enable_model_summary: false # Can turn on if RichModelSummary is disabled
-track_grad_norm: -1 # Set to 2 to track norms of gradients
 limit_train_batches: 1.0
 limit_val_batches: 1.0
 # We use the dataloader from Transformer-XL to ensure adjacent minibatches
 # are from text that are next to each other.
 # So that dataloader has to deal with DDP, and we don't want PL to handle
 # that.
-replace_sampler_ddp: False
+use_distributed_sampler: False

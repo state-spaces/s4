@@ -26,7 +26,7 @@ class TrackNorms(pl.Callback):
 
     def on_after_backward(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # example to inspect gradient information in tensorboard
-        if OmegaConf.select(trainer.hparams, 'trainer.track_grad_norms'): # TODO dot notation should work with omegaconf?
+        if OmegaConf.select(trainer.hparams, 'train.track_grad_norms'): # TODO dot notation should work with omegaconf?
             norms = {}
             for name, p in pl_module.named_parameters():
                 if p.grad is None:

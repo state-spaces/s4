@@ -49,7 +49,7 @@ train:
   remove_test_loader_in_eval: true  # null means we do use test loader
   global_batch_size: ${loader.batch_size}  # effective batch size (handled with multiple gpus, and accumulate_grad_batches)
   pretrained_model_strict_load: False
-  replace_sampler_ddp: False # ${eval:"${trainer.devices} > 1"}
+  use_distributed_sampler: False # ${eval:"${trainer.devices} > 1"}
   pretrained_model_state_hook:
     _name_: convnext_timm_tiny_s4nd_2d_to_3d
 

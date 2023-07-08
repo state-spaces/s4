@@ -8,7 +8,7 @@ rich
 torchtext
 lit # Getting installation errors with torch 2.0 if this isn't installed
 # torchvision
-pytorch-lightning==1.9.3
+pytorch-lightning==2.0.4
 hydra-core
 omegaconf
 wandb
