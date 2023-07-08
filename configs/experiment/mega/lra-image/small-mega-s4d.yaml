@@ -22,7 +22,7 @@ model:
     disc: zoh
     init: diag-lin
     lr: 0.001
-    force_real: false
+    is_real: false
 
 dataset:
   grayscale: true

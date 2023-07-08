@@ -17,7 +17,7 @@ model:
     init: diag-lin
     disc: zoh
     lr: 0.001
-    force_real: false
+    is_real: false
     n_ssm: null  # Set to 1 for smaller parameter count of original config
 
 dataset:

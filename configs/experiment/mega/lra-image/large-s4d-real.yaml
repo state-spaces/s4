@@ -17,7 +17,7 @@ model:
     init: diag-real # Simple initialization for real
     disc: zoh
     lr: 0.001
-    force_real: true  # Throw away imaginary part
+    is_real: true  # Throw away imaginary part
     n_ssm: null  # Set to 1 for smaller parameter count of original config
 
 dataset:

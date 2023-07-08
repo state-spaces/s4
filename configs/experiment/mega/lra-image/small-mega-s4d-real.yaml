@@ -22,7 +22,7 @@ model:
     disc: zoh
     init: diag-real # Simple initialization for real
     lr: 0.001
-    force_real: true  # Throw away imaginary part
+    is_real: true  # Throw away imaginary part
 
 dataset:
   grayscale: true

@@ -19,7 +19,7 @@ model:
     disc: zoh
     n_ssm: null # Don't tie A/B params to param match EMA
     lr: 0.001
-    force_real: true  # Throw away imaginary part
+    is_real: true  # Throw away imaginary part
 
 dataset:
   grayscale: true

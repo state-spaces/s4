@@ -77,7 +77,7 @@ python -m train experiment=mega/lra-image/large-mega-s4d
 Same model but replacing the EMA component with original (complex) S4D.
 
 ```
-python -m train experiment=mega/lra-image/large-mega-s4d '~model.layer.disc' '~model.layer.force_real' model.layer.mode=nplr model.layer.measure=legs
+python -m train experiment=mega/lra-image/large-mega-s4d '~model.layer.disc' '~model.layer.is_real' model.layer.mode=nplr model.layer.measure=legs
 ```
 Same model but replacing S4D with S4.
 
@@ -117,7 +117,7 @@ python -m train experiment=mega/lra-image/small-mega-s4d-real
 ```
 Same as above, but replaces EMA with an S4D layer that is forced to be real-valued instead of complex-valued.
 
-**Details**: Exactly the same as above but replaces `EMAKernel` with `SSMKernelDiag` with the option `force_real=True`. Note that the latter has more features, but the minimal version of it ([here](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/s4/s4d.py#L16)) is nearly identical to the EMA kernel.
+**Details**: Exactly the same as above but replaces `EMAKernel` with `SSMKernelDiag` with the option `is_real=True`. Note that the latter has more features, but the minimal version of it ([here](https://github.com/HazyResearch/state-spaces/blob/17663f26f7e91f88757e1d61318ed216dfb8a8a5/src/models/s4/s4d.py#L16)) is nearly identical to the EMA kernel.
 
 ```
 python -m train experiment=mega/lra-image/small-mega-s4d
@@ -125,7 +125,7 @@ python -m train experiment=mega/lra-image/small-mega-s4d
 Same as above, but with the original (complex-valued) S4D layer.
 
 ```
-python -m train experiment=mega/lra-image/small-mega-s4d '~model.layer.disc' '~model.layer.force_real' model.layer.mode=nplr model.layer.measure=legs
+python -m train experiment=mega/lra-image/small-mega-s4d '~model.layer.disc' '~model.layer.is_real' model.layer.mode=nplr model.layer.measure=legs
 ```
 Same model but replacing S4D with S4.
 
@@ -159,7 +159,7 @@ python -m train experiment=mega/lra-image/small-ema-with-s4d
 Same as above, but use settings to match the parameter count of S4D.
 
 ```
-python -m train experiment=mega/lra-image/small-s4 '~model.layer.disc' '~model.layer.force_real' model.layer.mode=nplr model.layer.measure=legs
+python -m train experiment=mega/lra-image/small-s4 '~model.layer.disc' '~model.layer.is_real' model.layer.mode=nplr model.layer.measure=legs
 ```
 Same model but replacing S4 with S4D.
 

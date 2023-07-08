@@ -20,7 +20,7 @@ model:
     disc: zoh
     lr: 0.001
     n_ssm: null # Don't tie A/B params to param match EMA
-    force_real: false
+    is_real: false
 
 dataset:
   grayscale: true
