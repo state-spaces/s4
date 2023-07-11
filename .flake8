@@ -5,6 +5,6 @@
 #   - E203: whitespace before ':'
 [flake8]
 count = True
-max-line-length = 88
+max-line-length = 100
 statistics = True
 ignore = E731,W503,E741,E203
