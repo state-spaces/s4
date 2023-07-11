@@ -1,0 +1,8 @@
+coverage
+flake8
+isort
+black==23.7.0  # pin black because changes can result in large diffs in PRs
+flake8-bugbear
+flake8-comprehensions
+pre-commit>=2.9.3
+docformatter
