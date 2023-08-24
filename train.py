@@ -698,6 +698,35 @@ def train(config):
     trainer = create_trainer(config)
     model = SequenceLightningModule(config)
 
+    def verify_fwd_step(model):
+        
+        # Setup: required for S4 modules in SaShiMi
+        for module in model.modules():
+            if hasattr(module, '_setup_step'): module._setup_step()
+        model.eval()
+        
+        B, L, D = 2, 4000, 2
+        x = torch.ones(B, L, D, dtype=torch.float)
+
+        # Forward
+        batch = (x, None)
+        y, _, _ = model(batch) # Forward pass expects a batch which has both x and y (inputs and targets)
+        print('forward is ok')
+
+        # Step
+        model._reset_state(batch)
+        ys = []
+        for x_ in tqdm(torch.unbind(x, dim=-2)):
+            y_ = model.step(x_)
+            ys.append(y_)
+        ys = torch.stack(ys, dim=1)
+        print('step is ok')
+
+        print(torch.norm(y-ys))
+    
+    verify_fwd_step(model)
+    pass
+
     # Load pretrained_model if specified
     if config.train.get("pretrained_model_path", None) is not None:
         # PTL style.  Note, method returns a new model object, and need to pass config.
@@ -829,4 +858,6 @@ def main(config: OmegaConf):
 
 
 if __name__ == "__main__":
+    import sys
+    sys.argv.append('experiment=bidmc/s4-bidmc')
     main()

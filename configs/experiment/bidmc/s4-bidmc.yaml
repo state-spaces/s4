@@ -19,12 +19,12 @@ model:
     deterministic: false
     d_state: 256
     lr: 0.001
-    bidirectional: true
+    bidirectional: false
     final_act: glu
     n_ssm: 1
 
-decoder:
-  mode: pool
+decoder: linear
+  # mode: pool
 
 loader:
   batch_size: 32
