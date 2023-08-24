@@ -725,7 +725,7 @@ def train(config):
         print(torch.norm(y-ys))
     
     verify_fwd_step(model)
-    pass
+    return
 
     # Load pretrained_model if specified
     if config.train.get("pretrained_model_path", None) is not None:
