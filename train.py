@@ -691,6 +691,57 @@ def create_trainer(config):
     )
     return trainer
 
+@torch.no_grad()
+def verify_fwd_step(model):
+    
+    # Setup: required for S4 modules in SaShiMi
+    for module in model.modules():
+        if hasattr(module, '_setup_step'): module._setup_step()
+    model.eval()
+    
+    B, L, D = 2, 4000, 2
+    
+    # FOCUS ON S4BLOCK
+    if True:
+        s4_block = model.model.layers[0].layer
+        x = torch.ones(B, L, s4_block.d_model, dtype=torch.float)
+        
+        # forward
+        y_fwd, _ = s4_block(x)
+        # step
+        s4_block.setup_step()
+        y_step = []
+        state_ = s4_block.default_state(B)
+        for x_ in tqdm(torch.unbind(x, dim=-2)):
+            y_, state_ = s4_block.step(x_, state_)
+            y_step.append(y_)
+        y_step = torch.stack(y_step, dim=1)
+        
+        print('First 5 output of forward (s4block):', y_fwd[0,:5,0].tolist())
+        print('First 5 output of step  (s4block):', y_step[0,:5,0].tolist())
+        print(torch.norm(y_fwd-y_step))
+        return
+    
+    x = torch.ones(B, L, D, dtype=torch.float)
+
+    # Forward
+    batch = (x, None)
+    y_fwd, _, _ = model(batch) # Forward pass expects a batch which has both x and y (inputs and targets)
+    print('forward is ok')
+
+    # Step
+    model._reset_state(batch)
+    y_step = []
+    for x_ in tqdm(torch.unbind(x, dim=-2)):
+        y_ = model.step(x_)
+        y_step.append(y_)
+    y_step = torch.stack(y_step, dim=1)
+    print('step is ok')
+    
+    print('First 5 output of forward:', y_fwd[0,:5,0].tolist())
+    print('First 5 output of step:', y_step[0,:5,0].tolist())
+    print(torch.norm(y_fwd-y_step))
+    return
 
 def train(config):
     if config.train.seed is not None:
@@ -698,32 +749,6 @@ def train(config):
     trainer = create_trainer(config)
     model = SequenceLightningModule(config)
 
-    def verify_fwd_step(model):
-        
-        # Setup: required for S4 modules in SaShiMi
-        for module in model.modules():
-            if hasattr(module, '_setup_step'): module._setup_step()
-        model.eval()
-        
-        B, L, D = 2, 4000, 2
-        x = torch.ones(B, L, D, dtype=torch.float)
-
-        # Forward
-        batch = (x, None)
-        y, _, _ = model(batch) # Forward pass expects a batch which has both x and y (inputs and targets)
-        print('forward is ok')
-
-        # Step
-        model._reset_state(batch)
-        ys = []
-        for x_ in tqdm(torch.unbind(x, dim=-2)):
-            y_ = model.step(x_)
-            ys.append(y_)
-        ys = torch.stack(ys, dim=1)
-        print('step is ok')
-
-        print(torch.norm(y-ys))
-    
     verify_fwd_step(model)
     return
 
