@@ -62,11 +62,6 @@ The original S4 paper used a smaller 10-way classification task used in [prior](
 
 This version can be toggled either with `dataset=sc dataset.all_classes=false` or `dataset=sc10`.
 
-The original S4 config can be run using V1 of this code using
-```
-python -m train experiment=old/s4-sc
-```
-
 ## WikiText-103
 
 V3 re-trained the WikiText-103 experiment with the latest model and a larger context size.

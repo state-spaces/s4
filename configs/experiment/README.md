@@ -5,7 +5,6 @@ cifar/         CIFAR-10, both sequential and 2d
 convnext/      ImageNet + ConvNext variants (S4ND paper)
 forecasting/   Monash, ARIMA synthetics, datasets from the Informer paper
 lra/           Long Range Arena
-old/           Deprecated experiment configs (e.g. from original S4 paper that have been improved)
 progres/       Progressive Resizing (S4ND paper)
 sc/            Speech Commands
 segmentation/  Segmentation experiments (preliminary)
