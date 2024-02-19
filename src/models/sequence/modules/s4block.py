@@ -196,6 +196,7 @@ class S4Block(SequenceModule):
         if self.bottleneck is not None:
             x = self.input_linear(x)
         y, next_state = self.layer.step(x, state) # (B C H)
+        y = self.activation(y)
         if self.gate is not None:
             y = self.output_gate(y)
             y = y * v
