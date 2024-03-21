@@ -1918,6 +1918,7 @@ class S4Block(nn.Module):
 
         y, state = self.layer(x, **kwargs)
 
+        y = self.activation(y)
 
         if self.gate is not None:
             y = self.output_gate(y)
