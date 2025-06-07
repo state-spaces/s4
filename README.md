@@ -77,6 +77,7 @@ See [notebooks/](notebooks/) for visualizations explaining some concepts behind 
 
 [example.py](example.py) is a self-contained training script for MNIST and CIFAR that imports the standalone S4 file. The default settings `python example.py` reaches 88% accuracy on sequential CIFAR with a very simple S4D model of 200k parameters.
 This script can be used as an example for using S4 variants in external repositories.
+In addition, [`line_forecast.py`](line_forecast.py) provides a minimal demonstration of training S4 on a synthetic linear forecasting task.
 
 ### Training with this Repository (Internal Usage)
 
