@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "s4"
+version = "0.1.0"
+description = "Structured State Space Models"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "scikit-learn",
+    "matplotlib",
+    "tqdm",
+    "rich",
+    "torchtext",
+    "lit",
+    "pytorch-lightning==2.0.4",
+    "hydra-core",
+    "omegaconf",
+    "wandb",
+    "einops",
+    "cmake",
+    "transformers",
+    "datasets",
+    "sktime",
+    "numba",
+    "gluonts",
+    "timm==0.5.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["s4*"]
