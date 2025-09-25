@@ -16,7 +16,6 @@ dependencies = [
     "rich",
     "torchtext",
     "lit",
-    "pytorch-lightning==2.0.4",
     "hydra-core",
     "omegaconf",
     "wandb",
@@ -29,6 +28,9 @@ dependencies = [
     "gluonts",
     "timm==0.5.4",
 ]
+
+[project.optional-dependencies]
+train = ["pytorch-lightning==2.0.4"]
 
 [tool.setuptools.packages.find]
 where = ["."]
