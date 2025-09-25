@@ -35,3 +35,6 @@ train = ["pytorch-lightning==2.0.4"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["s4*"]
+
+[project.scripts]
+s4-install-kernels = "s4.extensions.kernels.install:main"
