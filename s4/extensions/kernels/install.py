@@ -18,7 +18,7 @@ def main():
     try:
         os.chdir(kernel_dir)
         result = subprocess.run([
-            sys.executable, "setup.py", "build_ext", "--inplace"
+            sys.executable, "setup.py", "install"
         ], check=True)
         print("Kernels installed successfully!")
     except subprocess.CalledProcessError as e:
