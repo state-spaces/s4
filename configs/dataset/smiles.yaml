@@ -1,0 +1,16 @@
+# SMILES Dataset Configuration
+# Dataset for molecular SMILES sequences from PubChem
+_name_: smiles
+
+# Custom file paths for SMILES data
+train_path: "/netscratch/hashmat/Repositories/Test/bert/simple_splits/pubchem_10m_train.txt"
+val_path: "/netscratch/hashmat/Repositories/Test/bert/simple_splits/pubchem_10m_val.txt"
+test_path: "/netscratch/hashmat/Repositories/Test/bert/simple_splits/pubchem_10m_test.txt"
+
+# Dataset parameters
+bpe: False  # Don't use BPE encoding, use character-level tokenization for SMILES
+roll_seed: 42  # "rotate" data every epoch so it starts somewhere random
+test_split: True  # Include test set
+
+# Maximum sequence length (inherited from loader config)
+__l_max: ${loader.l_max}

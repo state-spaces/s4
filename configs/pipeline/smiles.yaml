@@ -1,0 +1,25 @@
+# @package _global_
+# Pipeline configuration for SMILES molecular sequence modeling
+defaults:
+  - /trainer: lm # Overrides ddp among other things
+  - /loader: lm # Custom LM iterator
+  - /dataset: smiles
+  - /optimizer: adamw
+  - /scheduler: cosine_warmup
+
+train:
+  monitor: val/loss
+  mode: min
+
+task:
+  _name_: lm
+  tie_weights: True
+  dropemb: 0.0 # Embedding dropout
+  dropsoft: 0.0 # Softmax dropout
+
+  loss: null # Defined by task already
+  metrics:
+    - ppl
+
+encoder: null # Handled by LM task
+decoder: sequence

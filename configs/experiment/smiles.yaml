@@ -1,0 +1,14 @@
+# @package _global_
+# Experiment configuration for training S4 on SMILES molecular sequences
+defaults:
+  - /pipeline: smiles
+  - /model: s4
+
+# This experiment config sets up S4 model training on SMILES data
+# The SMILES data paths are configured in configs/dataset/smiles.yaml
+#
+# To run this experiment:
+#   python -m train experiment=smiles
+#
+# To override specific parameters:
+#   python -m train experiment=smiles model.n_layers=6 loader.batch_size=32

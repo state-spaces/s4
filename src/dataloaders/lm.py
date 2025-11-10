@@ -506,6 +506,67 @@ class LM1B(WikiText2):
 
 
 
+class SMILES(WikiText2):
+    """Dataset class for SMILES molecular sequences."""
+    _name_ = "smiles"
+
+    # Vocab arguments for SMILES - keep case sensitive
+    vocab_kwargs = {"special": ["<eos>"], "lower_case": False}
+    encode_kwargs = {"ordered": True}
+
+    init_defaults = {
+        # Dataset arguments
+        'l_max': 512,
+        'bpe': False,
+        'roll_seed': 42,
+        'test_split': True,
+    }
+
+    def _vocab_count(self):
+        """Build vocabulary from SMILES training data."""
+        print(f"Building vocabulary from {self.data_dir}")
+        self.vocab.count_file(self.data_dir / "train.txt")
+
+    def setup(self, stage=None):
+        """Setup SMILES dataset with specified file paths."""
+        if self.data_dir is None:
+            self.data_dir = default_data_path / self._name_
+
+        if self.bpe:
+            self.vocab = OpenAIVocab()
+        else:
+            self.vocab = Vocab(**self.vocab_kwargs)
+
+        # Loader arguments
+        if not self._load_from_cache():
+            logging.info(f"Producing SMILES dataset from {self._name_}...")
+            self._vocab_count()
+            self.vocab.build_vocab()
+
+            # Support both custom file paths and default train.txt/valid.txt/test.txt
+            train_file = getattr(self, 'train_path', self.data_dir / "train.txt")
+            valid_file = getattr(self, 'val_path', self.data_dir / "valid.txt")
+            test_file = getattr(self, 'test_path', self.data_dir / "test.txt")
+
+            self.train = self.vocab.encode_file(
+                str(train_file), **self.encode_kwargs
+            )
+            self.valid = self.vocab.encode_file(
+                str(valid_file), **self.encode_kwargs
+            )
+            self.test = self.vocab.encode_file(
+                str(test_file), **self.encode_kwargs
+            )
+            self._save_to_cache()
+
+        # No test set if specified
+        if not self.test_split:
+            self.test = None
+
+        # Define task
+        print(f"SMILES Vocab size: {len(self.vocab)}")
+
+
 class Corpus(object):
     # AG: only used in get_lm_corpus which is only called in the unit test
     def __init__(self, path, dataset, vocab, *args, **kwargs):
