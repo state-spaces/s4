@@ -9,7 +9,7 @@ Project-specific information for each of these models, including overview of the
 can be found under [models/](models/).
 
 
-## Table of Contents
+## Table of Content
 
 Setting up the environment and porting S4 to external codebases:
 - [Setup](#setup)
